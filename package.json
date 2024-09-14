@@ -1,0 +1,32 @@
+{
+  "name": "favawrites",
+  "version": "1.0.0",
+  "description": "All ID and Classes in html must have an hyphen '-' if need be. That is, when we need to separate its completion",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "npx tailwindcss -i ./src/input.css -o ./src/output.css --watch",
+    "start": "web-dev-server --node-resolve --open --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/cli": "^7.24.8",
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.4",
+    "@babel/preset-react": "^7.24.7",
+    "@web/dev-server": "^0.4.6",
+    "autoprefixer": "^10.4.20",
+    "parcel": "^2.12.0",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7"
+  },
+  "dependencies": {
+    "axios": "^1.7.5",
+    "epub-gen": "^0.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typed.js": "^2.1.0"
+  }
+}

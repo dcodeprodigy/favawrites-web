@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/output.css" />
+    <link rel="stylesheet" href="css/users/index.css" />
+    <title>
+      Favawrites | Craft Intresting E-books from Scratch Using Generative AI
+    </title>
+  </head>
+  <body>
+    <header
+      class="flex justify-between p-4 mb-6 border-b-2 fixed w-[100%] bg-white"
+    >
+      <h2 class="font-primary font-bold text-[19px]">FavaWrites</h2>
+      <img src="users/images/quill-pen.png" alt="Quill Pen" class="w-8" />
+    </header>
+
+    <section class="p-4 bg-slate-50">
+      <h1 class="text-[39px] font-medium mt-[74px]"><span id="typed-texts"></span></h1>
+
+      <p class="text-[18px] mt-2">
+        Easily create and edit print-ready manuscripts in
+        <span class="font-medium">Record Time</span>
+      </p>
+
+      <div class="md:flex md:gap-6">
+        <!-- A division to hold both buttons for ease of styling/position adjustment -->
+        <a href="/login.html" class="w-[100%]">
+          <button
+            class="login-btn mt-[20px] bg-none border-[0.9px] border-primary-green-mint rounded-[8px] w-[100%] p-[10px] font-[600]"
+          >
+            LOGIN
+          </button>
+        </a>
+        <a href="/signup.html" class="w-[100%]">
+          <button
+            class="signup-btn mt-[16px] md:mt-[20px] bg-primary-green-mint text-white rounded-[8px] p-[10px] w-[100%] font-[600]"
+          >
+            SIGNUP
+          </button>
+        </a>
+      </div>
+    </section>
+
+    <section class="mb-[80px] p-4 flex flex-col bg-slate-50">
+      <img
+        src="users/images/home-page-illustration.svg"
+        alt="Fast and Vast Writer Illustration"
+        class="md:max-w-[75%] sm:max-w-[70%] m-auto"
+      />
+      <p class="text-[18px] text-center">
+        Have an incredible story idea? Paste it in and let our
+        <span class="font-medium">Fast and Vast Writer</span> do the magic for
+        you, from start to finish
+      </p>
+    </section>
+
+    <script src="js/users/home-typed.js" type="module"></script>
+    <noscript
+      >Please enable Javascript in your browser to use this site</noscript
+    >
+  </body>
+</html>

@@ -1,0 +1,54 @@
+:disabled {
+  background-color: rgb(218, 218, 218);
+  color: rgb(49, 49, 49);
+}
+:disabled:hover {
+  background-color: rgb(218, 218, 218);
+  color: rgb(49, 49, 49);
+}
+::placeholder {
+  color: rgb(75 85 99);
+}
+
+.book-style-label {
+  /* This controls the button like radio buttons seen*/
+  display: inline-block;
+  text-align: center;
+  border: 0.8px solid rgba(48, 48, 48, 0.226);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 28px;
+
+  transition: background 500ms ease, background-color 500ms ease,
+    color 500ms ease, box-shadow 500ms ease !important
+    ;
+}
+
+.book-style-input[type="radio"]:checked + label,
+.Checked + label {
+  background-color: rgb(30 41 59);
+  color: #fff;
+}
+
+.book-style-input {
+  display: none;
+}
+
+.input-fields {
+  border: 1px solid rgb(211, 211, 211);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  outline: none;
+  text-overflow: ellipsis;
+
+  transition: outline 50ms;
+}
+
+.input-fields:focus {
+  outline: 2px solid rgb(30 41 59);
+}
+
+.saveAndSubmitBtn {
+  transition: background-color 500ms;
+}

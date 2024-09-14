@@ -1,0 +1,51 @@
+# Compiled output directories
+/bin/
+/obj/
+/Debug/
+/Release/
+
+# Package management files
+/packages/
+/node_modules/
+/bower_components/
+/vendor/
+
+# IDE-specific files
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.xcuserdata/
+*.idea/
+.DS_Store
+
+# Build system artifacts
+*.o
+*.so
+*.lo
+*.la
+*.a
+*.dll
+*.exe
+*.out
+*.app
+
+# Operating system files
+.Trash-*
+Thumbs.db
+
+# Temporary files
+*.tmp
+*~
+*.swp
+*.bak
+*.log
+
+# Personal IDE settings
+.vscode/
+.settings/
+
+
+credentials.json
+config.php
+.env
