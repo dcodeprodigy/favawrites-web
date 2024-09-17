@@ -5,3 +5,9 @@
     font-family: "Work Sans", sans-serif;
     font-optical-sizing: auto;
 }
+
+
+.type-color {
+     /*Styles the texts in span when typed */
+    color: rgb(50 205 50);
+}

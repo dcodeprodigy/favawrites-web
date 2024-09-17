@@ -4,16 +4,16 @@ function beginTypedJS() {
   setTimeout(() => {
     let typedH1 = new Typed("#typed-texts", {
       strings: [
-        "Craft your <span class='text-primary-green-mint'>masterpiece</span> with AI.",
-        "Generate chapters, outlines, and more with Fava<span class='text-primary-green-mint'>writes.</span>",
-        "Edit, refine, and perfect your e-book with <span class='text-primary-green-mint'>AI assistance.</span>",
-        "<span class='text-primary-green-mint'>AI-powered research</span> for e-books that stand out.",
-        "Top-notch type-setting for <span class='text-primary-green-mint'>interiors that stand out</span>"
+        "Craft your <span class='type-color text-primary-green-mint'>masterpiece</span> with AI.",
+        "Generate chapters, outlines, and more with Fava<span class='type-color text-primary-green-mint'>writes.</span>",
+        "Edit, refine, and perfect your e-book with <span class='type-color text-primary-green-mint'>AI assistance.</span>",
+        "<span class=' type-color text-primary-green-mint'>AI-powered research</span> for e-books that stand out.",
+        "Top-notch type-setting for <span class='type-color text-primary-green-mint'>interiors that sells.</span>"
       ],
       typeSpeed: 80,
       backSpeed: 40,
       backDelay: 1500,
-      loop: true,
+      loop: false,
     });
   }, 500);
 }

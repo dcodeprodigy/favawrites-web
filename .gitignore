@@ -47,6 +47,6 @@ Thumbs.db
 
 
 credentials.json
-config.php
 .env
-.package-lock.json
+/package-lock.json
+__MACOSX
