@@ -50,3 +50,4 @@ credentials.json
 .env
 /package-lock.json
 __MACOSX
+signin-assets
