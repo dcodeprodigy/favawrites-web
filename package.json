@@ -2,7 +2,7 @@
   "name": "favawrites",
   "version": "1.0.0",
   "description": "All ID and Classes in html must have an hyphen '-' if need be. That is, when we need to separate its completion",
-  "main": "index.js",
+  "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:css": "npx tailwindcss -i ./src/input.css -o ./src/output.css --watch",

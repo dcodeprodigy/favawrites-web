@@ -11,3 +11,7 @@
      /*Styles the texts in span when typed */
     color: rgb(50 205 50);
 }
+
+.welcomeTxt{
+    font-size: clamp(23.3px, 3vw, 35px);
+}
