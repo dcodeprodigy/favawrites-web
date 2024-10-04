@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/src/output.css" />
+    <link rel="stylesheet" href="css/users/dashboard.css">
+    <link rel="stylesheet" href="css/users/index.css" />
+    <title>Create a Book - Favawrites</title>
+</head>
+
+<body class="bg-[#030303]">
+    <header class="bg-primary-green-mint p-4 flex justify-between items-center" id="dashboard-header">
+        <!-- <img src="" alt="Favawrites Logo"> -->
+        <h2 class="welcomeTxt font-bold text-white">FavaWrites</h2>
+        <nav class="text-white flex justify-between gap-6 font-medium">
+            <a href="#" class="hover:underline hover:text-slate-100">Dashboard</a>
+            <a href="#" class="hover:underline hover:text-slate-100">Settings</a>
+            <a href="/login.html" class="hover:underline hover:text-slate-100">Logout</a>
+        </nav>
+    </header>
+    <main class="p-6">
+        <section class="mt-6 mb-8 flex flex-col justify-center items-center" id="create-btn-container">
+            <h2 class=" mb-4">Create New Book</h2>
+            <div class="flex ">
+                <button class="py-3 px-6 bg-primary-green-mint rounded-lg mr-2 hover:bg-primary-green-600" id="create-scratch">Write from Scratch</button>
+                <button class="py-3 px-6 bg-primary-green-mint rounded-lg hover:bg-primary-green-600" id="create-with-ai">Create with AI</button>
+
+            </div>
+        </section>
+
+            
+
+        <!-- for the drafts section -->
+        <section class="">
+            <h2 class="my-8">Your Draft Books</h2>
+            <div class="flex flex-1 flex-col md:flex-row gap-4 items-stretch" id="draftsContainer">
+
+                <div class="draftCard">
+                    <img src="https://via.placeholder.com/150" alt="book cover" class="rounded-lg rounded-b-none max-w-[none] min-w-[100%]">
+                    <div class="w-[100%] p-[16px] flex flex-col">
+                        <h3 class="m-3">Journey of the Stars</h3>
+                        <p role="doc-subtitle" class="text-center">A walk with the supreme</p>
+    
+                        <button class="py-3 px-6 mt-4 bg-none rounded-lg border hover:bg-primary-green-600" type="button">Manage</button>
+
+                    </div>
+                </div>
+
+                <div class="draftCard">
+                    <img src="https://via.placeholder.com/150" alt="book cover" class="rounded-lg rounded-b-none max-w-[none] min-w-[100%]">
+                    <div class="w-[100%] p-[16px] flex flex-col">
+                        <h3 class="m-3">The Silent Meadow</h3>
+                        <p role="doc-subtitle" class="text-center">Where Whispers Fade but Memories Linger</p>
+    
+                        <button class="py-3 px-6 mt-4 bg-none rounded-lg border hover:bg-primary-green-600" type="button">Manage</button>
+                    </div>
+                </div>
+                
+                <div class="draftCard">
+                    <img src="https://via.placeholder.com/150" alt="book cover" class="rounded-lg rounded-b-none max-w-[none] min-w-[100%]">
+                    <div class="w-[100%] p-[16px] flex flex-col">
+                        <h3 class="m-3" >Echoes of Eternity</h3>
+                        <p role="doc-subtitle" class="text-center">A Journey Through Time and Immortality</p>
+    
+                        <button class="py-3 px-6 mt-4 bg-none rounded-lg border hover:bg-primary-green-600" type="button">Manage</button>
+                    </div>
+                </div>
+            </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="bg-primary-green-mint py-4 mt-6">
+        <p class="text-center">&copy; 2024 FavaWrites. All rights reserved</p>
+    </footer>
+
+    <script src="js/users/dashboard.js"></script>
+</body>
+
+</html>

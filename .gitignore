@@ -48,6 +48,5 @@ Thumbs.db
 
 credentials.json
 .env
-/package-lock.json
 __MACOSX
-signin-assets
+/signin-assets

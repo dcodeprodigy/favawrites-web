@@ -1,0 +1,56 @@
+:root {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto", sans-serif;
+  font-optical-sizing: auto;
+  color: #fff;
+  font-size: 14px;
+}
+
+h2 {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+h3 {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+button {
+  transition: background-color 500ms ease-in, border 500ms ease-in;
+}
+
+.draftCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #1a1a1a;
+  /* padding: 16px; */
+  white-space: wrap;
+  border-radius: 8px;
+  height: 100%;
+}
+
+@media (max-width: 400px) {
+  nav a {
+    display: none;
+  }
+}
+
+
+#create-form label {
+  font-weight: bold;
+}
+input,
+select,
+textarea {
+  background-color: #333;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  width: 100%;
+  color: #fff;
+  padding: 0.75rem;
+}

@@ -2,8 +2,12 @@
 module.exports = {
   content: [
     "./index.html",
+    // "./login.html",
+    // "./dashboard.html",
+    // "./signup.html",
+    "./**/*.js",
     "./**/*.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,jsx}",
   ],
   theme: {
     extend: {
