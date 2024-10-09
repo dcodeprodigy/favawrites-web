@@ -963,22 +963,6 @@ video {
   height: 100vh;
 }
 
-.h-5 {
-  height: 1.25rem;
-}
-
-.h-\[60\%\] {
-  height: 60%;
-}
-
-.h-\[\] {
-  height: ;
-}
-
-.h-\[250px\] {
-  height: 250px;
-}
-
 .w-8 {
   width: 2rem;
 }
@@ -2103,10 +2087,6 @@ video {
           box-decoration-break: clone;
 }
 
-.bg-cover {
-  background-size: cover;
-}
-
 .bg-fixed {
   background-attachment: fixed;
 }
@@ -3000,10 +2980,6 @@ video {
 @media (min-width: 400px) {
   .sm\:max-w-\[70\%\] {
     max-width: 70%;
-  }
-
-  .sm\:flex-row {
-    flex-direction: row;
   }
 
   .sm\:justify-center {
