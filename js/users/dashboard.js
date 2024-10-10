@@ -8,7 +8,7 @@ const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
             <h3>Create Your Book with AI</h3>
             <label for="title" >Book Title</label>
-            <input type="text" placeholder="Enter your book's title" name="title" value="The Pumpkin Patch Mystery">
+            <input type="text" placeholder="Enter your book's title" name="title" value="The Clockwork Heart">
 
             <label for="subtitle" >Book Subtitle</label>
             <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="" >
@@ -18,7 +18,14 @@ const htmlComponents = {
                 <input type="text" placeholder="Enter author or pen name" name="author">
     
                 <label for="genre">Book Genre</label>
-                <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Children's Mystery/Adventure">
+                <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Steampunk">
+
+                <label for="audience">Book Audience</label>
+                <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Young Adult, Adult">
+
+                <label for="category">Book Category</label>
+                <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)" >Mystery, Adventure</textarea>
+
                 <label for="bookTone">Book Tone</label>
                 <select name="bookTone" id="bookTone" class="max-w-[100%]">
                 <option value="entertaining">Entertaining</option>
@@ -33,14 +40,13 @@ const htmlComponents = {
                     <option value="sarcastic">Sarcastic</option>
                     <option value="whimsical">Whimsical (Light, fanciful, and imaginative, often with a magical or quirky vibe)</option>
                     <option value="nostalgic">Nostalgic</option>
-                    <option value="suspenseful">Suspenseful</option>
+                    <option value="suspenseful and intriguing" selected>Suspenseful and Intriguing</option>
                     <option value="romantic">Romantic</option>
                     <option value="cautionary">Cautionary - warning and instructive, often delivering a moral lesson or guiding behaviour</option>
                 </select>
     
                 <label for="description">Book Description/Fine Tuning</label>
-                <textarea name="description" id="book-description" cols="30" rows="8">In a small town surrounded by whispering woods, something strange is happening in the pumpkin patch. Every night, a new pumpkin vanishes without a trace! Follow a curious group of children who decide to uncover the mystery before Halloween night arrives. The story should be fun yet slightly eerie, with lovable characters, whimsical adventures, and a lighthearted tone. Each chapter should reveal clues that build suspense but never become too scary for young readers. You, the AI must emphasize teamwork, problem-solving, and the magic of friendship, while also leaving room for humorous, unexpected twists. 
-                The tone of The Pumpkin Patch Mystery should be lighthearted, playful, and mildly suspenseful, with a sprinkle of whimsy and warmth. The language should be accessible and engaging for young readers, balancing curiosity with a sense of safety. There can be moments of gentle tension to keep the mystery engaging, but always with a reassuring, adventurous spirit. The focus should remain on fun, teamwork, and imagination, ensuring an enjoyable, heartwarming read for children.
+                <textarea name="description" id="book-description" cols="30" rows="8">In a world powered by intricate clockwork mechanisms, a young inventor named Amelia discovers a hidden power source that could revolutionize their society. However, this newfound energy also attracts the attention of powerful and unscrupulous individuals who seek to control it for their own nefarious purposes. Amelia must choose between sharing her discovery and risking its misuse, or protecting her creation and potentially hindering progress. As she navigates the complexities of her world's political landscape, she uncovers a conspiracy that threatens not only her invention but also the delicate balance of power within her society. The deeper she digs, the more dangerous the secrets become, leading her to question who she can truly trust.
 </textarea>
             </div>
             <button id="nextStep" class="py-3 px-6 bg-primary-green-mint rounded-lg mt-4 hover:bg-primary-green-600" type="submit">Next</button>
@@ -130,10 +136,11 @@ async function postFormData(userInputData) {
         console.log(`This is what is beign posted to our server`, userInputData);
         const serverRes = await axios.post("/generate_book", userInputData, {
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/x-www-form-urlencoded',
             }
-          });
+        });
         console.log(serverRes);
+        localStorage.setItem("book data", serverRes)
     } catch (err) {
         console.log(err);
     }
