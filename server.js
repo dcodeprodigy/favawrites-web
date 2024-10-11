@@ -61,21 +61,41 @@ Note: Ensure that there’s no language in your book title that implies your boo
 Subtitle
 If your book has a subtitle, enter it here. A subtitle is a subordinate title that contains additional information about the content of your book. Your title and subtitle together must be fewer than 200 characters. The subtitle will appear on your book's detail page, and must adhere to the same guidelines as your title.
 `,
-current_chapter : 1,
+  current_chapter: 1,
+  plot: {  }
+}
+
+const schema = {
+  toc: `{
+
+    "title": "The Title of the book I told you, exactly as i did",
+
+    "subtitle" : "Generate a suitable subtitle to the title and place it here.",
+
+    "toc" : [
+
+        {"ch-1": "the title of the first chapter", "sch-1": ["1.1 subchapter 1 title", "1.2 subchapter 2 title", "1.3 subchapter 3 title", "1.4 subchapter 4 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "},
+
+        {"ch-2": "the title of the second chapter", "sch-2": ["2.1 subchapter 1 title", "2.2 subchapter 2 title", "2.3 subchapter 3 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "}
+    ],
+
+    "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must ne just '9'"
+
+}`,
+  plot: `{
+          "chapter-1" : {
+		"1.1 A World of Cogs and Steam": "Introduce the city of Atmos, a bustling metropolis powered by intricate clockwork mechanisms. Describe the daily life of its citizens, where gears and steam dictate the rhythm of existence. Introduce Amelia, a young, brilliant inventor living in her father's shadow. She's fascinated by the city's mechanics but feels stifled by her predetermined path in her father's workshop.",
+
+        "1.2 The Watchmaker's Daughter": "Amelia's life revolves around her father's workshop, filled with gears, springs, and half-assembled automata. Her father, a renowned clockmaker, represents tradition and precision. Highlight their contrasting views on invention and progress, showcasing Amelia's desire to push boundaries beyond mere clockwork.",
+		  }
+    }`
 }
 
 const finalReturnData = {};
 
 app.post("/generate_book", async (req, res) => {
   const userInputData = req.body;
-  // const userInputData = {
-  //     title: "The Pumpkin Patch Mystery",
-  //     description: `In a small town surrounded by whispering woods, something strange is happening in the pumpkin patch. Every night, a new pumpkin vanishes without a trace! Follow a curious group of children who decide to uncover the mystery before Halloween night arrives. The story should be fun yet slightly eerie, with lovable characters, whimsical adventures, and a lighthearted tone. Each chapter should reveal clues that build suspense but never become too scary for young readers. You, the AI must emphasize teamwork, problem-solving, and the magic of friendship, while also leaving room for humorous, unexpected twists. 
-  //     The tone of The Pumpkin Patch Mystery should be lighthearted, playful, and mildly suspenseful, with a sprinkle of whimsy and warmth. The language should be accessible and engaging for young readers, balancing curiosity with a sense of safety. There can be moments of gentle tension to keep the mystery engaging, but always with a reassuring, adventurous spirit. The focus should remain on fun, teamwork, and imagination, ensuring an enjoyable, heartwarming read for children.`,
-  //     bookTone: "Entertaining",
-  //     genre: "Children's Mystery/Adventure",
 
-  // }
   console.log("This is the user input data from req.body: \n\n" + userInputData);
   const systemInstruction = `You are a professional human book writer. Please, read and sound human. Avoid any pattern that suggests you are an AI. Your tone must be ${userInputData.bookTone}. The genre of this book is ${userInputData.genre} and the audience is ${userInputData.audience}.
     THIS IS VERY IMPORTANT - The number of each subchapter under each chapter must not be 3. They must range from 4 and above. No two chapters must have the same number of subchapters.
@@ -125,51 +145,74 @@ The output should be a coherent, engaging narrative structured into chapters, wi
   const tocRes = await chatSession.sendMessage(tocPrompt);
   console.log("This is the model response as text: \n\n" + tocRes.response.text());
 
-  finalReturnData["firstReq"] = parseJson(tocRes.response.text());; // Push to final object as an object not a json string
-  console.log(typeof(finalReturnData.firstReq));
+  finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
+  console.log(typeof (finalReturnData.firstReq));
   // Next, begin creating for each chapter
   let chapterPlot = await generatePlot(chatSession);
   finalReturnData["chapter1Plot"] = chapterPlot;
-  console.log(chapterPlot);
+  console.log("This is the chapterPlot on line 153: "+ chapterPlot);
   res.send(finalReturnData)
 
   async function generatePlot(chatSession) {
-    const plotPrompt = `Now, let us begin with a plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}.`
-    console.log(plotPrompt);
-    const chapterPlot = await chatSession.sendMessage(plotPrompt);
-    return parseJson(chapterPlot)
+
+    const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
+    // console.log(tableOfContents, typeof(tableOfContents));
+
+    for (let i = 0; i < finalReturnData.firstReq.chapters; i++){
+      if (data.current_chapter === 1 && tableOfContents[data.current_chapter - 1]["sch-no"] !==0){
+        // This chapter1Plot shall return an object promise. This contains all the plot generated for chapter 1 for now
+        const chapter1Plot = await tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`].map(subchapter => {
+          // Generate the plot for each subchapter
+          try {
+            const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. Return your response in this schema:
+          
+          ["This is the written plot for subchapter X. No titles, just move with the subchapter plot..."]
+          `
+// Omo i am here guy. fuckkkkk
+          const secondReqResponse = chatSession.sendMessage(plotPrompt);
+          console.log("waiting for the timeout on plot generation");
+          new Promise(resolve => setTimeout(resolve, 2000)); // Delay for 2 seconds before making another request to gemini. This prevents the too many request statusText, hopefully.
+          // return parseJson(secondReqResponse);
+          
+          } catch (error) {
+            console.error("This error occurred for some reason when generating plot: " + error);
+            return error;
+          }
+          
+
+        });
+
+        console.log(`the type of the chapter1Plot function is ${typeof(chapter1Plot)}`);
+        console.log(`the map returned variable is: \n\n ${chapter1Plot}`);
+
+        finalReturnData["plot"] = `chapter${data.current_chapter}` // Theres no need for an if statement to check if data.current_chapter is one in order to set the object property of "plot" since we are in that kind of if statement right now
+        console.log(`The type of "finalReturnData["plot"][chapter1]" is: ${typeof(finalReturnData.plot[`chapter${data.current_chapter}`])}`);
+
+        finalReturnData["plot"][`chapter${data.current_chapter}`] = chapter1Plot;
+        console.log("These are the plot: "+ finalReturnData["plot"]["chapter" + data.current_chapter]);
+        data.current_chapter++;
+
+      } else {
+        // Do for next chapters
+        console.log("What the hell, did i run? I think it is time to move to the next chapter plots boy!")
+      }
+
+    }
+    // return parseJson(chapterPlot)
     // instead of returning at this Point, run a loop to generate the plot for each chapterPlot. Helps avoid confusion
 
   }
 });
 
 function getTocPrompt(inputData) {
-  const tocSchema = `{
-
-    "title": "The Title of the book I told you, exactly as i did",
-
-    "subtitle" : "Generate a suitable subtitle to the title and place it here.",
-
-    "toc" : [
-
-        {"ch-1": "the title of the first chapter", "sch-1": ["1.1 subchapter 1 title", "1.2 subchapter 2 title", "1.3 subchapter 3 title", "1.4 subchapter 4 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "},
-
-        {"ch-2": "the title of the second chapter", "sch-2": ["2.1 subchapter 1 title", "2.2 subchapter 2 title", "2.3 subchapter 3 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "}
-    ],
-
-    "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must ne just '9'"
-
-}
-
-`
   console.log(inputData);
   return `Generate a comprehensive table of contents for a book titled ${inputData.title}. In your response, include a suitable catchy subtitle that will cause anyone who sees this in an amazon kdp book listing to want to click on it. Make sure the subtitle follows the amazon kdp rules for subtitles as specified here ${data.kdp_titles_subtitle_rules}.
     
-    Return your response in this schema: ${tocSchema}`
+    Return your response in this schema: ${schema.toc}`
 }
 
-function parseJson(param){
-  return JSON.parse(param);
+function parseJson(param) {
+  return JSON.parse(param.response.text());
 }
 
 
