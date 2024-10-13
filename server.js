@@ -81,7 +81,20 @@ const schema = {
     "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must ne just '9'"
 
 }`,
-  plot: '"{\\"1.1 The sub chapter title\\":\\"The subchapter plot\\"}"' // escaped JSON
+  plot: '"{\\"1.1 The sub chapter title\\":\\"The subchapter plot\\"}"', // escaped JSON
+  myOSchema: {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "1.1 The sub chapter title": {
+        "type": "string",
+        "description": "The title of the subchapter."
+      }
+    },
+    "required": ["1.1 The sub chapter title"],
+    "additionalProperties": false
+  }
+  
 }
 
 // data.plot = new Object()
@@ -89,66 +102,77 @@ const schema = {
 const finalReturnData = {};
 
 app.post("/generate_book", async (req, res) => {
-  const userInputData = req.body;
-
-  console.log("This is the user input data from req.body: \n\n" + userInputData);
-  const systemInstruction = `You are a professional human book writer. Please, read and sound human. Avoid any pattern that suggests you are an AI. Your tone must be ${userInputData.bookTone}. The genre of this book is ${userInputData.genre} and the audience is ${userInputData.audience}.
-    THIS IS VERY IMPORTANT - The number of each subchapter under each chapter must not be 3. They must range from 4 and above. No two chapters must have the same number of subchapters.
-    See added instructions for this book below. Follow it: 
+  try {
+    const userInputData = req.body;
+    const systemInstruction = `You are a professional human book writer. Please, read and sound human. Avoid any pattern that suggests you are an AI. Your tone must be ${userInputData.bookTone}. The genre of this book is ${userInputData.genre} and the audience is ${userInputData.audience}.
+  THIS IS VERY IMPORTANT - The number of each subchapter under each chapter must not be 3. They must range from 4 and above. No two chapters must have the same number of subchapters.
+  See added instructions for this book below. Follow it: 
     
-    ${userInputData.description}
+  ${userInputData.description}
     
-    Also, you must follow this behaviour when writing:
-    As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on narrative techniques, creativity, and depth to ensure the text is not detectable by AI detectors.
+  Also, you must follow this behaviour when writing:
+  As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on narrative techniques, creativity, and depth to ensure the text is not detectable by AI detectors.
 
-# Steps
+  # Steps
 
-1. Understand the Genre and Audience: The genre and target audience for the book has already been written above to you. Understand them and tailor your writing style, vocabulary, and themes appropriately.
-2. Plot Development: On request, develop a detailed plot outline for each chapter at a time, ensuring it has a captivating beginning, engaging middle, and satisfying conclusion.
-3. Character Creation: On request, create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression.
-4. Narrative Voice and Style: Choose a consistent narrative voice and style that feels authentically human, with attention to natural language patterns and expressions.
-5. Writing: Compose the text, focusing on authenticity, creativity, and richness of language to enhance human-like qualities.
-6. Edit and Refine: Revise for consistency, coherence, and stylistic polish, ensuring the text flows naturally and showcases human-like creativity.
+  1. Understand the Genre and Audience: The genre and target audience for the book has already been written above to you. Understand them and tailor your writing style, vocabulary, and themes appropriately.
+  2. Plot Development: On request, develop a detailed plot outline for each chapter at a time, ensuring it has a captivating beginning, engaging middle, and satisfying conclusion.
+  3. Character Creation: On request, create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression.
+  4. Narrative Voice and Style: Choose a consistent narrative voice and style that feels authentically human, with attention to natural language patterns and expressions.
+  5. Writing: Compose the text, focusing on authenticity, creativity, and richness of language to enhance human-like qualities.
+  6. Edit and Refine: Revise for consistency, coherence, and stylistic polish, ensuring the text flows naturally and showcases human-like creativity.
 
-# Output Format
+  # Output Format
 
-The output should be a coherent, engaging narrative structured into chapters, with each chapter formatted using standard novel conventions. The text should be proofread for grammar, punctuation, and style to maintain professionalism and readability.
+  The output should be a coherent, engaging narrative structured into chapters, with each chapter formatted using standard novel conventions. The text should be proofread for grammar, punctuation, and style to maintain professionalism and readability.
 
-# Examples
+  # Examples
 
-* [Example 1 Start]*: If writing a mystery novel, create an intriguing hook in the first chapter, such as a mysterious incident or a puzzle. These chapters must be detailed and long, just live a conventional novel chapter.
-* [Example 1 Additional Detail]*: Develop clues and red herrings throughout the chapters, leading to a surprising yet satisfying resolution.
-* [Continuation of Example 1]*: Ensure character interactions and dialogue are nuanced and reflective of real human experiences, contributing to the mystery's unfolding.
-* [Example 1 End]*
+  * [Example 1 Start]*: If writing a mystery novel, create an intriguing hook in the first chapter, such as a mysterious incident or a puzzle. These chapters must be detailed and long, just live a conventional novel chapter.
+  * [Example 1 Additional Detail]*: Develop clues and red herrings throughout the chapters, leading to a surprising yet satisfying resolution.
+  * [Continuation of Example 1]*: Ensure character interactions and dialogue are nuanced and reflective of real human experiences, contributing to the mystery's unfolding.
+  * [Example 1 End]*
 
-(Each book example should be a comprehensive and unique storyline, marked by creativity, and should reflect the length and complexity of a real novel.)
+  (Each book example should be a comprehensive and unique storyline, marked by creativity, and should reflect the length and complexity of a real novel.)
 
-# Notes
+  # Notes
 
-- Pay close attention to emotional depth and narrative consistency.
-- Incorporate cultural, historical, or social references reflective of the human condition.
-- Avoid patterns or clichés typical of AI-generated content.
+  - Pay close attention to emotional depth and narrative consistency.
+  - Incorporate cultural, historical, or social references reflective of the human condition.
+  - Avoid patterns or clichés typical of AI-generated content.
     `;
 
-  // console.log(`This is the systemInstructions: ${systemInstruction}`)
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
+    const chatSession = model.startChat({ generationConfig, safetySettings });
+    const tocPrompt = getTocPrompt(userInputData);
+    const tocRes = await chatSession.sendMessage(tocPrompt);
+    finalReturnData.tocRes = tocRes;
+    console.log("This is the model response as an object: \n" + parseJson(tocRes));
+
+    finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
+
+    // Next, begin creating for each chapter's plot
+    await generatePlot(chatSession);
+    res.send(finalReturnData);
 
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
-  const chatSession = model.startChat({ generationConfig, safetySettings });
-  const tocPrompt = getTocPrompt(userInputData);
-  const tocRes = await chatSession.sendMessage(tocPrompt);
-  finalReturnData.tocRes = tocRes;
-  console.log("This is the model response as an object: \n" + parseJson(tocRes));
+    // Next, using the plots to guide the ai to generate chapters
 
-  finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
+    
+  } catch (error) {
+  
+    if(!data.postErr){
+      data.postErr = []
+    }
+    data.postErr.push(error);
+    console.log(data.postErr)
+    res.status(500).send(data.postErr);
+  } 
 
-  // Next, begin creating for each chapter's plot
-  let chapterPlot = await generatePlot(chatSession);
-  finalReturnData["chapterPlot"] = chapterPlot;
-  console.log("This is the chapterPlot on line 153: " + chapterPlot);
-  res.send(finalReturnData);
-
+  // finally{
+  //   res.send([finalReturnData, data.postErr]);
+  // }
 
 });
 
@@ -167,71 +191,24 @@ function parseJson(param) {
 async function generatePlot(chatSession) {
 
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
+  const generationConfig = {
+    temperature: 1.5,
+    topP: 0.95,
+    topK: 40,
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+    responseSchema: schema.myOSchema
+  };
 
   for (let i = 0; i < finalReturnData.firstReq.chapters; i++) { // Keep running, as long as the chapters go
     if (data.current_chapter === 1 && tableOfContents[data.current_chapter - 1]["sch-no"] !== 0 /* The number of subchapers is not equal to zero */) {
       // This chapter1Plot shall return an object promise. This contains all the plot generated for chapter 1 for now
 
-      continuePlotGeneration(tableOfContents, chatSession);
-
-      const subChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`]; // Gets the subchapter array according to our current schema
-
-      const chapter1Plot = await Promise.all(subChapterArr.map(async (subchapter) => {
-        // Generate the plot for each subchapter
-        try {
-          const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot should guide the writer on the flow of the story when writing. These plots should also build on each other. Return your response as json in this schema:
-        
-          ${schema.plot}
-          Do not give any new line in your output please.`
-          // Lastly, your returned JSON must be escaped.
-
-          const secondReqResponse = chatSession.sendMessage(plotPrompt);
-          console.log(`The chatSession thing has a type of : ${typeof (secondReqResponse)}`);
-          console.log(`The chatSession thing value is : ${secondReqResponse}`);
-
-          console.log("waiting for the timeout on plot generation");
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Delay for 2 seconds before making another request to gemini. This prevents the too many request statusText, hopefully.
-
-          return secondReqResponse;
-
-        } catch (error) {
-          console.error("This error occurred for some reason when generating plot: " + error);
-          return error;
-        }
-
-
-      }));
-
-      console.log(`the type of the chapter1Plot function is ${typeof (chapter1Plot)}. I was expecting an arr because of the Promise.all`);
-      console.log(`the Promise.all returned variable is: \n ${chapter1Plot}`);
-
-
-      data.plots = { // This one no be him. It will be replaced when testing is done and and no longer want to send the plots to the frontend.
-        [`chapter-${data.current_chapter}`]: chapter1Plot
-      }
-      // Next step will be to get the individual arrays in this chapter plot by looping through them and saving those in the finalReturnData.plots instead. This should help reduce the amount of useless data being sent to the frontend.
-
-      for (let i = 0; i < data.plots[`chapter-${data.current_chapter}`].length; i++) {
-        console.log(`This is for plot ${i + 1}` + data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text);
-
-        const plotObject = JSON.parse(JSON.parse(escapeJsonString(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim()))); // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
-
-        console.log(`This is the plotObject: ${plotObject}`);
-
-        if (i === 0){ // Doing this to create the object we need
-          finalReturnData.plots = { [`chapter-${data.current_chapter}`]: {} };
-        }
-
-        finalReturnData.plots[`chapter-${data.current_chapter}`][subChapterArr[i]] = plotObject[subChapterArr[i]]; // Add to the plot object
-
-      }
-
+      await continuePlotGeneration(tableOfContents, chatSession, generationConfig);
       data.current_chapter++;
-
     } else {
       // Do for next chapters
-
-      console.log("What the hell, did i run? I think it is time to move to the next chapter plots boy!");
+      await continuePlotGeneration(tableOfContents, chatSession, generationConfig);
       data.current_chapter++;
     }
 
@@ -241,8 +218,66 @@ async function generatePlot(chatSession) {
 
 }
 
-function continuePlotGeneration(tableOfContents, chatSession) {
+
+async function continuePlotGeneration(tableOfContents, chatSession) {
+  const subChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`]; // Gets the subchapter array according to our current schema
+  console.log(`The type of subChapterArr is ${typeof(subChapterArr)}`)
+  const chapter1Plot = await Promise.all(subChapterArr.map(subchapter => {
+    // Generate the plot for each subchapter
+      try {
+        const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot should guide the writer on the flow of the story when writing. These plots should also build on each other. Return your response as json in this schema:
+          
+            ${schema.plot}
+            - ALWAYS RETURN VALID JSON
+            - Do not give any new line in your Json output please.`
+        // Lastly, your returned JSON must be escaped.
   
+        const secondReqResponse = chatSession.sendMessage(plotPrompt, {generationConfig});
+        console.log(`The chatSession thing has a type of : ${typeof (secondReqResponse)}`);
+        console.log(`The chatSession thing value is : ${secondReqResponse}`);
+  
+        console.log("waiting for the timeout on plot generation");
+        delay(4000);
+        return secondReqResponse;
+  
+
+      } catch (error) {
+        console.error("This error occurred for some reason when generating plot: " + error);
+        return error;
+      }
+
+
+  }));
+
+  console.log(`the type of the chapter1Plot function is ${typeof (chapter1Plot)}. I was expecting an arr because of the Promise.all`);
+  console.log(`the Promise.all returned variable is: \n ${chapter1Plot}`);
+
+
+  data.plots = { // This one no be him. It will be replaced when testing is done and and no longer want to send the plots to the frontend.
+    [`chapter-${data.current_chapter}`]: chapter1Plot
+  }
+  // Next step will be to get the individual arrays in this chapter plot by looping through them and saving those in the finalReturnData.plots instead. This should help reduce the amount of useless data being sent to the frontend.
+
+  for (let i = 0; i < data.plots[`chapter-${data.current_chapter}`].length; i++) {
+    console.log(`This is for plot ${i + 1}` + data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text);
+
+    const plotObject = JSON.parse(JSON.parse(escapeJsonString(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim()))); // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
+
+    console.log(`This is the plotObject: ${plotObject}`);
+
+    if (i === 0) { // Doing this to create the object we need
+      // finalReturnData.plots = { [`chapter-${data.current_chapter}`]: {} };
+
+      finalReturnData.plots = { [`chapter-${data.current_chapter}`]: {[subChapterArr[i]]: plotObject[subChapterArr[i]]} };
+    } else {
+      finalReturnData.plots[`chapter-${data.current_chapter}`] = { [subChapterArr[i]]: plotObject[subChapterArr[i]]};
+      
+    }
+    
+
+    // finalReturnData.plots[`chapter-${data.current_chapter}`][subChapterArr[i]] = plotObject[subChapterArr[i]]; // Add to the plot object
+
+  }
 }
 
 function escapeJsonString(jsonStr) {
@@ -255,11 +290,14 @@ function escapeJsonString(jsonStr) {
     .replace(/\\t/g, "\\t")
     .replace(/\\b/g, "\\b")
     .replace(/\\f/g, "\\f");
-    console.log("I am the escaped string:")
-    console.log(escapedJSONString)
+  console.log("I am the escaped string:")
+  console.log(escapedJSONString)
   return escapedJSONString
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const PORT = process.env.PORT
 const HOST = "127.0.0.1"
