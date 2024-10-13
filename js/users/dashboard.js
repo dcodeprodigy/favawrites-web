@@ -132,16 +132,23 @@ function getFormData(userForm) {
 }
 
 async function postFormData(userInputData) {
-    try {
-        console.log(`This is what is beign posted to our server`, userInputData);
-        const serverRes = await axios.post("/generate_book", userInputData, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            }
-        });
-        console.log(serverRes);
-        localStorage.setItem("book data", serverRes)
-    } catch (err) {
-        console.log(err);
+    let errors = 0;
+    loopAxiosOnErr();
+    async function loopAxiosOnErr () {
+        try {
+            console.log(`This is what is beign posted to our server`, userInputData);
+            const serverRes = await axios.post("/generate_book", userInputData, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            });
+            console.log(serverRes);
+            localStorage.setItem("book data", serverRes)
+        } catch (err) {
+            errors++
+            console.log(`An error occurred. Haag tight while we retry : ${err}`);
+            errors < 3 ? loopAxiosOnErr() : console.log(`Oops, posting of form data failed! : ${err}`);
+        }
+
     }
 }

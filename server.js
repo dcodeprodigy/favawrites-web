@@ -61,8 +61,7 @@ Note: Ensure that there’s no language in your book title that implies your boo
 Subtitle
 If your book has a subtitle, enter it here. A subtitle is a subordinate title that contains additional information about the content of your book. Your title and subtitle together must be fewer than 200 characters. The subtitle will appear on your book's detail page, and must adhere to the same guidelines as your title.
 `,
-  current_chapter: 1,
-  plot: {  }
+  current_chapter: 1
 }
 
 const schema = {
@@ -82,14 +81,10 @@ const schema = {
     "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must ne just '9'"
 
 }`,
-  plot: `{
-          "chapter-1" : {
-		"1.1 A World of Cogs and Steam": "Introduce the city of Atmos, a bustling metropolis powered by intricate clockwork mechanisms. Describe the daily life of its citizens, where gears and steam dictate the rhythm of existence. Introduce Amelia, a young, brilliant inventor living in her father's shadow. She's fascinated by the city's mechanics but feels stifled by her predetermined path in her father's workshop.",
-
-        "1.2 The Watchmaker's Daughter": "Amelia's life revolves around her father's workshop, filled with gears, springs, and half-assembled automata. Her father, a renowned clockmaker, represents tradition and precision. Highlight their contrasting views on invention and progress, showcasing Amelia's desire to push boundaries beyond mere clockwork.",
-		  }
-    }`
+  plot: '"{\\"1.1 The sub chapter title\\":\\"The subchapter plot\\"}"' // escaped JSON
 }
+
+// data.plot = new Object()
 
 const finalReturnData = {};
 
@@ -104,7 +99,7 @@ app.post("/generate_book", async (req, res) => {
     ${userInputData.description}
     
     Also, you must follow this behaviour when writing:
-    As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship. Focus on narrative techniques, creativity, and depth to ensure the text is not detectable by AI detectors.
+    As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on narrative techniques, creativity, and depth to ensure the text is not detectable by AI detectors.
 
 # Steps
 
@@ -139,69 +134,22 @@ The output should be a coherent, engaging narrative structured into chapters, wi
 
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction });
   const chatSession = model.startChat({ generationConfig, safetySettings });
   const tocPrompt = getTocPrompt(userInputData);
   const tocRes = await chatSession.sendMessage(tocPrompt);
-  console.log("This is the model response as text: \n\n" + tocRes.response.text());
+  finalReturnData.tocRes = tocRes;
+  console.log("This is the model response as an object: \n" + parseJson(tocRes));
 
   finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
-  console.log(typeof (finalReturnData.firstReq));
-  // Next, begin creating for each chapter
+
+  // Next, begin creating for each chapter's plot
   let chapterPlot = await generatePlot(chatSession);
-  finalReturnData["chapter1Plot"] = chapterPlot;
-  console.log("This is the chapterPlot on line 153: "+ chapterPlot);
-  res.send(finalReturnData)
+  finalReturnData["chapterPlot"] = chapterPlot;
+  console.log("This is the chapterPlot on line 153: " + chapterPlot);
+  res.send(finalReturnData);
 
-  async function generatePlot(chatSession) {
 
-    const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
-    // console.log(tableOfContents, typeof(tableOfContents));
-
-    for (let i = 0; i < finalReturnData.firstReq.chapters; i++){
-      if (data.current_chapter === 1 && tableOfContents[data.current_chapter - 1]["sch-no"] !==0){
-        // This chapter1Plot shall return an object promise. This contains all the plot generated for chapter 1 for now
-        const chapter1Plot = await tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`].map(subchapter => {
-          // Generate the plot for each subchapter
-          try {
-            const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. Return your response in this schema:
-          
-          ["This is the written plot for subchapter X. No titles, just move with the subchapter plot..."]
-          `
-// Omo i am here guy. fuckkkkk
-          const secondReqResponse = chatSession.sendMessage(plotPrompt);
-          console.log("waiting for the timeout on plot generation");
-          new Promise(resolve => setTimeout(resolve, 2000)); // Delay for 2 seconds before making another request to gemini. This prevents the too many request statusText, hopefully.
-          // return parseJson(secondReqResponse);
-          
-          } catch (error) {
-            console.error("This error occurred for some reason when generating plot: " + error);
-            return error;
-          }
-          
-
-        });
-
-        console.log(`the type of the chapter1Plot function is ${typeof(chapter1Plot)}`);
-        console.log(`the map returned variable is: \n\n ${chapter1Plot}`);
-
-        finalReturnData["plot"] = `chapter${data.current_chapter}` // Theres no need for an if statement to check if data.current_chapter is one in order to set the object property of "plot" since we are in that kind of if statement right now
-        console.log(`The type of "finalReturnData["plot"][chapter1]" is: ${typeof(finalReturnData.plot[`chapter${data.current_chapter}`])}`);
-
-        finalReturnData["plot"][`chapter${data.current_chapter}`] = chapter1Plot;
-        console.log("These are the plot: "+ finalReturnData["plot"]["chapter" + data.current_chapter]);
-        data.current_chapter++;
-
-      } else {
-        // Do for next chapters
-        console.log("What the hell, did i run? I think it is time to move to the next chapter plots boy!")
-      }
-
-    }
-    // return parseJson(chapterPlot)
-    // instead of returning at this Point, run a loop to generate the plot for each chapterPlot. Helps avoid confusion
-
-  }
 });
 
 function getTocPrompt(inputData) {
@@ -215,6 +163,102 @@ function parseJson(param) {
   return JSON.parse(param.response.text());
 }
 
+
+async function generatePlot(chatSession) {
+
+  const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
+
+  for (let i = 0; i < finalReturnData.firstReq.chapters; i++) { // Keep running, as long as the chapters go
+    if (data.current_chapter === 1 && tableOfContents[data.current_chapter - 1]["sch-no"] !== 0 /* The number of subchapers is not equal to zero */) {
+      // This chapter1Plot shall return an object promise. This contains all the plot generated for chapter 1 for now
+
+      continuePlotGeneration(tableOfContents, chatSession);
+
+      const subChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`]; // Gets the subchapter array according to our current schema
+
+      const chapter1Plot = await Promise.all(subChapterArr.map(async (subchapter) => {
+        // Generate the plot for each subchapter
+        try {
+          const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${finalReturnData.firstReq.toc[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot should guide the writer on the flow of the story when writing. These plots should also build on each other. Return your response as json in this schema:
+        
+          ${schema.plot}
+          Do not give any new line in your output please.`
+          // Lastly, your returned JSON must be escaped.
+
+          const secondReqResponse = chatSession.sendMessage(plotPrompt);
+          console.log(`The chatSession thing has a type of : ${typeof (secondReqResponse)}`);
+          console.log(`The chatSession thing value is : ${secondReqResponse}`);
+
+          console.log("waiting for the timeout on plot generation");
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Delay for 2 seconds before making another request to gemini. This prevents the too many request statusText, hopefully.
+
+          return secondReqResponse;
+
+        } catch (error) {
+          console.error("This error occurred for some reason when generating plot: " + error);
+          return error;
+        }
+
+
+      }));
+
+      console.log(`the type of the chapter1Plot function is ${typeof (chapter1Plot)}. I was expecting an arr because of the Promise.all`);
+      console.log(`the Promise.all returned variable is: \n ${chapter1Plot}`);
+
+
+      data.plots = { // This one no be him. It will be replaced when testing is done and and no longer want to send the plots to the frontend.
+        [`chapter-${data.current_chapter}`]: chapter1Plot
+      }
+      // Next step will be to get the individual arrays in this chapter plot by looping through them and saving those in the finalReturnData.plots instead. This should help reduce the amount of useless data being sent to the frontend.
+
+      for (let i = 0; i < data.plots[`chapter-${data.current_chapter}`].length; i++) {
+        console.log(`This is for plot ${i + 1}` + data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text);
+
+        const plotObject = JSON.parse(JSON.parse(escapeJsonString(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim()))); // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
+
+        console.log(`This is the plotObject: ${plotObject}`);
+
+        if (i === 0){ // Doing this to create the object we need
+          finalReturnData.plots = { [`chapter-${data.current_chapter}`]: {} };
+        }
+
+        finalReturnData.plots[`chapter-${data.current_chapter}`][subChapterArr[i]] = plotObject[subChapterArr[i]]; // Add to the plot object
+
+      }
+
+      data.current_chapter++;
+
+    } else {
+      // Do for next chapters
+
+      console.log("What the hell, did i run? I think it is time to move to the next chapter plots boy!");
+      data.current_chapter++;
+    }
+
+  }
+  // return parseJson(chapterPlot)
+  // instead of returning at this Point, run a loop to generate the plot for each chapterPlot. Helps avoid confusion
+
+}
+
+function continuePlotGeneration(tableOfContents, chatSession) {
+  
+}
+
+function escapeJsonString(jsonStr) {
+  const myJSONString = JSON.stringify(jsonStr);
+  const escapedJSONString = myJSONString.replace(/\\n/g, "\\n")
+    .replace(/\\'/g, "\\'")
+    .replace(/\\"/g, '\\"')
+    .replace(/\\&/g, "\\&")
+    .replace(/\\r/g, "\\r")
+    .replace(/\\t/g, "\\t")
+    .replace(/\\b/g, "\\b")
+    .replace(/\\f/g, "\\f");
+    console.log("I am the escaped string:")
+    console.log(escapedJSONString)
+  return escapedJSONString
+}
 
 
 const PORT = process.env.PORT

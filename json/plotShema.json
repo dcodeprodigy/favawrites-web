@@ -1,6 +1,14 @@
 {
-  "plot": {
-    "chapter1": ["Introduce the city of Atmos,...", "Introduce the city of Atmos,..."],
-    "chapter2": ["Introduce the city of Atmos,...", "Introduce the city of Atmos,..."]
-  }
+    "plot": {
+        "chapter-1": {
+            "sub-chapter-1-title": "subchapter-plot",
+            "sub-chapter-2-title": "subchapter-plot",
+            "sub-chapter-3-title": "subchapter-plot"
+        },
+        "chapter-2": {
+            "sub-chapter-1-title": "subchapter-plot",
+            "sub-chapter-2-title": "subchapter-plot",
+            "sub-chapter-3-title": "subchapter-plot"
+        }
+    }
 }
