@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, mainChatSession } = require('@google/generative-ai');
 const { title } = require('process');
-const { setTimeout } = require('node:timers/promises');
+const { jsonrepair } = require('jsonrepair')
 const { table } = require('console');
 require('events').EventEmitter.defaultMaxListeners = 50;
 
@@ -35,7 +35,7 @@ const safetySettings = [
   }
 ];
 
-const genConfig = {
+const generationConfig = {
   temperature: 1.5,
   topP: 0.95,
   topK: 40,
@@ -86,7 +86,7 @@ const schema = {
 
 }`,
   plot: '"{\\"1.1 The sub chapter title\\":\\"The subchapter plot\\"}"', // escaped JSON
-  myOSchema: {
+  myPlotSchema: {
     "type": "object",
     "properties": {
       "1.1 The sub chapter title": {
@@ -104,6 +104,7 @@ const schema = {
 const finalReturnData = {};
 
 app.post("/generate_book", async (req, res) => {
+
   try {
     const userInputData = req.body;
     const systemInstruction = `You are a professional human book writer. Please, read and sound human. Avoid any pattern that suggests you are an AI. Your tone must be ${userInputData.bookTone}. The genre of this book is ${userInputData.genre} and the audience is ${userInputData.audience}.
@@ -149,19 +150,19 @@ app.post("/generate_book", async (req, res) => {
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData);
-    const tocRes = await mainChatSession.sendMessage(tocPrompt, { generationConfig: genConfig });
+    const tocRes = await mainChatSession.sendMessage(tocPrompt);
     // finalReturnData.tocRes = tocRes;
     // console.log(tocRes.response.text())
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     console.log(mainChatSession.getHistory());
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
-    finalReturnData["chatHistory"] = await mainChatSession.getHistory()
+    data["chatHistory"] = await mainChatSession.getHistory();
     // res.send(finalReturnData);
 
 
 
     // Next, begin creating for each chapter's plot
-    await generatePlot(mainChatSession);
+    await generatePlot();
     res.send(finalReturnData);
 
 
@@ -192,11 +193,12 @@ function getTocPrompt(inputData) {
 }
 
 function parseJson(param) {
-  return JSON.parse(param.response.text());
+  const repairedJSON = jsonrepair(param.response.text()); // firstly, repair the param, if needed
+  return JSON.parse(repairedJSON);
 }
 
 
-async function generatePlot(mainChatSession) {
+async function generatePlot() {
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
   const config = {
     temperature: 1.5,
@@ -204,31 +206,27 @@ async function generatePlot(mainChatSession) {
     topK: 40,
     maxOutputTokens: 16384,
     responseMimeType: "application/json",
-    responseSchema: schema.myOSchema
+    responseSchema: schema.myPlotSchema
   };
-  // const plotChatSession = data.model.startChat({ safetySettings, generationConfig }); // Model here is from the model we pushed to the 'data' object after creaing the toc. Doing this do that I can simply create a new chat if i need to use a neew schema. I will just slap in the needed history from previous chats
+  const plotChatSession = data.model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // Model here is from the model we pushed to the 'data' object after creaing the toc. Doing this do that I can simply create a new chat if i need to use a neew schema. I will just slap in the needed history from previous chats
 
   for (let i = 0; i < finalReturnData.firstReq.chapters; i++) { // Keep running, as long as the chapters go
     if (data.current_chapter === 1 && tableOfContents[data.current_chapter - 1]["sch-no"] !== 0 /* The number of subchapers is not equal to zero */) {
       // This chapter1Plot shall return an object promise. This contains all the plot generated for chapter 1 for now
 
-      await continuePlotGeneration(tableOfContents, mainChatSession, config);
+      await continuePlotGeneration(tableOfContents, plotChatSession, config);
       data.current_chapter++;
     } else {
       // Do for next chapters
-      null
-      // await continuePlotGeneration(tableOfContents, mainChatSession, generationConfig);
-      // data.current_chapter++;
+      await continuePlotGeneration(tableOfContents, plotChatSession, config);
+      data.current_chapter++;
     }
 
   }
-  // return parseJson(chapterPlot)
-  // instead of returning at this Point, run a loop to generate the plot for each chapterPlot. Helps avoid confusion
-
 }
 
 
-async function continuePlotGeneration(tableOfContents, mainChatSession, config) {
+async function continuePlotGeneration(tableOfContents, plotChatSession, config) {
   const subChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`];
   console.log(`The type of subChapterArr is ${typeof subChapterArr}`);
 
@@ -242,10 +240,10 @@ async function continuePlotGeneration(tableOfContents, mainChatSession, config) 
             - Do not give any new line in your Json output please.`;
 
     try {
-      const secondReqResponse = await sendDelayedMessage(mainChatSession, plotPrompt, config);
+      const secondReqResponse = await sendDelayedMessage(plotChatSession, plotPrompt, config);
 
-      console.log(`The mainChatSession thing has a type of : ${typeof secondReqResponse}`);
-      console.log(`The mainChatSession thing value is : ${secondReqResponse}`);
+      // console.log(`The plotChatSession thing has a type of : ${typeof secondReqResponse}`);
+      // console.log(`The plotChatSession thing value is : ${secondReqResponse}`);
 
       chapter1Plot.push(secondReqResponse);
     } catch (error) {
@@ -266,24 +264,29 @@ async function continuePlotGeneration(tableOfContents, mainChatSession, config) 
   console.log(`the Promise.all returned variable is: \n ${chapter1Plot}`);
 
 
-  data.plots = { // This one no be him. It will be replaced when testing is done and and no longer want to send the plots to the frontend.
+  data.plots = {
     [`chapter-${data.current_chapter}`]: chapter1Plot
   }
+  finalReturnData.plots = [];
   // Next step will be to get the individual arrays in this chapter plot by looping through them and saving those in the finalReturnData.plots instead. This should help reduce the amount of useless data being sent to the frontend.
 
   for (let i = 0; i < data.plots[`chapter-${data.current_chapter}`].length; i++) {
     console.log(`This is for plot ${i + 1}` + data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text);
 
-    const plotObject = JSON.parse(JSON.parse(escapeJsonString(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim()))); // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
+    const plotObject = JSON.parse(JSON.parse(escapeJsonString(jsonrepair(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim())))); // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
 
     console.log(`This is the plotObject: ${plotObject}`);
 
     if (i === 0) { // Doing this to create the object we need
       // finalReturnData.plots = { [`chapter-${data.current_chapter}`]: {} };
 
-      finalReturnData.plots = { [`chapter-${data.current_chapter}`]: { [subChapterArr[i]]: plotObject[subChapterArr[i]] } };
+      // finalReturnData.plots = { [`chapter-${data.current_chapter}`]: { [subChapterArr[i]]: plotObject[subChapterArr[i]] } };
+
+      finalReturnData.plots.push([{ [`chapter-${data.current_chapter}`]: { [subChapterArr[i]]: plotObject[subChapterArr[i]] } }]);
     } else {
-      finalReturnData.plots[`chapter-${data.current_chapter}`] = { [subChapterArr[i]]: plotObject[subChapterArr[i]] };
+      // finalReturnData.plots[`chapter-${data.current_chapter}`] = { [subChapterArr[i]]: plotObject[subChapterArr[i]] };
+
+      finalReturnData.plots.push([{ [`chapter-${data.current_chapter}`]: { [subChapterArr[i]]: plotObject[subChapterArr[i]] } }]);
 
     }
   }
@@ -304,25 +307,33 @@ function escapeJsonString(jsonStr) {
   return escapedJSONString
 }
 
-async function sendDelayedMessage(mainChatSession, plotPrompt, config) {
+async function sendDelayedMessage(plotChatSession, plotPrompt, config) {
   console.log("delay is about to begin");
 
   async function promptModel() {
     try {
       console.log("I, the promptModel, is about to run");
-      return await mainChatSession.sendMessage(plotPrompt, {generationConfig: config});
+      return await plotChatSession.sendMessage(plotPrompt, { generationConfig: config });
 
     } catch (error) {
       console.error(`An error occured while delaying message: ${error}`)
       throw error;
     }
   }
-  // await new Promise((resolve) => setTimeout(resolve, delay));
-  console.log("The delay has ended");
 
-  // Send the message and return the result
-  const test = await promptModel();
-  return test
+
+  async function delay(ms = 6000) {
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        console.log("about to delay brr");
+        const result = await promptModel();
+        resolve(result);
+      }, ms);
+    });
+  };
+
+  let returnValue = await delay();
+  return returnValue;
 }
 
 
