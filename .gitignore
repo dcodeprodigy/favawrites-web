@@ -50,3 +50,4 @@ credentials.json
 .env
 __MACOSX
 /signin-assets
+/json
