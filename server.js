@@ -79,7 +79,7 @@ const data = {
 
     1. Understand the Genre and Audience: The genre and target audience for the book has already been written above to you. Understand them and tailor your writing style, vocabulary, and themes appropriately.
     2. Plot Development: On request, develop a detailed plot outline for each chapter at a time, ensuring it has a captivating beginning, engaging middle, and satisfying conclusion.
-    3. Character Creation: On request, create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression.
+    3. Character Creation: Create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression. This should be under the same string as the plot.
     4. Narrative Voice and Style: Choose a consistent narrative voice and style that feels authentically human, with attention to natural language patterns and expressions.
     5. Writing: Compose the text, focusing on authenticity, creativity, and richness of language to enhance human-like qualities - this means your writing should not use predictable words that sounds like a language model, which was just trained to spit out patterns was used.
     6. Edit and Refine: Revise for consistency, coherence, and stylistic polish, ensuring the text flows naturally and showcases human-like creativity.
@@ -119,27 +119,27 @@ const schema = {
     "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must be just '9'"
 
 }`,
-  plot: {
+  plot: `{
     "title" : "string, that reps the name of this subchapter. e.g., '1.1 The subchapter's title'", 
-    "plot" : "The subchapter plot"
-  },
-  myPlotSchema: {
+    "plot" : "The subchapter plot, alongside the characters"
+  }`,
+  myPlotSchema: `{
     "type": "object",
     "properties": {
-      "title": {
+      "title-> The title should just be named 'title'": {
         "type": "string",
         "description": "string, that reps the name of this subchapter. e.g., '1.1 The subchapter's title'"
       },
-      "plot": {
+      "plot -> This should also just be named 'plot'": {
         "type": "string",
-        "description": "The subchapter plot"
+        "description": "The subchapter plot, alongside the characters."
       }
     },
     "required": [
       "title",
       "plot"
     ]
-  },
+  }`,
   plotObject : {
     "chapter-1": [],
     "chapter-2": []
@@ -206,13 +206,15 @@ function parseJson(param) {
 
 async function generatePlot() {
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
+
+  console.log(tableOfContents)
   const config = {
     temperature: 1.5,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 16384,
     responseMimeType: "application/json",
-    responseSchema: schema.plot
+    responseSchema: schema.myPlotSchema
   };
   const plotChatSession = data.model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a neew schema. This way, I can simply just slap-in the needed history from previous chats, like I did here.
   data.plots = []; // for the plots to be generated
@@ -238,12 +240,11 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config) 
   for (const subchapter of currentSubChapterArr) { // runs a loop to generate plot for subchapters in the current chapter
     const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot should guide you, the writer on the flow of the story when writing. 
     Create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression - that is, if this book is a fictional novel. 
-    These plots should also build on each other. Return your response as json in this schema:
+    These plots should also build on each other. Your response shall be in this schema json: 
     ${schema.plot}`;
 
     try {
       const secondReqResponse = await sendDelayedMessage(plotChatSession, plotPrompt, config);
-      // get the plot just generated
       currentChapterPlot.push(secondReqResponse);
     } catch (error) {
       console.error(`An error occurred in CURRENT plot generation for ${subchapter} : ${error}`);
@@ -253,29 +254,15 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config) 
   };
 
   data.plots[`chapter-${data.current_chapter}`] = []; // outside the loop to avoid beingn overridden
+  finalReturnData.plots[`chapter-${data.current_chapter}`] = [];
   for (const index of currentChapterPlot) {
     data.plots[`chapter-${data.current_chapter}`].push(index.plot);
+    console.log("Index.plot has a type of : " + typeof(index.plot));
+    console.log("This is the index: "+ index)
+    finalReturnData.plots[`chapter-${data.current_chapter}`].push(index.plot);
 
   }
 
-  /* for (let i = 0; i < data.plots[`chapter-${data.current_chapter}`].length; i++) {
-
-    console.log(`This is for plot ${i + 1}` + data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text);
-
-    const plotObject = JSON.parse(JSON.parse(escapeJsonString(jsonrepair(data.plots[`chapter-${data.current_chapter}`][i].response.candidates[0].content.parts[0].text.trim()))));
-    // I have no Idea on the efficacy of this but it just might break if you remove it or if you remove that part of the system prompt that talks about responding without line breaks
-
-    if (i === 0) { // Doing this to create the object we need
-
-      finalReturnData.plots["chapter-" + data.current_chapter] = [plotObject[currentSubChapterArr[i]]]; // create the schema when going for the first plot in the chapter
-      console.log("I am the plotObject SubChapter Arr " + finalReturnData.plots["chapter-" + data.current_chapter][plotObject[currentSubChapterArr[i]]])
-    } else {
-      // finalReturnData.plots[`chapter-${data.current_chapter}`] = { [currentSubChapterArr[i]]: plotObject[currentSubChapterArr[i]] };
-
-      console.log(finalReturnData.plots["chapter-" + data.current_chapter].push(plotObject[currentSubChapterArr[i]]));
-
-    }
-  } */
 }
 
 function escapeJsonString(jsonStr) {
@@ -295,39 +282,51 @@ function escapeJsonString(jsonStr) {
 
 async function sendDelayedMessage(plotChatSession, plotPrompt, config) {
 
-  async function promptModel(tryAgainMsg) {
+  async function promptModel(retry, tryAgainMsg) {
     try {
       console.log("I, the promptModel, is about to run");
-      let result = await plotChatSession.sendMessage(plotPrompt.concat(tryAgainMsg), { generationConfig: config });
+      let result;
+      if (retry) { // tell the model to repair its previous json response in this plotSession
+        result = await plotChatSession.sendMessage(tryAgainMsg, { generationConfig: config });
+      } else {
+        result = await plotChatSession.sendMessage(plotPrompt, { generationConfig: config });
+      }
 
       console.log(`This is the 'result' for plot generation ${result.response}`);
 
       let possibleParsedData;
 
       try {
+        console.log("This is the result's value. it should be the plot generated"+ result.response.candidates[0].content.parts[0].text.trim());
         possibleParsedData = JSON.parse(result.response.candidates[0].content.parts[0].text.trim());
 
         // checks to see if model response json is valid. If yes, we have already gotten the json we asked the model to generate. So, no need trying to get that after returning this 'sendDelayedMessage' function. If not valid. retry the same plot till we get a valid json.
         
       } catch (error) {
         // checks to catch any syntax errors in the JSON, then tell model to retry
-        return promptModel("Try again");;
+        console.log(error);
+        possibleParsedData = await new Promise((resolve) => {
+          setTimeout(async () => {
+              const result = await promptModel(true ,`The previous json had an error: '${error}'. Repair it and return the corrected one.`);
+              resolve(result);
+          }, 5000);
+      });
+        
         
       }
-
+      console.log("This is the possibleParsedData: " + possibleParsedData);
+      console.log("type of possibelParseData: " + typeof(possibleParsedData));
       return possibleParsedData;
 
 
     } catch (error) {
-      console.error("API returned invalid JSON or Model failed for some reason. Try again: " + error);
-
-      promptModel("\nYour last response was an invalid json. This time, make sure it is valid please."); // run function again if model json was not valid.
+      console.error("An error occured:" + error)
     }
   }
 
 
   async function delay(ms = 6000) {
-    return new Promise((resolve) => {
+    return await new Promise((resolve) => {
       setTimeout(async () => {
         console.log("The delay for 6 just ended!");
         const result = await promptModel();
