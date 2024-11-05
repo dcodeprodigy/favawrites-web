@@ -400,7 +400,7 @@ async function generatePlot() {
   for (let i = 0; i < finalReturnData.firstReq.chapters; i++) {
     if (tableOfContents[data.current_chapter - 1]["sch-no"] !== 0) { // checks if there are subchapters available
       await continuePlotGeneration(tableOfContents, plotChatSession, config);
-      if (i === finalReturnData.firstReq.chapters - 1 ) {
+      if (i === finalReturnData.firstReq.chapters - 1) {
         data.current_chapter = 1; // Return the current chapter count to one, to be used when generating the contents
       } else {
         data.current_chapter++;
@@ -510,29 +510,81 @@ async function sendDelayedMessage(plotChatSession, plotPrompt, config) {
 async function generateChapters(mainChatSession) {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
+  const generatedChapContent = [];
 
-  if (!data.plots){ // code to run if there is not plot
-    let promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
-      On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
-      ${docxJsGuide()}
-      ${console.log(`This is the data's toc: ${tableOfContents}`)},
-      Now for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you? return this response as json in this schema: {promptMe : number}`);
-      console.log("Prompt me "+ promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
+  if (!data.plots) { // code to run if there is not plot
+
+    // run a loop for each chapter available
+    for (let i = 1; i <= tableOfContents.length; i++) {
+      let promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
+        On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
+        ${docxJsGuide()}.
+        Now for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? return this response as json in this schema: {promptMe : number}`);
+      console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
       // generate the chapter for the number of times the model indicated
       promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
-      const generatedChapContent = [];
-      for (let i = 0; i < promptNo.promptMe; i++){
-        let content = await mainChatSession.sendMessage(`1. Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed.`);
-        content = JSON.parse(content.response.candidates[0].content.parts[0].text);
-        generatedChapContent.push(content.content);
+      let possibleParsedData;
+
+      for (let i = 0; i < promptNo.promptMe; i++) {
+        let genChapter;
+        genChapter = async function (retry, tryAgainMsg) {
+          let chapterText;
+          if (retry === true) {
+            chapterText = await mainChatSession.sendMessage(tryAgainMsg);
+
+          } else {
+            chapterText = await mainChatSession.sendMessage(`${i + 1}. Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches`);
+
+          }
+
+          try {
+            chapterText = JSON.parse(chapterText.response.candidates[0].content.parts[0].text);
+
+          } catch (error) {
+            console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+            async function delay(ms = 6000) {
+              return await new Promise((resolve) => {
+                setTimeout(async () => {
+                  console.log("Retrying...");
+                  let result = await genChapter(true, `The previous json had an error: '${error}'. Repair it and return the corrected one.`);
+                  resolve(result);
+                }, ms);
+              });
+            };
+            chapterText = await delay();
+          }
+          return chapterText; // as the parsed object
+        };
+        genChapter = await genChapter();
+
+
+        console.log("started delay for chapter pushing");
+
+        async function delay(ms = 6000) {
+          return await new Promise((resolve) => {
+            setTimeout(async () => {
+              console.log("ended delay");
+              if (!generatedChapContent[`chapter${data.current_chapter}`]) {
+                resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapter.content }));
+              } else {
+                resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapter.content}`));
+              }
+              console.log("pushed to finalReturnData");
+            }, ms);
+          });
+        };
+        await delay();
       }
+
+
       console.log(generatedChapContent);
-      
+      data.current_chapter++;
 
+    }
   }
-
+  finalReturnData.genAIChapters = generatedChapContent;
 }
 
 function docxJsGuide() {
