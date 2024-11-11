@@ -7,24 +7,24 @@ const createContainer = document.getElementById("create-btn-container");
 const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
             <h3>Create Your Book with AI</h3>
-            <label for="title" >Book Title</label>
-            <input type="text" placeholder="Enter your book's title" name="title" value="365 Days with Self Discipline - January">
+            <label for="title">Book Title</label>
+            <input type="text" placeholder="Enter your book's title" name="title" value="The Digital Detox Blueprint">
 
-            <label for="subtitle" >Book Subtitle</label>
-            <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Making This Year Count: A Guide to Actually Realizing Those New Year Resolutions" >
+            <label for="subtitle">Book Subtitle</label>
+            <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Reclaim Your Focus in an Age of Digital Distraction">
 
             <div class="hidden gap-3 flex-col" id="aiInputsContainer">
                 <label for="author">Author/Pen Name</label>
                 <input type="text" placeholder="Enter author or pen name" name="author">
     
                 <label for="genre">Book Genre</label>
-                <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Self-Help / Personal Development">
+                <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Self-Help / Digital Wellness">
 
                 <label for="audience">Book Audience</label>
-                <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Individuals seeking personal growth and sustainable self-discipline strategies, especially those committed to following through on their New Year resolutions.">
+                <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Professionals, students, and anyone struggling with digital overwhelm, screen addiction, and the constant pull of social media and technology.">
 
                 <label for="category">Book Category</label>
-                <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)" >New Year Resolutions, Goal Setting, Self Discipline, Daily Inspirations</textarea>
+                <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Digital Wellness, Mindfulness, Productivity, Mental Health, Work-Life Balance, Technology Addiction</textarea>
 
                 <label for="bookTone">Book Tone</label>
                 <select name="bookTone" id="bookTone" class="max-w-[100%]">
@@ -32,7 +32,7 @@ const htmlComponents = {
                     <option value="casual">Casual</option>
                     <option value="formal">Formal</option>
                     <option value="narrative">Narrative</option>
-                    <option value="informative">Informative</option>
+                    <option value="informative" selected>Informative</option>
                     <option value="humorous">Humorous</option>
                     <option value="serious">Serious</option>
                     <option value="dark">Dark</option>
@@ -43,26 +43,46 @@ const htmlComponents = {
                     <option value="suspenseful and intriguing">Suspenseful and Intriguing</option>
                     <option value="romantic">Romantic</option>
                     <option value="cautionary">Cautionary - warning and instructive, often delivering a moral lesson or guiding behaviour</option>
-                    <option value"Instructive, motivating, and reflective—offering a supportive and conversational style that encourages readers without feeling overly prescriptive. The tone should feel as if each entry is a thoughtful conversation or piece of advice from a mentor."selected>Instructive, motivating, and reflective—offering a supportive and conversational style that encourages readers without feeling overly prescriptive. The tone should feel as if each entry is a thoughtful conversation or piece of advice from a mentor.</option>
+                    <option value="Instructive, motivating, and reflective">Instructive, motivating, and reflective—offering a supportive and conversational style that encourages readers without feeling overly prescriptive. The tone should feel as if each entry is a thoughtful conversation or piece of advice from a mentor.</option>
                 </select>
     
                 <label for="description">Book Description/Fine Tuning</label>
                 <textarea name="description" id="book-description" cols="30" rows="8">Book Description/Fine Tuning
-I want you to create for only the January edition.
-For this January edition, each chapter represents each day. Each day will feature a structured entry with three parts:
+This book will be structured into four main subchapters:
 
-A Quote - This quote should be insightful and resonate with the themes of discipline, perseverance, and goal-setting, with an emphasis on new beginnings and staying consistent throughout the year.
+1. Understanding Digital Dependence
+- The psychology behind screen addiction
+- How technology shapes our behavior
+- The real cost of constant connectivity
+- Assessment tools for digital habits
 
-Author’s Reflection - Here, provide an in-depth discussion on the quote. This section should speak directly to the reader, exploring the themes in the quote and relating them to the challenges and motivations involved in sticking to New Year resolutions. Address the common pitfalls—like losing motivation, setting unrealistic goals, or getting overwhelmed—and provide relatable, practical advice on maintaining self-discipline daily. Each entry should feel substantial and meaningful, not simply restating the quote but delving into its practical implications.
+2. The Reset Protocol
+- Creating a personalized digital boundaries plan
+- Essential digital detox strategies
+- Building healthy tech habits
+- Setting up tech-free zones and times
 
-Reader's Reflection - Conclude with a call-to-action or reflective question that encourages readers to think critically about the day’s message and how it applies to their lives. This could be a small, achievable action they can take that day to build their self-discipline or a question for personal journaling that prompts introspection and focus on their goals.
+3. Mindful Technology Use
+- Productivity tools that reduce screen time
+- Digital minimalism principles
+- Strategic social media management
+- Email and notification management
 
-Additional Instructions for the You:
-Consistency Across Days: Ensure each day's entry maintains a balance in length and depth so that readers feel they’re getting a fresh, insightful experience daily.
+4. Sustainable Digital Wellness
+- Long-term habit formation
+- Family and workplace implementation
+- Dealing with digital peer pressure
+- Maintaining balance in a connected world
 
-Building Momentum: January is about starting strong—use themes that inspire optimism and create momentum. Include specific ways readers can establish habits and structure their routines.
+Each chapter should include:
+- Real-life case studies
+- Practical exercises and worksheets
+- "Tech Check" reflection points
+- Action steps for immediate implementation
 
-Avoid Redundancy: While the focus is on self-discipline, each entry should bring new perspectives, examples, or insights to keep readers engaged without repetitive language.</textarea>
+The content should be research-backed but accessible, offering concrete solutions rather than just theory. Include latest studies on digital wellness and brain science, but present them in an engaging, non-academic way.
+
+Focus on practical solutions that readers can implement immediately, while acknowledging the reality of living in a digital world. The goal isn't complete digital abandonment, but rather thoughtful, intentional use of technology.</textarea>
             </div>
             <button id="nextStep" class="py-3 px-6 bg-primary-green-mint rounded-lg mt-4 hover:bg-primary-green-600" type="submit">Next</button>
         </form>`

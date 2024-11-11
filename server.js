@@ -147,6 +147,7 @@ const data = {
     `
   },
   current_chapter: 1,
+  proModelErrors: 0,
   sampleChapter: function () {
     return `## Day 1: The Fresh Start
 **Quote:** "The first step towards getting somewhere is to decide you're not going to stay where you are." - J.P. Morgan
@@ -260,7 +261,8 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
         }),
       ],
     }`
-  }
+  },
+
 }
 
 const schema = {
@@ -316,6 +318,7 @@ app.post("/generate_book", async (req, res) => {
 
   try {
     const userInputData = req.body;
+    data.resParam = res;
     // const systemInstruction = data.systemInstruction(userInputData);
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -513,6 +516,7 @@ async function generateChapters(mainChatSession) {
   const generatedChapContent = [];
 
   if (!data.plots) { // code to run if there is not plot
+    data.chapterErrorCount = 0;
 
     // run a loop for each chapter available
     for (let i = 1; i <= tableOfContents.length; i++) {
@@ -522,42 +526,63 @@ async function generateChapters(mainChatSession) {
         Now for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? return this response as json in this schema: {promptMe : number}`);
       console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+      console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+
 
       // generate the chapter for the number of times the model indicated
       promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
-      let possibleParsedData;
 
       for (let i = 0; i < promptNo.promptMe; i++) {
-        let genChapter;
-        genChapter = async function (retry, tryAgainMsg) {
+        // let genChapter;
+        async function genChapter (retry, tryAgainMsg) {
           let chapterText;
-          if (retry === true) {
-            chapterText = await mainChatSession.sendMessage(tryAgainMsg);
+          try {
+              const getChapterCont = await mainChatSession.sendMessage(`${i + 1}. Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches.`);
 
-          } else {
-            chapterText = await mainChatSession.sendMessage(`${i + 1}. Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches`);
+              chapterText = await getChapterCont;
+              console.log("this is the getchapter: " + getChapterCont)
+              // console.log("The returned JSON: " + chapterText.response.candidates[0].content.parts[0].text);
 
+            
+
+          } catch (error) {
+            console.error("An error in mainChatSession: " + error);
           }
 
           try {
-            chapterText = JSON.parse(chapterText.response.candidates[0].content.parts[0].text);
+            console.log("This is chapter text: " + chapterText);
+            let parsedChapterText = await JSON.parse(chapterText.response.candidates[0].content.parts[0].text);
+            console.log("Json parsed");
+            chapterText = await parsedChapterText; // doing this so that we can access chapter text from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
           } catch (error) {
+            if (data.chapterErrorCount >= 3) {
+              return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
+            }
+
             console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+
             async function delay(ms = 6000) {
               return await new Promise((resolve) => {
                 setTimeout(async () => {
-                  console.log("Retrying...");
-                  let result = await genChapter(true, `The previous json had an error: '${error}'. Repair it and return the corrected one.`);
+                  data.chapterErrorCount++;
+                  console.log("Trying to Fix JSON...");
+                  // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
+                  let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText.response.candidates[0].content.parts[0].text}`;
+                  data.fixJsonMsg = fixMsg;
+                  let result = await fixJsonWithPro(fixMsg);
                   resolve(result);
                 }, ms);
               });
             };
             chapterText = await delay();
+            console.log("This is the chapterText at delay() line: " + chapterText)
+            data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
           }
+          console.log("This is the chapterText at return line: " + chapterText)
           return chapterText; // as the parsed object
         };
-        genChapter = await genChapter();
+        const genChapterResult = await genChapter();
 
 
         console.log("started delay for chapter pushing");
@@ -567,9 +592,11 @@ async function generateChapters(mainChatSession) {
             setTimeout(async () => {
               console.log("ended delay");
               if (!generatedChapContent[`chapter${data.current_chapter}`]) {
-                resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapter.content }));
+                resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
+                console.log(genChapterResult.content);
               } else {
-                resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapter.content}`));
+                resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
+                console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
               }
               console.log("pushed to finalReturnData");
             }, ms);
@@ -579,7 +606,6 @@ async function generateChapters(mainChatSession) {
       }
 
 
-      console.log(generatedChapContent);
       data.current_chapter++;
 
     }
@@ -655,6 +681,55 @@ You shall return an object as below for this chapter ONLY. This is because I sha
 
 	
 Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
+}
+
+async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
+  if (data.proModelErrors >= 5 ) {
+    data.res.status(501).send("Model Failed to fix Json after numerous retries. Try again later");
+    return "Model Failed to fix Json after numerous retries. Try again later, please."
+  }
+  const generationConfig = {
+    temperature: 0.5,
+    topP: 0.95,
+    topK: 40,
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+  };
+  const fixerSchema = `{"fixedJson" : "The fixed JSON"}`;
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will be sent to you in the first place. Your response schema must be in this schema ${fixerSchema}` });
+
+  const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
+
+  // confirm if this operation was successful
+  try {
+    let fixedRes;
+    async function delay(ms = 30000) {
+      return await new Promise((resolve) => {
+        setTimeout(async () => {
+          console.log("30s delay ended");
+          fixedRes = await jsonFixer.sendMessage(fixMsg);
+          resolve(fixedRes)
+        }, ms); // delay for 30 seconds due to proModel Limitations
+
+      })
+
+
+    }
+    await delay();
+    console.log(fixedRes.response.candidates[0].content.parts[0].text);
+    const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
+    const secondStageJson = JSON.parse(firstStageJson.fixedJson);
+    
+    console.log(`Pro Model Fixed our Json. The Json is now : ${secondStageJson}`);
+    // reset error count before returning successful fix
+    data.proModelErrors = 0;
+    return secondStageJson;
+  } catch (error) {
+    data.proModelErrors++;
+    console.log("Pro Model failed to fix our Json, trying again...");
+    return await fixJsonWithPro(data.fixJsonMsg);
+  }
 }
 
 const PORT = process.env.PORT
