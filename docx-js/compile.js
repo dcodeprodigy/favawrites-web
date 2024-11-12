@@ -290,6 +290,7 @@ const doc = new Document({
   ],
 });
 
+console.log(typeof(doc))
 
 // Save the document as a .docx file
 Packer.toBuffer(doc).then((buffer) => {

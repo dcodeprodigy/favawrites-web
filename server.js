@@ -305,7 +305,43 @@ const schema = {
   plotObject: {
     "chapter-1": [],
     "chapter-2": []
-  }
+  },
+  subsequentDocx : `[
+        new Paragraph({
+          alignment: AlignmentType.CENTER, 
+          spacing: { after: 300 },         
+          heading: "Heading1",          
+          children: [
+            new TextRun({
+              text: "Day 1 - The Fresh Start",
+              bold: true,              
+              size: 40,                
+            }),
+          ],
+        }),
+        // Quote Section
+        new Paragraph({
+          alignment: AlignmentType.END,
+          spacing: { after: 300 },
+          children: [
+            new TextRun({
+              text: "'The first step towards getting somewhere is to decide you're not going to stay where you are.' - J.P. Morgan",
+              italics: true,
+              bold: false,
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 200 },
+          heading: "Heading2",
+          children: [
+            new TextRun({
+              text: "Author's Reflection",
+              bold: true,
+              size: 36,
+            }),
+          ],
+        }),]`
 
 }
 
@@ -596,11 +632,45 @@ async function generateChapters(mainChatSession) {
         await getDocxCode();
 
         async function getDocxCode () {
-          const docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this particular chapter, following this guide: ${docxJsGuide()}`);
+          let docxJsRes;
+          // data.docx does not exist? create it. else, do nothing
+          !data.docx ? data.docx = new Document ({
+            styles: {
+              default: {
+                document: {
+                  run: {
+                    size: 26,
+                    font: "Georgia"
+                  }
+                }
+              }
+            },
+            sections: []
+          }) : null
 
-          if (!data.document){ // if document property does not exist
-            data.document = {}
+          if (i===0){ // on the first prompting
+            docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this particular chapter, following this guide: ${docxJsGuide()}`);
+
+            const parsedDocxJs = JSON.parse(docxJsRes.response.candidates[0].content.parts[0].text);
+
+            // checks if json is valid
+
+            // push to sections
+            data.docx.sections.push(parsedDocxJs);
+          } else {
+            docxJsRes = await mainChatSession.sendMessage(`This is the number ${i+1} prompting. I want you to generate an array json, with each new paragraph as individual arrays. See the schema below: ${schema.subsequentDocx}`);
+
+            const parsedDocxArr = JSON.parse(docxJsRes.response.candidates[0].content.parts[0].text);
+            parsedDocxArr.forEach(paragraph => {
+              data.docx.sections[data.current_chapter-1].children.push(paragraph); // push each paragraph
+            });
+
+
+
           }
+          
+          
+          data.docx.sections.push()
         }
 
 
