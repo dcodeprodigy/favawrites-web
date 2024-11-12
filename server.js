@@ -177,7 +177,7 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
             }),
           ],
         }),
-        // Quote Section
+        // Quote Section, if necessary
         new Paragraph({
           alignment: AlignmentType.END,
           spacing: { after: 300 },
@@ -196,7 +196,7 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
           heading: "Heading2",
           children: [
             new TextRun({
-              text: "Author's Reflection", // do not add any colon or semi colo after any heading. Be it h1 or h2 or h3.
+              text: "Author's Reflection", // do not add any colon or semi colon after any heading. Be it h1 or h2 or h3.
               bold: true,
               size: 36,
             }),
@@ -524,6 +524,7 @@ async function generateChapters(mainChatSession) {
         On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
         ${docxJsGuide()}.
         Now for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? return this response as json in this schema: {promptMe : number}`);
+
       console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
       console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
@@ -536,22 +537,28 @@ async function generateChapters(mainChatSession) {
         // let genChapter;
         async function genChapter (retry, tryAgainMsg) {
           let chapterText;
+          function extraGeneration(){
+              return `Since I am to prompt you ${promptNo.promptMe} times for this particular chapter, Please, do not end this batch like you are ending a chapter. End it like you will still continue from where you stopped. This is my number ${i+1} prompt.`
+          }
           try {
-              const getChapterCont = await mainChatSession.sendMessage(`${i + 1}. Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches.`);
+              const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches. ${extraGeneration()}`);
 
-              chapterText = await getChapterCont;
-              console.log("this is the getchapter: " + getChapterCont)
-              // console.log("The returned JSON: " + chapterText.response.candidates[0].content.parts[0].text);
+              chapterText = getChapterCont;
+              data.chapterText = getChapterCont;
+
+              console.log("this is the type of data.chapterText: " + typeof(data.chapterText))
+      
 
             
 
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
+            genChapter();
           }
 
           try {
-            console.log("This is chapter text: " + chapterText);
-            let parsedChapterText = await JSON.parse(chapterText.response.candidates[0].content.parts[0].text);
+            console.log("This is chapter text: " + data.chapterText);
+            let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
             console.log("Json parsed");
             chapterText = await parsedChapterText; // doing this so that we can access chapter text from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
@@ -568,7 +575,10 @@ async function generateChapters(mainChatSession) {
                   data.chapterErrorCount++;
                   console.log("Trying to Fix JSON...");
                   // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
-                  let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText.response.candidates[0].content.parts[0].text}`;
+                  
+                  console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof(data.chapterText.response.candidates[0].content.parts[0].text));
+                  
+                  let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
                   data.fixJsonMsg = fixMsg;
                   let result = await fixJsonWithPro(fixMsg);
                   resolve(result);
@@ -583,17 +593,26 @@ async function generateChapters(mainChatSession) {
           return chapterText; // as the parsed object
         };
         const genChapterResult = await genChapter();
+        await getDocxCode();
+
+        async function getDocxCode () {
+          const docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this particular chapter, following this guide: ${docxJsGuide()}`);
+
+          if (!data.document){ // if document property does not exist
+            data.document = {}
+          }
+        }
 
 
         console.log("started delay for chapter pushing");
 
-        async function delay(ms = 6000) {
+        async function delay(ms = 6000) { // pushing generated chaoter to final return data
           return await new Promise((resolve) => {
             setTimeout(async () => {
               console.log("ended delay");
               if (!generatedChapContent[`chapter${data.current_chapter}`]) {
                 resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
-                console.log(genChapterResult.content);
+                // console.log(genChapterResult.content);
               } else {
                 resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
                 console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
