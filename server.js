@@ -96,7 +96,7 @@ const generationConfig = {
   responseMimeType: "application/json",
 };
 
-const data = {
+let data = {
   kdp_titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -351,6 +351,8 @@ const schema = {
 const finalReturnData = {}; // An object for collecting data to be sent to the client
 
 app.post("/generate_book", async (req, res) => {
+  // save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
+  const originalDataObj = data;
 
   try {
     const userInputData = req.body;
@@ -379,6 +381,9 @@ app.post("/generate_book", async (req, res) => {
     }
     // next, generate the write-up for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
     await generateChapters(mainChatSession);
+    
+    await compileDocx();
+    finalReturnData.file = `/docs/${userInputData.title}.docx`
     res.send(finalReturnData);
 
     // Next, using the plots to guide the AI to generate chapters
@@ -391,6 +396,8 @@ app.post("/generate_book", async (req, res) => {
     data.postErr.push(error);
     console.log(data.postErr)
     res.status(500).send(data.postErr);
+  } finally {
+    data = originalDataObj;
   }
 
 });
@@ -559,7 +566,7 @@ async function generateChapters(mainChatSession) {
       let promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
         On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
         ${docxJsGuide()}.
-        Now for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? return this response as json in this schema: {promptMe : number}`);
+        Now you are writing for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this chapter needs to be longer, me prompting you just once for this chapter will make the chapter very shallow. Therefore, the aim if this is for you to assess how long the chapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`);
 
       console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
@@ -573,11 +580,14 @@ async function generateChapters(mainChatSession) {
         // let genChapter;
         async function genChapter (retry, tryAgainMsg) {
           let chapterText;
-          function extraGeneration(){
-              return `Since I am to prompt you ${promptNo.promptMe} times for this particular chapter, Please, do not end this batch like you are ending a chapter. End it like you will still continue from where you stopped. This is my number ${i+1} prompt.`
+          
+          function checkAlternateInstruction() {
+            if (promptNo.promptMe > 1) {
+            return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i+1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i+1? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately" : ""}`
+            } else if (promptNo.promptMe === 1) return `Since I am prompting you for this chapter only once, just end this like you would normally`
           }
           try {
-              const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Make your writing very long and detailed, excluding cliches. ${extraGeneration()}`);
+              const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction()}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
 
               chapterText = getChapterCont;
               data.chapterText = getChapterCont;
@@ -634,29 +644,31 @@ async function generateChapters(mainChatSession) {
         async function getDocxCode () {
           let docxJsRes;
           // data.docx does not exist? create it. else, do nothing
-          !data.docx ? data.docx = new Document ({
-            styles: {
-              default: {
-                document: {
-                  run: {
-                    size: 26,
-                    font: "Georgia"
+          if (!data.docx){
+            data.docx = new Document ({
+              styles: {
+                default: {
+                  document: {
+                    run: {
+                      size: 26,
+                      font: "Georgia"
+                    }
                   }
                 }
-              }
-            },
-            sections: []
-          }) : null
+              },
+              sections: []
+            })
+          }
 
           if (i===0){ // on the first prompting
             docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this particular chapter, following this guide: ${docxJsGuide()}`);
 
-            const parsedDocxJs = JSON.parse(docxJsRes.response.candidates[0].content.parts[0].text);
+            const docxJs = await docxJsRes.response.candidates[0].content.parts[0].text
 
             // checks if json is valid
-
+            console.log("This is the docxJs: "+ docxJs)
             // push to sections
-            data.docx.sections.push(parsedDocxJs);
+            await data.docx.sections.push(docxJs);
           } else {
             docxJsRes = await mainChatSession.sendMessage(`This is the number ${i+1} prompting. I want you to generate an array json, with each new paragraph as individual arrays. See the schema below: ${schema.subsequentDocx}`);
 
@@ -819,6 +831,13 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
     console.log("Pro Model failed to fix our Json, trying again...");
     return await fixJsonWithPro(data.fixJsonMsg);
   }
+}
+
+async function compileDocx () {
+  Packer.toBuffer(doc).then((buffer) => {
+    fs.writeFileSync(`docs/${userInputData.title}.docx`, buffer);
+    console.log(`Document created successfully`);
+  });
 }
 
 const PORT = process.env.PORT
