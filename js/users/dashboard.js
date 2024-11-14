@@ -163,8 +163,9 @@ async function postFormData(userInputData) {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
+            
             console.log(serverRes);
-            localStorage.setItem("book data", serverRes)
+            localStorage.setItem("book_data", serverRes.data)
         } catch (err) {
             errors++
             console.log(`An error occurred. Hang tight while we retry : ${err}`);

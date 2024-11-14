@@ -161,106 +161,62 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
 **Reader's Reflection:** What is one small, concrete step you can take today to move towards a goal you've set for yourself? Write it down, commit to it, and celebrate its completion.  How does taking this first step make you feel?"`
   },
   sampleDocxCode: function () {
-    return `{
-      properties: { pageBreakBefore: true }, // Start new chapter on a new page
-      children: [
-        // Chapter Title (Heading 1)
-        new Paragraph({
-          alignment: AlignmentType.CENTER, // Centers the text
-          spacing: { after: 300 },         // Adds spacing after the paragraph
-          heading: "Heading1",             // Sets it as Heading 1
-          children: [
-            new TextRun({
-              text: "Day 1 - The Fresh Start",
-              bold: true,              // Makes the text bold
-              size: 40,                // Sets font size (20 * 2 = 40 half-points)
-            }),
-          ],
-        }),
-        // Quote Section, if necessary
-        new Paragraph({
-          alignment: AlignmentType.END,
-          spacing: { after: 300 },
-          children: [
-            new TextRun({
-              text: \`"The first step towards getting somewhere is to decide you're not going to stay where you are." - J.P. Morgan\`,
-              italics: true,
-              bold: false,
-            }),
-          ],
-        }),
-
-        // Author's Reflection Title (Heading 2)
-        new Paragraph({
-          spacing: { after: 200 },
-          heading: "Heading2",
-          children: [
-            new TextRun({
-              text: "Author's Reflection", // do not add any colon or semi colon after any heading. Be it h1 or h2 or h3.
-              bold: true,
-              size: 36,
-            }),
-          ],
-        }),
-
-        // Author's Reflection Text
-        new Paragraph({
-          spacing: { after: 200 },
-          children: [
-            new TextRun({
-              text:
-                "J.P. Morgan's words capture the very essence of a fresh start. It's not enough to simply wish for change; we must actively choose to move, to shift, to begin. Today, on the first day of January, we stand at this crucial juncture. The past is behind us, a mixture of triumphs and stumbles, and the future stretches before us, full of potential. This potential, however, remains dormant until we decide, definitively, to step away from our current position – whether that’s a bad habit, a limiting belief, or a stagnant routine.",
-            }),
-          ],
-        }),
-
-        // Additional Reflection Text
-        new Paragraph({
-          spacing: { after: 200 },
-          children: [
-            new TextRun({
-              text:
-              "Many of us set ambitious New Year's resolutions, fueled by the energy of a fresh start. But how do we ensure that this initial spark doesn't fizzle out? The key is to recognize that grand transformations are built upon small, consistent actions. Don't aim to overhaul your entire life overnight. Instead, focus on identifying one specific area you want to improve and take a single, concrete step in that direction. If you want to exercise more, don't sign up for a marathon on day one. Start with a 15-minute walk. If you're aiming to eat healthier, replace one unhealthy snack with a piece of fruit. These seemingly minor actions create momentum, building self-discipline and paving the way for lasting change.",
-
-            }),
-          ],
-        }),
-
-        new Paragraph({
-          spacing: { after: 200 },
-          children: [
-            new TextRun({
-              text: "One of the biggest pitfalls in pursuing new goals is the tendency to get overwhelmed. We envision the entire journey ahead and become discouraged by its perceived magnitude. The antidote? Stay present. Focus solely on the task at hand, on the small step you're taking today. Don't worry about next week or next month. Just be here, now, committed to the present action. Remember, the longest journey begins with a single step, and each step you take brings you closer to your destination.",
-  
-            }),
-          ],
-        }),
-
-        // Reader's Reflection Title (Heading 2)
-        new Paragraph({
-          spacing: { after: 200 },
-          heading: "Heading2",
-          children: [
-            new TextRun({
-              text: "Readers Reflection",
-              bold: true,
-              size: 36,
-            }),
-          ],
-        }),
-
-        // Reader's Reflection Text
-        new Paragraph({
-          spacing: { after: 300 },
-          children: [
-            new TextRun({
-              text:
-              "What is one small, concrete step you can take today to move towards a goal you've set for yourself? Write it down, commit to it, and celebrate its completion. How does taking this first step make you feel?",
-            }),
-          ],
-        }),
-      ],
-    }`
+    return `[
+    {
+        "paragraph": {
+            "alignment": "center",
+            "spacing": {
+                "after": 300
+            },
+            "heading": "Heading1",
+            "children": [] // this must be an empty array
+        },
+        "textRun": { // this must be a property at the same level as paragraph
+            "text": "Day 1 - The Fresh Start",
+            "bold": true,
+            "size": 40
+        }
+    },
+    {
+        "paragraph": {
+            "alignment": "end",
+            "spacing": {
+                "after": 300
+            },
+            "children": [] 
+        },
+        "textRun": {
+            "text": "The first step towards getting somewhere is to decide you're not going to stay where you are. - J.P. Morgan",
+            "italics": true,
+            "bold": false
+        }
+    },
+    {
+        "paragraph": {
+            "spacing": {
+                "after": 200
+            },
+            "heading": "Heading2",
+            "children": []
+        },
+        "textRun": {
+            "text": "Author's Reflection",
+            "bold": true,
+            "size": 36
+        }
+    },
+    {
+        "paragraph": {
+            "spacing": {
+                "after": 200
+            },
+            "children": []
+        },
+        "textRun": {
+            "text": "Many of us set ambitious New Year's resolutions, fueled by the energy of a fresh start. But how do we ensure that this initial spark doesn't fizzle out? The key is to recognize that grand transformations are built upon small, consistent actions. Don't aim to overhaul your entire life overnight. Instead, focus on identifying one specific area you want to improve and take a single, concrete step in that direction. If you want to exercise more, don't sign up for a marathon on day one. Start with a 15-minute walk. If you're aiming to eat healthier, replace one unhealthy snack with a piece of fruit. These seemingly minor actions create momentum, building self-discipline and paving the way for lasting change."
+        }
+    }
+]`
   },
 
 }
@@ -306,7 +262,7 @@ const schema = {
     "chapter-1": [],
     "chapter-2": []
   },
-  subsequentDocx : `{[
+  subsequentDocx: `{[
         new Paragraph({
           alignment: AlignmentType.CENTER, 
           spacing: { after: 300 },         
@@ -381,7 +337,7 @@ app.post("/generate_book", async (req, res) => {
     }
     // next, generate the write-up for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
     await generateChapters(mainChatSession);
-    
+
     await compileDocx();
     finalReturnData.file = `/docs/${userInputData.title}.docx`
     res.send(finalReturnData);
@@ -397,8 +353,7 @@ app.post("/generate_book", async (req, res) => {
     console.log(data.postErr)
     res.status(500).send(data.postErr);
   } finally {
-    res.status(200).send(data)
-    data = originalDataObj;
+    data = originalDataObj
   }
 
 });
@@ -566,6 +521,10 @@ async function generateChapters(mainChatSession) {
 
     // run a loop for each chapter available
     for (let i = 1; i <= tableOfContents.length; i++) {
+
+      // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
+      data.populatedSections.push({ properties: { pageBreakBefore: true } });
+
       let promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
         On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
         ${docxJsGuide()}.
@@ -581,24 +540,24 @@ async function generateChapters(mainChatSession) {
 
       for (let i = 0; i < promptNo.promptMe; i++) {
         // let genChapter;
-        async function genChapter (retry, tryAgainMsg) {
+        async function genChapter(retry, tryAgainMsg) {
           let chapterText;
-          
+
           function checkAlternateInstruction() {
             if (promptNo.promptMe > 1) {
-            return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i+1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i+1? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately" : ""}`
+              return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i + 1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately" : ""}`
             } else if (promptNo.promptMe === 1) return `Since I am prompting you for this chapter only once, just end this like you would normally`
           }
           try {
-              const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction()}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
+            const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction()}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
 
-              chapterText = getChapterCont;
-              data.chapterText = getChapterCont;
+            chapterText = getChapterCont;
+            data.chapterText = getChapterCont;
 
-              console.log("this is the type of data.chapterText: " + typeof(data.chapterText))
-      
+            console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
 
-            
+
+
 
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
@@ -624,9 +583,9 @@ async function generateChapters(mainChatSession) {
                   data.chapterErrorCount++;
                   console.log("Trying to Fix JSON...");
                   // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
-                  
-                  console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof(data.chapterText.response.candidates[0].content.parts[0].text));
-                  
+
+                  console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
+
                   let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
                   data.fixJsonMsg = fixMsg;
                   let result = await fixJsonWithPro(fixMsg);
@@ -644,12 +603,12 @@ async function generateChapters(mainChatSession) {
         const genChapterResult = await genChapter();
         await getDocxCode();
 
-        async function getDocxCode () {
+        async function getDocxCode() {
           let docxJsRes;
-          // data.docx does not exist? create it. else, do nothing
-          if (data.current_chapter === tableOfContents.length){ // initialize docx.js when we reach the last chapter
+
+          if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we reach the last chapter
             console.log("Data.docx shall be created")
-            data.docx = new Document ({
+            data.docx = new Document({
               styles: {
                 default: {
                   document: {
@@ -662,94 +621,103 @@ async function generateChapters(mainChatSession) {
               },
               sections: data.populatedSections
             })
-            console.log(`Created! This is type of data.docx: ${typeof(data.docx)}`)
+            console.log(`Created! This is type of data.docx: ${typeof (data.docx)}`)
           }
 
-          if (i===0){ // on the first prompting, push the created object to populatedSections
-            docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i+1} batch, following this guide: ${docxJsGuide()}. Return your response as JSON: {"docx" : "res"}. Do not remove that 'new Paragraph()' constructor as that is pivotal to my code in docx.js working.`);
 
-            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-            console.log("this is model res: " + modelRes)
+          docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}`);
 
-            let docxJs;
-            try {
-              docxJs = JSON.parse(modelRes);
-              
-            } catch (error) {
-                docxJs = await fixJsonWithPro(modelRes)
-            }
+          let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          // console.log("this is model res: " + modelRes)
 
-            try {
-              docxJs = JSON.parse(docxJs.docx)
-              
-            } catch (error) {
-              console.log("parse error at 2nd docx value. retrying...")
-              docxJs = await fixJsonWithPro(modelRes);
-            }
-            
-            console.log("This is the docxJs.docx type which we are to push to: " + typeof(docxJs.docx), docxJs.docx);
+          let docxJs;
+          try { // parse the purported array
+            docxJs = JSON.parse(modelRes);
+            console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
 
-            data.populatedSections.push(docxJs.docx);
-            
-            console.log("this is the type of the pushed supposed obj: " + data.populatedSections[data.current_chapter-1], data.populatedSections[data.current_chapter-1].properties, data.populatedSections[data.current_chapter-1])
-            // docxJs = makeValidJS(docxJs);
-            
-          } else {
-            // Push on subsequent promptMe codes
-            docxJsRes = await mainChatSession.sendMessage(`This is the number ${i+1} docxJS prompting. I want you to generate a json with an array i which each 'new paragraph()' constructor is the individual index. Use the schema below: \n ${schema.subsequentDocx}. \n Do not remove that 'new Paragraph()' constructor as that is pivotal to my code in docx.js working.`);
-
-            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-            try {
-              docxJsRes = JSON.parse(modelRes);
-            } catch (error) {
-              docxJsRes = await fixJsonWithPro(modelRes);
-            }
-
-            // let parsedDocxArr = docxJsRes.response.candidates[0].content.parts[0].text;
-            console.log("This is the type of supposed object: " + typeof(docxJsRes.docx), docxJsRes);
-            
-
-            // parsedDocxArr = makeValidJS(parsedDocxArr)
-            
-            // console.log("This is the new type of parsedDocxArr: " + typeof(parsedDocxArr), parsedDocxArr);
-
-            docxJsRes.docx.forEach(paragraph => {
-              data.populatedSections[data.current_chapter-1].children.push(paragraph); // push each paragraph
-            });
+          } catch (error) {
+            console.error("We got bad json from model. Fixing... : " + error);
+            docxJs = await fixJsonWithPro(modelRes);
           }
+
+          // extract textRun object
+          const sessionArr = [];
+          console.log("Session Arr is: "+ typeof(sessionArr) + sessionArr)
+          modelRes.forEach(item => {
+            sessionArr.push(item)
+          })
+          console.log("Session Arr is now: "+ typeof(sessionArr) + sessionArr)
+          sessionArr.forEach(item => {
+            const textRunObj = item.textRun; // gets the textRun obj;
+            const paragraphObj = item.paragraph;
+            console.log("This is the paragraphObj: " + paragraphObj + typeof(paragraphObj))
+            // parse alignment as needed
+            if (paragraphObj.alignment) {
+              switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
+                case "center":
+                  paragraphObj.alignment = AlignmentType.CENTER;
+                  break;
+                case "end":
+                case "right": // "end" is equivalent to "right"
+                  paragraphObj.alignment = AlignmentType.RIGHT;
+                  break;
+                case "start":
+                case "left": // "start" is equivalent to "left"
+                  paragraphObj.alignment = AlignmentType.LEFT;
+                  break;
+                case "justified":
+                  paragraphObj.alignment = AlignmentType.JUSTIFIED;
+                  break;
+                case "both":
+                  paragraphObj.alignment = AlignmentType.BOTH;
+                  break;
+                case "distribute":
+                  paragraphObj.alignment = AlignmentType.DISTRIBUTE;
+                  break;   
+                case  "mediumKashida":
+                  paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
+                default:
+                  console.warn("Unknown alignment: ", paragraphObj.alignment);
+                  // default to start
+                  paragraphObj.alignment = AlignmentType.LEFT;
+                  
+                  break;
+              }
+            }
+
+            // push new TextRun
+            paragraphObj.children.push(new TextRun(textRunObj));
+            // use conditionals to create children or push to it when already created
+            if (i = 0) { // create the children array
+              populatedSections[data.current_chapter - 1].children = [new Paragraph(paragraphObj)]
+
+            } else populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj))
+
+          })
+
+
+            console.log("this is the type of the pushed supposed obj: " + typeof(data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
           
-          
-          
+
         }
 
 
         console.log("started delay for chapter pushing");
 
-        async function delay(ms = 6000) { // pushing generated chaoter to final return data
-          return await new Promise((resolve) => {
-            setTimeout(async () => {
-              console.log("ended delay");
-              if (!generatedChapContent[`chapter${data.current_chapter}`]) {
-                resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
-                // console.log(genChapterResult.content);
-              } else {
-                resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
-                console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
-              }
-              console.log("pushed to finalReturnData");
-            }, ms);
-          });
-        };
-        await delay();
+        await delayChapPush(generatedChapContent, genChapterResult);
       }
 
-
+      if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
+        console.log("Data.docx shall be created");
+        initializeDocx();
+      }
       data.current_chapter++;
-
     }
   }
   finalReturnData.genAIChapters = generatedChapContent;
 }
+
+
 
 function docxJsGuide() {
   return `PROMPT FOR GENERATING DOCX OBJECT
@@ -814,7 +782,7 @@ function docxJsGuide() {
 
   The below is is not a limitation but just a general template. Assuming you were served this text to generate the docx.js template:
 "${data.sampleChapter()}".
-You shall return an object as below for this chapter ONLY. This is because I shall be pushing it to an array in my code:
+You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
 
 	
@@ -822,7 +790,7 @@ Do not add font family at any level. Do not add size to non-heading TextRun, Onl
 }
 
 async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
-  if (data.proModelErrors >= 5 ) {
+  if (data.proModelErrors >= 5) {
     data.res.status(501).send("Model Failed to fix Json after numerous retries. Try again later");
     return "Model Failed to fix Json after numerous retries. Try again later, please."
   }
@@ -858,7 +826,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
     console.log(fixedRes.response.candidates[0].content.parts[0].text);
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const secondStageJson = JSON.parse(firstStageJson.fixedJson);
-    
+
     console.log(`Pro Model Fixed our Json. The Json is now : ${secondStageJson}`);
     // reset error count before returning successful fix
     data.proModelErrors = 0;
@@ -870,17 +838,57 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   }
 }
 
-function makeValidJS (str) {
+function makeValidJS(str) {
   try {
     const validJs = eval(str); // makes the string an executable array
     return validJs;
-    
+
   } catch (error) {
     console.error("Failed to Make code executable: " + error);
     return null;
   }
 }
-async function compileDocx () {
+
+async function delayChapPush(generatedChapContent, genChapterResult, ms = 6000) { // pushing generated chapter to final return data
+  return await new Promise((resolve) => {
+    setTimeout(async () => {
+      console.log("ended delay");
+      if (!generatedChapContent[`chapter${data.current_chapter}`]) {
+        resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
+        // console.log(genChapterResult.content);
+      } else {
+        resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
+        console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
+      }
+      console.log("pushed to finalReturnData, done with chapter " + data.current_chapter);
+    }, ms);
+  });
+};
+
+function initializeDocx () {
+  try {
+    data.docx = new Document({
+      styles: {
+        default: {
+          document: {
+            run: {
+              size: 26,
+              font: "Georgia"
+            }
+          }
+        }
+      },
+      sections: data.populatedSections
+    })
+    console.log(`Initialized! This is type of data.docx: ${typeof (data.docx)}`)
+
+  } catch (error) {
+    console.error("wierd error while initializing docx code")
+  }
+}
+
+
+async function compileDocx() {
   Packer.toBuffer(doc).then((buffer) => {
     fs.writeFileSync(`docs/${userInputData.title}.docx`, buffer);
     console.log(`Document created successfully`);
