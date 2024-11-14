@@ -642,11 +642,12 @@ async function generateChapters(mainChatSession) {
 
           // extract textRun object
           const sessionArr = [];
-          console.log("Session Arr is: "+ typeof(sessionArr) + sessionArr)
-          modelRes.forEach(item => {
+          console.log("Session Arr is an array? : "+ Array.isArray(sessionArr) + sessionArr);
+          console.log("DocxJS is an array? : "+ Array.isArray(docxJs) + docxJs)
+          docxJs.forEach(item => {
             sessionArr.push(item)
           })
-          console.log("Session Arr is now: "+ typeof(sessionArr) + sessionArr)
+          console.log("Session Arr is now: "+ Array.isArray(sessionArr) + sessionArr)
           sessionArr.forEach(item => {
             const textRunObj = item.textRun; // gets the textRun obj;
             const paragraphObj = item.paragraph;
@@ -688,10 +689,10 @@ async function generateChapters(mainChatSession) {
             // push new TextRun
             paragraphObj.children.push(new TextRun(textRunObj));
             // use conditionals to create children or push to it when already created
-            if (i = 0) { // create the children array
-              populatedSections[data.current_chapter - 1].children = [new Paragraph(paragraphObj)]
+            if (i === 0) { // create the children array
+              data.populatedSections[data.current_chapter - 1].children = [new Paragraph(paragraphObj)]
 
-            } else populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj))
+            } else data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj))
 
           })
 
