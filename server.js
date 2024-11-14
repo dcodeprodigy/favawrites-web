@@ -306,7 +306,7 @@ const schema = {
     "chapter-1": [],
     "chapter-2": []
   },
-  subsequentDocx : `[
+  subsequentDocx : `{[
         new Paragraph({
           alignment: AlignmentType.CENTER, 
           spacing: { after: 300 },         
@@ -341,7 +341,7 @@ const schema = {
               size: 36,
             }),
           ],
-        }),]`
+        })]}`
 
 }
 
@@ -397,6 +397,7 @@ app.post("/generate_book", async (req, res) => {
     console.log(data.postErr)
     res.status(500).send(data.postErr);
   } finally {
+    res.status(200).send(data)
     data = originalDataObj;
   }
 
@@ -557,6 +558,8 @@ async function generateChapters(mainChatSession) {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
   const generatedChapContent = [];
+  data.populatedSections = [];
+  console.log("Created data.populatedSections")
 
   if (!data.plots) { // code to run if there is not plot
     data.chapterErrorCount = 0;
@@ -644,7 +647,8 @@ async function generateChapters(mainChatSession) {
         async function getDocxCode () {
           let docxJsRes;
           // data.docx does not exist? create it. else, do nothing
-          if (!data.docx){
+          if (data.current_chapter === tableOfContents.length){ // initialize docx.js when we reach the last chapter
+            console.log("Data.docx shall be created")
             data.docx = new Document ({
               styles: {
                 default: {
@@ -656,33 +660,66 @@ async function generateChapters(mainChatSession) {
                   }
                 }
               },
-              sections: []
+              sections: data.populatedSections
             })
+            console.log(`Created! This is type of data.docx: ${typeof(data.docx)}`)
           }
 
-          if (i===0){ // on the first prompting
-            docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this particular chapter, following this guide: ${docxJsGuide()}`);
+          if (i===0){ // on the first prompting, push the created object to populatedSections
+            docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i+1} batch, following this guide: ${docxJsGuide()}. Return your response as JSON: {"docx" : "res"}. Do not remove that 'new Paragraph()' constructor as that is pivotal to my code in docx.js working.`);
 
-            const docxJs = await docxJsRes.response.candidates[0].content.parts[0].text
+            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            console.log("this is model res: " + modelRes)
 
-            // checks if json is valid
-            console.log("This is the docxJs: "+ docxJs)
-            // push to sections
-            await data.docx.sections.push(docxJs);
+            let docxJs;
+            try {
+              docxJs = JSON.parse(modelRes);
+              
+            } catch (error) {
+                docxJs = await fixJsonWithPro(modelRes)
+            }
+
+            try {
+              docxJs = JSON.parse(docxJs.docx)
+              
+            } catch (error) {
+              console.log("parse error at 2nd docx value. retrying...")
+              docxJs = await fixJsonWithPro(modelRes);
+            }
+            
+            console.log("This is the docxJs.docx type which we are to push to: " + typeof(docxJs.docx), docxJs.docx);
+
+            data.populatedSections.push(docxJs.docx);
+            
+            console.log("this is the type of the pushed supposed obj: " + data.populatedSections[data.current_chapter-1], data.populatedSections[data.current_chapter-1].properties, data.populatedSections[data.current_chapter-1])
+            // docxJs = makeValidJS(docxJs);
+            
           } else {
-            docxJsRes = await mainChatSession.sendMessage(`This is the number ${i+1} prompting. I want you to generate an array json, with each new paragraph as individual arrays. See the schema below: ${schema.subsequentDocx}`);
+            // Push on subsequent promptMe codes
+            docxJsRes = await mainChatSession.sendMessage(`This is the number ${i+1} docxJS prompting. I want you to generate a json with an array i which each 'new paragraph()' constructor is the individual index. Use the schema below: \n ${schema.subsequentDocx}. \n Do not remove that 'new Paragraph()' constructor as that is pivotal to my code in docx.js working.`);
 
-            const parsedDocxArr = JSON.parse(docxJsRes.response.candidates[0].content.parts[0].text);
-            parsedDocxArr.forEach(paragraph => {
-              data.docx.sections[data.current_chapter-1].children.push(paragraph); // push each paragraph
+            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            try {
+              docxJsRes = JSON.parse(modelRes);
+            } catch (error) {
+              docxJsRes = await fixJsonWithPro(modelRes);
+            }
+
+            // let parsedDocxArr = docxJsRes.response.candidates[0].content.parts[0].text;
+            console.log("This is the type of supposed object: " + typeof(docxJsRes.docx), docxJsRes);
+            
+
+            // parsedDocxArr = makeValidJS(parsedDocxArr)
+            
+            // console.log("This is the new type of parsedDocxArr: " + typeof(parsedDocxArr), parsedDocxArr);
+
+            docxJsRes.docx.forEach(paragraph => {
+              data.populatedSections[data.current_chapter-1].children.push(paragraph); // push each paragraph
             });
-
-
-
           }
           
           
-          data.docx.sections.push()
+          
         }
 
 
@@ -829,10 +866,20 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   } catch (error) {
     data.proModelErrors++;
     console.log("Pro Model failed to fix our Json, trying again...");
-    return await fixJsonWithPro(data.fixJsonMsg);
+    return await fixJsonWithPro(fixMsg);
   }
 }
 
+function makeValidJS (str) {
+  try {
+    const validJs = eval(str); // makes the string an executable array
+    return validJs;
+    
+  } catch (error) {
+    console.error("Failed to Make code executable: " + error);
+    return null;
+  }
+}
 async function compileDocx () {
   Packer.toBuffer(doc).then((buffer) => {
     fs.writeFileSync(`docs/${userInputData.title}.docx`, buffer);
