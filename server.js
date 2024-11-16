@@ -124,7 +124,7 @@ let data = {
     "${userInputData.description.trim()}."
     
     Also, you must follow this behaviour when writing(Non-user Description):
-    As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on narrative techniques, creativity, and depth to ensure the text is not detectable by AI detectors.
+    As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on prose style of writing, discouraging the use of bullet points as much as possible.
 
     # Steps
 
@@ -143,7 +143,9 @@ let data = {
 
     (Each book example should be a comprehensive and unique storyline, marked by creativity, and should reflect the length and complexity of a real novel.).
     
-    THE USER PROVIDED DESCRIPTION IS THE MAIN INSTRUCTIONS FOR WRITING AS IT IS WHAT THIS PARTICULAR USE WANTS. ALSO REMEBER TO USE SIMPLE VOCABULARY AND GRAMMAR
+    THE USER PROVIDED DESCRIPTION IS THE MAIN INSTRUCTIONS FOR WRITING AS IT IS WHAT THIS PARTICULAR USER WANTS. ALSO REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS.
+    Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
+    Here is a more comprehensive list of word/phrases you must avoid at all costs: \n \n ${getAiPhrase()}
     `
   },
   current_chapter: 1,
@@ -306,9 +308,15 @@ const schema = {
 
 const finalReturnData = {}; // An object for collecting data to be sent to the client
 
+// save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
+let originalDataObj;
+function saveOriginalData() {
+  originalDataObj = data;
+}
+saveOriginalData();
+
 app.post("/generate_book", async (req, res) => {
-  // save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
-  const originalDataObj = data;
+  // const originalDataObj = data;
 
   try {
     const userInputData = req.body;
@@ -316,7 +324,7 @@ app.post("/generate_book", async (req, res) => {
     // const systemInstruction = data.systemInstruction(userInputData);
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", systemInstruction: data.systemInstruction(userInputData) });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData);
@@ -332,26 +340,27 @@ app.post("/generate_book", async (req, res) => {
     data.plot
     if (JSON.parse(finalReturnData.firstReq.plot) === true) {
       await generatePlot(); // only generate a plot if the model deems it fit. That is, if this is a novel
-
-
     }
     // next, generate the write-up for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
     await generateChapters(mainChatSession);
 
-    await compileDocx();
-    finalReturnData.file = `/docs/${userInputData.title}.docx`
+    await compileDocx(userInputData);
+    finalReturnData.file = `/docs/${userInputData.title}.docx`;
+    finalReturnData.docxCode = data.docx;
     res.send(finalReturnData);
 
     // Next, using the plots to guide the AI to generate chapters
 
   } catch (error) {
+    console.error("This is the data.docx: "+ data.docx)
+    console.log("This is the data.populatedSections: " + data.populatedSections)
 
     if (!data.postErr) {
       data.postErr = []
     }
     data.postErr.push(error);
     console.log(data.postErr)
-    res.status(500).send(data.postErr);
+    res.status(200).send(data);
   } finally {
     data = originalDataObj
   }
@@ -534,6 +543,43 @@ async function generateChapters(mainChatSession) {
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
       console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
+      let writingPatternRes;
+      try {
+        async function sendWritingStyleReq () {
+          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style tha shall be suitable for this chapter. I am doing this to prevent you from using just one book writing tyle throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the examples as in the available patterns"}. The patterns available are: \n ${writingPattern()}`);
+        }
+        sendWritingStyleReq()
+      } catch (error) {
+        console.error("Error in Sending message to model at writingPatternRes: " + error);
+        delay()
+
+        async function delay(ms = 6000) {
+          return await new Promise((resolve) => {
+            setTimeout(async () => {
+              console.log("Reaching Model Again");
+              let result = await sendWritingStyleReq()
+              resolve(result);
+            }, ms);
+          });
+        };
+      }
+
+      console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
+      let selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
+      if (selectedPattern){
+        try {
+          let fixedJsonPattern = JSON.parse(selectedPattern);
+          selectedPattern = fixedJsonPattern;
+          
+        } catch (error) {
+          console.error("Could not parse selectedPattern - Fixing: " + error)
+          selectedPattern = fixJsonWithPro(selectedPattern)
+        }
+
+      } else {
+        selectedPattern = "You just choose one suitable one with example writeup"
+      }
+
 
       // generate the chapter for the number of times the model indicated
       promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
@@ -545,9 +591,10 @@ async function generateChapters(mainChatSession) {
 
           function checkAlternateInstruction() {
             if (promptNo.promptMe > 1) {
-              return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i + 1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately" : ""}`
-            } else if (promptNo.promptMe === 1) return `Since I am prompting you for this chapter only once, just end this like you would normally`
+              return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i + 1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately." : ""} Just know that for this chapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}`
+            } else if (promptNo.promptMe === 1) return `Since I am prompting you for this chapter only once, just end this like you would normally. Just know that for this chapter, you must use this pattern of writing: ${selectedPattern.pattern}`
           }
+
           try {
             const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction()}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
 
@@ -555,9 +602,6 @@ async function generateChapters(mainChatSession) {
             data.chapterText = getChapterCont;
 
             console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
-
-
-
 
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
@@ -604,26 +648,7 @@ async function generateChapters(mainChatSession) {
         await getDocxCode();
 
         async function getDocxCode() {
-          let docxJsRes;
-
-          if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we reach the last chapter
-            console.log("Data.docx shall be created")
-            data.docx = new Document({
-              styles: {
-                default: {
-                  document: {
-                    run: {
-                      size: 26,
-                      font: "Georgia"
-                    }
-                  }
-                }
-              },
-              sections: data.populatedSections
-            })
-            console.log(`Created! This is type of data.docx: ${typeof (data.docx)}`)
-          }
-
+          let docxJsRes; 
 
           docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}`);
 
@@ -705,13 +730,14 @@ async function generateChapters(mainChatSession) {
 
         console.log("started delay for chapter pushing");
 
-        await delayChapPush(generatedChapContent, genChapterResult);
+        await delayChapPush(generatedChapContent, genChapterResult, i);
       }
 
       if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
         console.log("Data.docx shall be created");
         initializeDocx();
       }
+      console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`)
       data.current_chapter++;
     }
   }
@@ -839,6 +865,135 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   }
 }
 
+function writingPattern(){
+  const stylesOfWriting = `Here are 30 tones that can be employed across different chapters of a book, depending on the subject matter, audience, and narrative goals:
+
+### 1. **Inquisitive**  
+An inquisitive tone sparks curiosity, drawing the reader into a journey of exploration. It often begins with questions or observations that challenge conventional thinking.  
+*"Have you ever wondered why some people thrive under pressure while others crumble? Is it luck, strategy, or something more profound? Let’s uncover what lies beneath the surface."*
+
+### 2. **Reflective**  
+A reflective tone allows the reader to pause and contemplate deeper meanings. It’s often used to share personal insights or universal truths.  
+*"Looking back on those days, I see more clearly now. Every failure wasn’t just a setback but a lesson, shaping who I was becoming. Sometimes, the hardest paths lead to the most fulfilling destinations."*
+
+### 3. **Optimistic**  
+Optimism uplifts and encourages, highlighting possibilities even in challenging circumstances. It focuses on hope and forward momentum.  
+*"The road ahead may be uncertain, but every step brings us closer to something extraordinary. With persistence and faith, even the smallest actions can create monumental change."*
+
+### 4. **Authoritative**  
+An authoritative tone exudes confidence and provides clarity, ensuring the reader trusts the information or guidance.  
+*"Here’s the truth: success doesn’t come by chance. It’s the result of consistent habits, deliberate action, and the ability to learn from failure. These principles aren’t optional; they’re foundational."*
+
+### 5. **Conversational**  
+A conversational tone makes the writing feel personal, as though the author is directly speaking to the reader.  
+*"Let’s be honest—we’ve all been there. That moment when you’re staring at the ceiling, wondering where it all went wrong. Don’t worry; it’s not the end. It’s just the beginning of something better."*
+
+### 6. **Suspenseful**  
+Suspense keeps readers on edge, drawing them into the scene with vivid details and unanswered questions.  
+*"The footsteps grew louder, echoing in the empty hall. Her breath quickened, but she didn’t dare turn around. Something was there—watching, waiting."*
+
+### 7. **Humorous**  
+Humor adds a light-hearted touch, making the narrative more engaging and relatable.  
+*"I tried to follow the yoga instructor’s advice to 'breathe deeply,' but all I could think about was not face-planting into my mat. Apparently, inner peace isn’t my strong suit."*
+
+### 8. **Melancholic**  
+A melancholic tone evokes a sense of loss or bittersweet reflection, often touching the heart.  
+*"The letter sat unopened on the table, its edges worn from months of hesitation. What could have been was now just a memory, lingering like a shadow."*
+
+### 9. **Inspiring**  
+An inspiring tone motivates and instills a sense of possibility, often through vivid imagery or uplifting examples.  
+*"When the storm finally passed, the sun emerged, bathing the world in a golden glow. It was a reminder that even after the darkest nights, there’s always a new dawn."*
+
+### 10. **Critical**  
+A critical tone challenges assumptions and provokes thought, encouraging readers to question established ideas.  
+*"It’s easy to accept trends at face value, but have we stopped to consider their consequences? Beneath the shiny exterior lies a complex web of challenges we can’t afford to ignore."*
+
+### 11. **Empathetic**  
+An empathetic tone connects deeply with the reader's emotions, showing understanding and compassion.  
+*"I know it feels overwhelming right now, like the weight of the world is on your shoulders. But even in your darkest moments, you’re not alone. You’re stronger than you believe."*
+
+### 12. **Nostalgic**  
+A nostalgic tone takes the reader on a journey to the past, evoking fond memories or wistful longing.  
+*"The scent of rain on dry soil brought me back to childhood summers, running barefoot under stormy skies. Those days felt endless, each moment brimming with possibility."*
+
+### 13. **Cynical**  
+A cynical tone questions motives and outcomes, often with a touch of irony or skepticism.  
+*"Sure, they promised change, but doesn’t it always end the same? Big words, bold promises, and we’re left cleaning up the mess."*
+
+### 14. **Inspirational**  
+Inspirational tones elevate the reader, often by emphasizing resilience, courage, and the human spirit.  
+*"The odds were impossible, the obstacles unrelenting, but they didn’t stop. Each step forward was a victory, proving that limits are just illusions."*
+
+### 15. **Romantic**  
+A romantic tone is passionate and emotional, often highlighting beauty and desire.  
+*"Her laughter danced through the air like music, weaving a spell he couldn’t resist. In that moment, everything else faded away—there was only her."*
+
+### 16. **Ironic**  
+An ironic tone highlights contradictions, often using humor or wit to make a point.  
+*"He spent years climbing the corporate ladder, only to discover it was leaning against the wrong wall."*
+
+### 17. **Defiant**  
+A defiant tone is bold and rebellious, challenging norms or authority with conviction.  
+*"They told me to stay quiet, to follow the rules. But rules were made to be broken, and silence isn’t my strength."*
+
+### 18. **Playful**  
+A playful tone is light and fun, often using whimsy or humor to engage the reader.  
+*"If cats could talk, they’d probably demand royalties for every viral video. Honestly, they’re the real influencers."*
+
+### 19. **Tragic**  
+A tragic tone evokes deep sorrow, often highlighting loss or unavoidable pain.  
+*"He stood by the graveside, the words he’d left unsaid echoing louder than any eulogy. It was too late now—too late to fix what was broken."*
+
+### 20. **Mysterious**  
+A mysterious tone keeps readers intrigued, often hinting at hidden truths or secrets.  
+*"The old key sat in her palm, its intricate design whispering of secrets long buried. What door did it open—and what lay beyond?"*
+
+Sure, here are 10 additional tones you can use for variety in a book:
+
+### 21. **Optimistic-Realistic**  
+This tone strikes a balance between hope and practicality, acknowledging challenges but emphasizing possibility.  
+*"The journey will be hard—no shortcuts, no guarantees. But with each small win, you’ll see it’s worth every step."*
+
+### 22. **Persuasive**  
+A persuasive tone encourages the reader to embrace an idea or take action, appealing to logic and emotion.  
+*"You can keep waiting for the right time, but here’s the truth: the right time is now. Every moment you delay is an opportunity missed."*
+
+### 23. **Skeptical**  
+A skeptical tone questions assumptions and pushes the reader to think critically.  
+*"They say money buys happiness, but does it? Or does it just buy distractions that mask what’s really missing?"*
+
+### 24. **Rebellious**  
+A rebellious tone challenges societal norms and inspires bold action.  
+*"Who decided we have to follow their rules? Maybe it’s time we write our own story, on our own terms."*
+
+### 25. **Hopeful**  
+A hopeful tone reassures the reader and highlights the potential for a better future.  
+*"Even when the world feels broken, there’s always a chance to rebuild. Tomorrow holds more promise than you think."*
+
+### 26. **Philosophical**  
+This tone invites readers to reflect on life’s bigger questions and explore abstract ideas.  
+*"What if time isn’t something we lose, but something we create? Perhaps the problem isn’t running out of it but not understanding it."*
+
+### 27. **Enthusiastic**  
+An enthusiastic tone conveys excitement and energy, motivating the reader to engage fully.  
+*"This is it—the moment you’ve been waiting for! Everything you’ve done has led to this, and the best is yet to come."*
+
+### 28. **Witty**  
+A witty tone uses clever humor and sharp insights to entertain while making a point.  
+*"They say patience is a virtue, but whoever said that clearly never stood in line for coffee during rush hour."*
+
+### 29. **Anguished**  
+An anguished tone communicates deep pain or inner turmoil, often evoking strong emotional resonance.  
+*"The words stuck in her throat, each one a blade she couldn’t bear to release. How do you say goodbye when you don’t want to let go?"*
+
+### 30. **Ethereal**  
+An ethereal tone creates a dreamlike or otherworldly atmosphere, often blending reality with imagination.  
+*"The light filtered through the mist, painting the world in shades of gold and silver. Time seemed to stand still, as if the universe held its breath."*
+
+These tones can add even more depth and nuance to your writing, helping to shape your story’s emotional and thematic layers.`
+  return stylesOfWriting;
+}
+
 function makeValidJS(str) {
   try {
     const validJs = eval(str); // makes the string an executable array
@@ -850,7 +1005,7 @@ function makeValidJS(str) {
   }
 }
 
-async function delayChapPush(generatedChapContent, genChapterResult, ms = 6000) { // pushing generated chapter to final return data
+async function delayChapPush(generatedChapContent, genChapterResult, i, ms = 6000) { // pushing generated chapter to final return data
   return await new Promise((resolve) => {
     setTimeout(async () => {
       console.log("ended delay");
@@ -861,10 +1016,44 @@ async function delayChapPush(generatedChapContent, genChapterResult, ms = 6000) 
         resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
         console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
       }
-      console.log("pushed to finalReturnData, done with chapter " + data.current_chapter);
+      console.log(`pushed batch ${i+1} of chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
+
+function getAiPhrase() {
+  return `Here's a consolidated list of words and phrases commonly associated with AI-generated text. Limit their use in my any of your writings to a great extent. Avoid them completely even:
+
+General/Overused Words: Elevate, tapestry, leverage, journey, seamless, multifaceted, convey, beacon, testament, explore, delve, enrich, foster, binary, multifaceted, groundbreaking, pivotal, innovative, disruptive, transformative.
+
+Overused Intensifiers/Adverbs: Very, really, extremely.
+
+Generic Business Jargon: Leverage synergies, embrace best practices, drive growth, think outside the box, at the end of the day, moving forward, in the ever-evolving space of.
+
+Vague/Abstract Language: Tapestry, journey, paradigm, spectrum, landscape (used metaphorically).
+
+Academic-sounding Phrases: Delve into, interplay, sheds light, paves the way, underscores, grasps.
+
+Clichéd Descriptions: Amidst a sea of information, rich tapestry, in today's fast-paced world.
+
+Transitional Words: Accordingly, additionally, arguably, certainly, consequently, hence, however, indeed, moreover, nevertheless, nonetheless, notwithstanding, thus, undoubtedly, moreover, furthermore, additionally, in light of.
+
+Adjectives: Adept, commendable, dynamic, efficient, ever-evolving, exciting, exemplary, innovative, invaluable, robust, seamless, synergistic, thought-provoking, transformative, utmost, vibrant, vital.
+
+Nouns: Efficiency, innovation, institution, integration, implementation, landscape, optimization, realm, tapestry, transformation.
+
+Verbs: Aligns, augment, delve, embark, facilitate, maximize, underscores, utilize.
+
+Phrases: A testament to, in conclusion, in summary, it's important to note/consider, it's worth noting that, on the contrary, objective study aimed, research needed to understand, despite facing, today's digital age, expressed excitement, deliver actionable insights through in-depth data analysis, drive insightful data-driven decisions, leveraging data-driven insights, leveraging complex datasets to extract meaningful insights, notable works include, play a significant role in shaping, crucial role in shaping, crucial role in determining.
+
+Conclusion Crutches: In conclusion, to sum up, all things considered, ultimately.
+
+Awkward Idiom Use: Hit the nail on the head, cut to the chase, barking up the wrong tree, the elephant in the room.
+
+Overeager Emphasis: It is important to note, crucially, significantly, fundamentally.
+
+  Greetings/Apologies: Hello, sorry.`
+}
 
 function initializeDocx () {
   try {
@@ -889,8 +1078,8 @@ function initializeDocx () {
 }
 
 
-async function compileDocx() {
-  Packer.toBuffer(doc).then((buffer) => {
+async function compileDocx(userInputData) {
+  Packer.toBuffer(data.docx).then((buffer) => {
     fs.writeFileSync(`docs/${userInputData.title}.docx`, buffer);
     console.log(`Document created successfully`);
   });
