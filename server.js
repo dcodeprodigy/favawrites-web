@@ -227,12 +227,12 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
 const schema = {
   toc: `{
     "title": "The Title of the book I told you, exactly as i did",
-    "subtitle" : "Generate a suitable subtitle to the title and place it here.",
+    "subtitle" : "The Subtitle",
     "plot" : "true or false",
     "subchapter" : "true or false",
     "toc" : [
 
-        {"ch-1": "the title of the first chapter", "sch-2 or sch-3 or sch-4. Th number after sch- is gotten from th current chapter. If we were in chapter 30, then you just return sch-30": ["1.1 subchapter 1 title", "1.2 subchapter 2 title", "1.3 subchapter 3 title", "1.4 subchapter 4 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "},
+        {"ch-1": "the title of the first chapter", "sch-2 or sch-3 or sch-4. The number after sch- is gotten from the current chapter. If we were in chapter 30, then you just return sch-30": ["1.1 subchapter 1 title", "1.2 subchapter 2 title", "1.3 subchapter 3 title", "1.4 subchapter 4 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "},
 
         {"ch-2": "the title of the second chapter", "sch-2 or sch-3 or sch-4. Th number after sch- is gotten from th current chapter. If we were in chapter 30, then you just return sch-30": ["2.1 subchapter 1 title", "2.2 subchapter 2 title", "2.3 subchapter 3 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "}
     ],
@@ -317,28 +317,23 @@ function saveOriginalData() {
 saveOriginalData();
 
 app.post("/generate_book", async (req, res) => {
-  // const originalDataObj = data;
 
   try {
     const userInputData = req.body;
     data.resParam = res;
-    // const systemInstruction = data.systemInstruction(userInputData);
-
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
-    const tocPrompt = getTocPrompt(userInputData);
+    const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
     const tocRes = await mainChatSession.sendMessage(tocPrompt);
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
-    finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as an object not a json string
-    finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added prompts in the loop for generating plots
-    data["chatHistory"] = await mainChatSession.getHistory();
+    finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
+    finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
+    data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
 
-    // Next, begin creating each chapter's plot
-    console.log(typeof (JSON.parse(finalReturnData.firstReq.plot)));
-    data.plot
+    // Next, begin creating each chapter's plot if the model indicated that
     if (JSON.parse(finalReturnData.firstReq.plot) === true) {
       await generatePlot(); // only generate a plot if the model deems it fit. That is, if this is a novel
     }
@@ -353,7 +348,7 @@ app.post("/generate_book", async (req, res) => {
     // Next, using the plots to guide the AI to generate chapters
 
   } catch (error) {
-    console.error("This is the data.docx: "+ data.docx)
+    console.error("This is the data.docx: " + data.docx)
     console.log("This is the data.populatedSections: " + data.populatedSections)
 
     if (!data.postErr) {
@@ -374,7 +369,7 @@ function getTocPrompt(inputData) {
   In your response, if this book is a novel or one that you think deserves a plot, respond with "true" as a boolean and if it does not, respond with "false" as a boolean.
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
     
-    Finally, Return your response in this schema: ${schema.toc}`
+  Finally, Return your response in this schema: ${schema.toc}`
 }
 
 function checkForSubtitle(userInput) {
@@ -393,129 +388,103 @@ function parseJson(param) {
 
 
 async function generatePlot() {
+  // TO-NOTE; for something to have a subchapter, doesn't automatically mean it needs a plot okay?
 
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
   data["tableOfContents"] = tableOfContents;
 
-  console.log(tableOfContents);
+  console.log("This is the table of contents for this: " + tableOfContents);
   const config = {
     temperature: 0.8,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8100,
-    responseMimeType: "application/json",
-    responseSchema: schema.myPlotSchema
+    responseMimeType: "application/json"
   };
-  const plotChatSession = data.model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a neew schema. This way, I can simply just slap-in the needed history from previous chats, like I did here.
-  data.plots = []; // for the plots to be generated, if any
+  const plotChatSession = data.model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
+  data.plots = [];
 
   for (let i = 0; i < finalReturnData.firstReq.chapters; i++) {
     if (tableOfContents[data.current_chapter - 1]["sch-no"] !== 0) { // checks if there are subchapters available
-      await continuePlotGeneration(tableOfContents, plotChatSession, config);
+      await continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter = true);
       if (i === finalReturnData.firstReq.chapters - 1) {
-        data.current_chapter = 1; // Return the current chapter count to one, to be used when generating the contents
+        // This means that we are done with plot generation and want to move on
+        data.current_chapter = 1; // Return the current chapter count to one, to be used when generating the chapter contents
       } else {
+        // Obviously, this suggests that we are not yet done
         data.current_chapter++;
       }
-    } else if (tableOfContents[data.current_chapter - 1]["sch-no"] == 0) {
-      // When there are no subchapters for that chapter. This is necessary because some chapters or headings of some books may not really require sub-chapters
+    } else if (tableOfContents[data.current_chapter - 1]["sch-no"] == 0) { // When there are no subchapters for that chapter but the model somehow returned true for plot generation.
+      await continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter = false)
+
       null // Do nothing and generate plots for the next chapter
     }
   }
 }
 
 
-async function continuePlotGeneration(tableOfContents, plotChatSession, config) {
-  // const tableOfContents = finalReturnData.firstReq.toc; 
-  const currentSubChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`];
+async function continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter) {
+  let sendMsgError = 0;
+  let sendPlotMsg;
+  if (subChapter) {
+    const currentSubChapterArr = tableOfContents[data.current_chapter - 1][`sch-${data.current_chapter}`];
+    const currentChapterPlot = [];
+    for (const subchapter of currentSubChapterArr) { // runs a loop to generate plot for subchapters in the current chapter
+      const plotPrompt = `Now, let us start the guide/plot for chapter ${data.current_chapter}, which is titled: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot/guide should guide you, the writer on the flow of the story when I ask you to start writing. 
+      Not all book you are writing will be a story book. Some shall be something else but somehow requires guides on writing it. Therefore, if this is a storybook or novel, your guide must include complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression - that is, IF & ONLY IF this book is a fictional novel. 
+      These plots should also build on each other. Your response shall be in this schema json: 
+      ${schema.plot}`;
 
-  const currentChapterPlot = [];
+      // send message to model
+      sendPlotMsg = await genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg);
 
-  for (const subchapter of currentSubChapterArr) { // runs a loop to generate plot for subchapters in the current chapter
-    const plotPrompt = `Now, let us start the plot for chapter ${data.current_chapter} titled: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, but just for the subchapter titled: ${subchapter}. This plot should guide you, the writer on the flow of the story when writing. 
-    Create complex, relatable characters with motivations, flaws, and arcs that contribute to the story’s progression - that is, if this book is a fictional novel. 
-    These plots should also build on each other. Your response shall be in this schema json: 
-    ${schema.plot}`;
 
-    try {
-      const secondReqResponse = await sendDelayedMessage(plotChatSession, plotPrompt, config);
-      currentChapterPlot.push(secondReqResponse);
+      let modelRes = sendPlotMsg.response.candidates[0].content.parts[0].text;
+      try { // checks if we got a valid json response. Else, repair it
+        let result = JSON.parse(modelRes);
+        modelRes = result;
+
+        currentChapterPlot.push(modelRes);
+      } catch (error) {
+        console.error(`Received bad JSON data during plot generation for ${subchapter}. Trying to fix error... : ${error}.`);
+        // repair the bad JSON
+        modelRes = await fixJsonWithPro(modelRes);
+      }
+    };
+
+  } else {
+    const plotPrompt = `Now, since this particular chapter ${tableOfContents[data.current_chapter - 1]} has no subchapter, generate a resounding guide for the AI writer Model to follow. Use this schema : ${schema.plot}`;
+
+
+    let response = await genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg);
+
+    try { // checks if we got a valid json response. Else, repair it
+      let result = JSON.parse(response);
+      response = result;
+
+      currentChapterPlot.push(response);
     } catch (error) {
-      console.error(`An error occurred in CURRENT plot generation for ${subchapter} : ${error}`);
-      // Push null to maintain the array structure
-      currentChapterPlot.push(null);
+      console.error(`Received bad JSON data during plot generation for ${tableOfContents[data.current_chapter - 1]}. Trying to fix error... : ${error}.`);
+      // repair the bad JSON
+      response = await fixJsonWithPro(response);
     }
-  };
 
-  data.plots[`chapter-${data.current_chapter}`] = []; // outside the loop to avoid beingn overridden
+  }
+
+
+
+  data.plots[`chapter-${data.current_chapter}`] = []; // outside the loop to avoid being overridden
   finalReturnData.plots[`chapter-${data.current_chapter}`] = [];
+
   for (const index of currentChapterPlot) {
     data.plots[`chapter-${data.current_chapter}`].push(index.plot);
+
     console.log("Index.plot has a type of : " + typeof (index.plot));
-    console.log("This is the index: " + index)
+    console.log("This is the index: " + index);
+
     finalReturnData.plots[`chapter-${data.current_chapter}`].push(index.plot);
 
   }
-
-}
-
-
-async function sendDelayedMessage(plotChatSession, plotPrompt, config) {
-
-  async function promptModel(retry, tryAgainMsg) {
-    try {
-      let result;
-      if (retry) { // tell the model to repair its previous json response in this plotSession
-        result = await plotChatSession.sendMessage(tryAgainMsg, { generationConfig: config });
-      } else {
-        result = await plotChatSession.sendMessage(plotPrompt, { generationConfig: config });
-      }
-
-      console.log(`This is the 'result' for plot generation ${result.response}`);
-
-      let possibleParsedData;
-
-      try {
-        console.log("This is the result's value. it should be the plot generated" + result.response.candidates[0].content.parts[0].text.trim());
-        possibleParsedData = JSON.parse(result.response.candidates[0].content.parts[0].text.trim());
-
-        // checks to see if model response json is valid. If yes, we have already gotten the json we asked the model to generate. So, no need trying to get that after returning this 'sendDelayedMessage' function. If not valid. retry the same plot till we get a valid json.
-
-      } catch (error) {
-        // checks to catch any syntax errors in the JSON, then tell model to retry
-        console.log(error);
-        possibleParsedData = await new Promise((resolve) => {
-          setTimeout(async () => {
-            const result = await promptModel(true, `The previous json had an error: '${error}'. Repair it and return the corrected one.`);
-            resolve(result);
-          }, 5000);
-        });
-
-
-      }
-      return possibleParsedData;
-
-
-    } catch (error) {
-      console.error("An error occured:" + error)
-    }
-  }
-
-
-  async function delay(ms = 6000) {
-    return await new Promise((resolve) => {
-      setTimeout(async () => {
-        console.log("The delay for 6 just ended!");
-        const result = await promptModel();
-        console.log(`This is result from delay function: ${result}`);
-        resolve(result);
-      }, ms);
-    });
-  };
-
-  console.log("The delay for 6 secs is about to begin");
-  let returnValue = await delay();
-  return returnValue;
 }
 
 
@@ -546,7 +515,7 @@ async function generateChapters(mainChatSession) {
 
       let writingPatternRes;
       try {
-        async function sendWritingStyleReq () {
+        async function sendWritingStyleReq() {
           writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style tha shall be suitable for this chapter. I am doing this to prevent you from using just one book writing tyle throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the examples as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`);
         }
         await sendWritingStyleReq();
@@ -567,11 +536,11 @@ async function generateChapters(mainChatSession) {
 
       console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
       let selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
-      if (selectedPattern){
+      if (selectedPattern) {
         try {
           let fixedJsonPattern = JSON.parse(selectedPattern);
           selectedPattern = fixedJsonPattern;
-          
+
         } catch (error) {
           console.error("Could not parse selectedPattern - Fixing: " + error)
           selectedPattern = fixJsonWithPro(selectedPattern)
@@ -649,7 +618,7 @@ async function generateChapters(mainChatSession) {
         await getDocxCode();
 
         async function getDocxCode() {
-          let docxJsRes; 
+          let docxJsRes;
 
           docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}`);
 
@@ -668,16 +637,16 @@ async function generateChapters(mainChatSession) {
 
           // extract textRun object
           const sessionArr = [];
-          console.log("Session Arr is an array? : "+ Array.isArray(sessionArr) + sessionArr);
-          console.log("DocxJS is an array? : "+ Array.isArray(docxJs) + docxJs)
+          console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
+          console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs)
           docxJs.forEach(item => {
             sessionArr.push(item)
           })
-          console.log("Session Arr is now: "+ Array.isArray(sessionArr) + sessionArr)
+          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr)
           sessionArr.forEach(item => {
             const textRunObj = item.textRun; // gets the textRun obj;
             const paragraphObj = item.paragraph;
-            console.log("This is the paragraphObj: " + paragraphObj + typeof(paragraphObj))
+            console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
             // parse alignment as needed
             if (paragraphObj.alignment) {
               switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
@@ -700,14 +669,14 @@ async function generateChapters(mainChatSession) {
                   break;
                 case "distribute":
                   paragraphObj.alignment = AlignmentType.DISTRIBUTE;
-                  break;   
-                case  "mediumKashida":
+                  break;
+                case "mediumKashida":
                   paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
                 default:
                   console.warn("Unknown alignment: ", paragraphObj.alignment);
                   // default to start
                   paragraphObj.alignment = AlignmentType.LEFT;
-                  
+
                   break;
               }
             }
@@ -723,8 +692,8 @@ async function generateChapters(mainChatSession) {
           })
 
 
-            console.log("this is the type of the pushed supposed obj: " + typeof(data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
-          
+          console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+
 
         }
 
@@ -866,7 +835,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   }
 }
 
-function writingPattern(){
+function writingPattern() {
   const stylesOfWriting = `Here are 30 tones that can be employed across different chapters of a book, depending on the subject matter, audience, and narrative goals:
 
 ### 1. **Inquisitive**  
@@ -1017,7 +986,7 @@ async function delayChapPush(generatedChapContent, genChapterResult, i, ms = 600
         resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
         console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
       }
-      console.log(`pushed batch ${i+1} of chapter ${data.current_chapter} to finalReturnData `);
+      console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
@@ -1056,7 +1025,35 @@ Overeager Emphasis: It is important to note, crucially, significantly, fundament
   Greetings/Apologies: Hello, sorry.`
 }
 
-function initializeDocx () {
+async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg) {
+
+  async function genPlotMsgMain() {
+    try {
+      console.log("TODO:Check if the plot prompt resolved as expected: " + plotPrompt);
+
+      sendPlotMsg = await plotChatSession.sendMessage(plotPrompt);
+      return sendPlotMsg;
+    } catch (error) {
+      // error sending message
+      console.log("An error occured while trying to generate plot: " + error);
+
+      if (sendMsgError < 3) {
+        await genPlotMsgMain();
+      } else {
+        console.error("Could not generate Plot: " + error);
+        sendMsgError = 0;
+        throw Error
+      }
+      sendMsgError++;
+  
+    }
+
+  }
+  let response = await genPlotMsgMain();
+  return response;
+}
+
+function initializeDocx() {
   try {
     data.docx = new Document({
       styles: {
