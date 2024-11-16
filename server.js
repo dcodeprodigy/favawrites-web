@@ -145,7 +145,8 @@ let data = {
     
     THE USER PROVIDED DESCRIPTION IS THE MAIN INSTRUCTIONS FOR WRITING AS IT IS WHAT THIS PARTICULAR USER WANTS. ALSO REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS.
     Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
-    Here is a more comprehensive list of word/phrases you must avoid at all costs: \n \n ${getAiPhrase()}
+
+    In any of your responses, never you include the following: \n \n ${getAiPhrase()}
     `
   },
   current_chapter: 1,
@@ -546,12 +547,12 @@ async function generateChapters(mainChatSession) {
       let writingPatternRes;
       try {
         async function sendWritingStyleReq () {
-          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style tha shall be suitable for this chapter. I am doing this to prevent you from using just one book writing tyle throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the examples as in the available patterns"}. The patterns available are: \n ${writingPattern()}`);
+          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style tha shall be suitable for this chapter. I am doing this to prevent you from using just one book writing tyle throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the examples as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`);
         }
-        sendWritingStyleReq()
+        await sendWritingStyleReq();
       } catch (error) {
         console.error("Error in Sending message to model at writingPatternRes: " + error);
-        delay()
+        await delay()
 
         async function delay(ms = 6000) {
           return await new Promise((resolve) => {
