@@ -337,7 +337,13 @@ app.post("/generate_book", async (req, res) => {
     if (JSON.parse(finalReturnData.firstReq.plot) === true) {
       await generatePlot(); // only generate a plot if the model deems it fit. That is, if this is a novel
     }
-    // next, generate the write-up for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
+    // Next, generate the Contents for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
+
+    /* Next, generate content by:
+    1. If there is a subchapter + plot
+    2. If there is plot, append it when generating the subchapter or chapter
+
+    */
     await generateChapters(mainChatSession);
 
     await compileDocx(userInputData);
@@ -388,7 +394,7 @@ function parseJson(param) {
 
 
 async function generatePlot() {
-  // TO-NOTE; for something to have a subchapter, doesn't automatically mean it needs a plot okay?
+  // TO-NOTE; for something to have a subchapter, it doesn't automatically mean it needs a plot okay?
 
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
   data["tableOfContents"] = tableOfContents;
@@ -415,9 +421,7 @@ async function generatePlot() {
         data.current_chapter++;
       }
     } else if (tableOfContents[data.current_chapter - 1]["sch-no"] == 0) { // When there are no subchapters for that chapter but the model somehow returned true for plot generation.
-      await continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter = false)
-
-      null // Do nothing and generate plots for the next chapter
+      await continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter = false);
     }
   }
 }
@@ -475,7 +479,7 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config, 
 
   data.plots[`chapter-${data.current_chapter}`] = []; // outside the loop to avoid being overridden
   finalReturnData.plots[`chapter-${data.current_chapter}`] = [];
-
+  
   for (const index of currentChapterPlot) {
     data.plots[`chapter-${data.current_chapter}`].push(index.plot);
 
@@ -495,33 +499,38 @@ async function generateChapters(mainChatSession) {
   data.populatedSections = [];
   console.log("Created data.populatedSections")
 
-  if (!data.plots) { // code to run if there is not plot
-    data.chapterErrorCount = 0;
+  // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
+  data.chapterErrorCount = 0;
 
-    // run a loop for each chapter available
-    for (let i = 1; i <= tableOfContents.length; i++) {
+  // run a loop for each chapter available
+  for (let i = 1; i <= tableOfContents.length; i++) {
 
-      // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
-      data.populatedSections.push({ properties: { pageBreakBefore: true } });
+    // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
+    data.populatedSections.push({ properties: { pageBreakBefore: true } });
 
-      let promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
-        On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this. The docx.js guildelines is listed below: 
-        ${docxJsGuide()}.
-        Now you are writing for this chapter, ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this chapter needs to be longer, me prompting you just once for this chapter will make the chapter very shallow. Therefore, the aim if this is for you to assess how long the chapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`);
+    let promptNo;
+
+    tableOfContents[i - 1][`sch-${i}`].forEach(async (item) => {
+      promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
+        On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing. The docx.js guildelines is listed below: 
+          ${docxJsGuide()}. 
+          
+        Now, you are writing for this subchapter ${item}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this subchapter needs to be longer, me prompting you just once for this chapter will make the subchapter very shallow. Therefore, the aim of this is for you to assess how long the subchapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`);
 
       console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
       console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
       let writingPatternRes;
+      // Get the suitable subchapter writing style
       try {
         async function sendWritingStyleReq() {
-          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style tha shall be suitable for this chapter. I am doing this to prevent you from using just one book writing tyle throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the examples as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`);
+          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]} and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`);
         }
         await sendWritingStyleReq();
       } catch (error) {
         console.error("Error in Sending message to model at writingPatternRes: " + error);
-        await delay()
+        await delay();
 
         async function delay(ms = 6000) {
           return await new Promise((resolve) => {
@@ -535,71 +544,73 @@ async function generateChapters(mainChatSession) {
       }
 
       console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
-      let selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
-      if (selectedPattern) {
+
+      let selectedPattern;
+
+      try {
+        selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
+      } catch (error) {
+        console.error(error);
+        selectedPattern = null;
+      }
+
+      if (selectedPattern !== null) { // checks if selectedPattern text selection was successful
         try {
-          let fixedJsonPattern = JSON.parse(selectedPattern);
-          selectedPattern = fixedJsonPattern;
+          let parsedPatternJson = JSON.parse(selectedPattern);
+          selectedPattern = parsedPatternJson;
 
         } catch (error) {
           console.error("Could not parse selectedPattern - Fixing: " + error)
-          selectedPattern = fixJsonWithPro(selectedPattern)
+          selectedPattern = await fixJsonWithPro(selectedPattern)
         }
 
       } else {
         selectedPattern = "You just choose one suitable one with example writeup"
       }
 
-
-      // generate the chapter for the number of times the model indicated
+      // generate the subchapter for the number of times the model indicated
       promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
 
       for (let i = 0; i < promptNo.promptMe; i++) {
-        // let genChapter;
-        async function genChapter(retry, tryAgainMsg) {
+  
+        async function genSubChapter() {
           let chapterText;
-
-          function checkAlternateInstruction() {
-            if (promptNo.promptMe > 1) {
-              return `Since I am to prompt you ${promptNo.promptMe} times, do not end this current batch as if you are done with it and moving to the next chapter - This instruction is very important. This is my number ${i + 1} prompt on this chapter of ${promptNo.promptMe}. ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this chapter, at the end of its content, conclude appropriately." : ""} Just know that for this chapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}`
-            } else if (promptNo.promptMe === 1) return `Since I am prompting you for this chapter only once, just end this like you would normally. Just know that for this chapter, you must use this pattern of writing: ${selectedPattern.pattern}`
-          }
-
+  
           try {
-            const getChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction()}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
-
-            chapterText = getChapterCont;
-            data.chapterText = getChapterCont;
-
+            const getSubChapterCont = await mainChatSession.sendMessage(`You said i should prompt you ${promptNo.promptMe} times. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
+  
+            chapterText = getSubChapterCont;
+            data.chapterText = getSubChapterCont;
+  
             console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
-
+  
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
-            genChapter();
+            await genSubChapter();
           }
-
+  
           try {
-            console.log("This is chapter text: " + data.chapterText);
+            console.log("This is subchapter text: " + data.chapterText);
             let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
             console.log("Json parsed");
-            chapterText = await parsedChapterText; // doing this so that we can access chapter text from model if there is an error at the line above. This is because this line will not run if the above produces an error.
-
+            chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
+  
           } catch (error) {
             if (data.chapterErrorCount >= 3) {
               return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             }
-
+  
             console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
-
+  
             async function delay(ms = 6000) {
               return await new Promise((resolve) => {
                 setTimeout(async () => {
                   data.chapterErrorCount++;
                   console.log("Trying to Fix JSON...");
                   // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
-
+  
                   console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
-
+  
                   let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
                   data.fixJsonMsg = fixMsg;
                   let result = await fixJsonWithPro(fixMsg);
@@ -607,34 +618,36 @@ async function generateChapters(mainChatSession) {
                 }, ms);
               });
             };
+
             chapterText = await delay();
             console.log("This is the chapterText at delay() line: " + chapterText)
             data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
           }
+
           console.log("This is the chapterText at return line: " + chapterText)
           return chapterText; // as the parsed object
         };
-        const genChapterResult = await genChapter();
+        const genChapterResult = await genSubChapter();
         await getDocxCode();
-
+  
         async function getDocxCode() {
           let docxJsRes;
-
+  
           docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}`);
-
+  
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           // console.log("this is model res: " + modelRes)
-
+  
           let docxJs;
           try { // parse the purported array
             docxJs = JSON.parse(modelRes);
             console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
-
+  
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
             docxJs = await fixJsonWithPro(modelRes);
           }
-
+  
           // extract textRun object
           const sessionArr = [];
           console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
@@ -676,42 +689,44 @@ async function generateChapters(mainChatSession) {
                   console.warn("Unknown alignment: ", paragraphObj.alignment);
                   // default to start
                   paragraphObj.alignment = AlignmentType.LEFT;
-
+  
                   break;
               }
             }
-
+  
             // push new TextRun
             paragraphObj.children.push(new TextRun(textRunObj));
             // use conditionals to create children or push to it when already created
             if (i === 0) { // create the children array
               data.populatedSections[data.current_chapter - 1].children = [new Paragraph(paragraphObj)]
-
+  
             } else data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj))
-
+  
           })
-
-
+  
+  
           console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
-
-
+  
+  
         }
-
-
+  
+  
         console.log("started delay for chapter pushing");
-
+  
         await delayChapPush(generatedChapContent, genChapterResult, i);
       }
 
-      if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
-        console.log("Data.docx shall be created");
-        initializeDocx();
-      }
-      console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`)
-      data.current_chapter++;
-    }
+    })
   }
+
+  if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
+    console.log("Data.docx shall be created");
+    initializeDocx();
+  }
+  console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
+  data.current_chapter++; 
   finalReturnData.genAIChapters = generatedChapContent;
+
 }
 
 
@@ -1045,12 +1060,18 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
         throw Error
       }
       sendMsgError++;
-  
+
     }
 
   }
   let response = await genPlotMsgMain();
   return response;
+}
+
+function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
+  if (promptNo.promptMe > 1) {
+    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, do not end this current batch as if you are done with it and moving to the next subchapter - This instruction is very important. This is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt. ${plot === true ? `Use this plot for every instance/batch of this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this subchapter, at the end of its content, conclude appropriately." : ""} Just know that for this subchapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}`
+  } else if (promptNo.promptMe === 1) return `Since I am prompting you for this subchapter only once, just end this like you would normally. ${plot === true ? `Use this plot for this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} Just know that for this subchapter, you must use this pattern of writing: ${selectedPattern.pattern}`
 }
 
 function initializeDocx() {

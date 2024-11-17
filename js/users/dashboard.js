@@ -167,7 +167,7 @@ async function postFormData(userInputData) {
             console.log(serverRes);
             localStorage.setItem("book_data", serverRes.data)
         } catch (err) {
-            errors++
+            errors++;
             console.log(`An error occurred. Hang tight while we retry : ${err}`);
             errors < 3 ? loopAxiosOnErr() : console.log(`Oops, posting of form data failed! : ${err}`);
         }
