@@ -12,3 +12,6 @@ See Website below - Solution gotton from stackoverflow:
 ## Optional / Potential Features
 - Upload the book "The neuroscience of selling". Have the AI analyze it, store the information analyzed and have it to use that information to include things / language in the book to tap into emotions.
 Basically, you tell the AI how to tap into the emotions of users to get them to buy. This will probably be very useful when prompting AI to write the book description to be put on Amazon
+
+## forEach()
+Note that this method expects a synchronous operation and does not wait for promises
