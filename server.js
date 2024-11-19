@@ -122,6 +122,7 @@ let data = {
     return `You are an API, designed to sound like a human book writer. You are also designed to use simple grammar and vocabulary, no matter what. Your tone must be "${userInputData.bookTone.trim()}". The genre of this book is "${userInputData.genre.trim()}" and the audience is "${userInputData.audience.trim()}".
     See added instructions for this book below, as provided by the user for you to write this book to their taste. Follow it strictly, but on no occassion shall you follow it in a way as to modify or change the structure of your JSON output. Instead, rework whatever is said in the user description to match your JSON output which I shall specify. For now, the quoted next line is the user description: 
     "${userInputData.description.trim()}."
+    Follow the user's request for the number of chapters he/she needs. This is a must!
     
     Also, you must follow this behaviour when writing(Non-user Description):
     As a human book writer, you will be creating full-fledged books that reflect a writing style indistinguishable from human authorship by using simple english, no big words or grammar at all. Focus on prose style of writing, discouraging the use of bullet points as much as possible.
@@ -326,7 +327,7 @@ app.post("/generate_book", async (req, res) => {
     const userInputData = req.body;
     data.res = res;
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b", systemInstruction: data.systemInstruction(userInputData) });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
 
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
@@ -360,21 +361,24 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.docxCode = data.docx;
     res.send(finalReturnData);
 
+    
 
   } catch (error) {
-    throw new Error(error)
-    console.error("This is the data.docx: " + data.docx)
-    console.log("This is the data.populatedSections: " + data.populatedSections)
-
-    if (!data.postErr) {
-      data.postErr = []
-    }
-    data.postErr.push(error);
-    console.log(data.postErr)
-    res.status(200).send(data);
+    compileDocx(req.body);
+    finalReturnData.file = `/docs/${req.body.title}.docx`;
+    finalReturnData.docxCode = data.docx;
+    // if (!data.postErr) {
+    //   data.postErr = []
+    // }
+    // data.postErr.push(error);
+    // console.log(data.postErr)
+    // res.status(200).send(data);
   } finally {
+    res.send(finalReturnData);
     data = originalDataObj;
     finalReturnData = {};
+    
+
   }
 
 });
@@ -523,7 +527,7 @@ async function generateChapters(mainChatSession) {
   // console.log(tableOfContents);
   const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
-  console.log("Created data.populatedSections!");
+  console.log("Created data.populatedSections with type  of(expecting array 'true'):  " + Array.isArray(data.populatedSections));
 
   // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
   data.chapterErrorCount = 0;
@@ -704,7 +708,7 @@ async function generateChapters(mainChatSession) {
 
             } catch (error) {
               console.error("We got bad json from model. Fixing... : " + error);
-              docxJs = await fixJsonWithPro(modelRes);
+              docxJs = JSON.parse(await fixJsonWithPro(modelRes));
             }
 
             // extract textRun object
@@ -718,7 +722,7 @@ async function generateChapters(mainChatSession) {
 
             console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
 
-            for (let j = 0; j < sessionArr; j++) { // pushing each of the number of times prompted to the sections.children
+            for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
               const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
               const paragraphObj = sessionArr[j].paragraph;
               console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
@@ -758,10 +762,27 @@ async function generateChapters(mainChatSession) {
 
               // push new TextRun
               paragraphObj.children.push(new TextRun(textRunObj));
+              for (const item of textRunObj) {
+                console.log(`This is textRunObj: \n \n ${item}`)
+              }
+
+              for (const item of sessionArr) {
+                console.log(`This is sessionArr: \n \n ${item}`)
+              }
+              // console.log(`This is textRunObj: \n \n ${textRunObj}`);
+              console.log(`This is paragraphObj: \n \n ${paragraphObj.children}`);
+              // console.log(`This is sessionArr: \n \n ${sessionArr}`);
+              console.log(`This is the docxJs : \n \n ${docxJs}`)
               // use conditionals to create children or push to it when already created
               // if (j === 0) { // create the children array
-              console.log("Initialized children in sections")
-              data.populatedSections[data.current_chapter - 1].children.push([new Paragraph(paragraphObj)]);
+              console.log("Initialized children in sections");
+              const childrenProp = data.populatedSections[data.current_chapter - 1];
+              if (childrenProp.children) { // if it already exists, push subsequent data
+                childrenProp.children.push(new Paragraph(paragraphObj));
+              } else {
+                childrenProp["children"] = [new Paragraph(paragraphObj)];
+
+              }
 
               // } else { 
               //   console.log("Pushed childrens to section")
@@ -1041,11 +1062,18 @@ async function generateChapters(mainChatSession) {
 
     console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
 
-    if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
+    // if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
+    //   console.log("Data.docx shall be created");
+    //   initializeDocx();
+    // }
+    // data.current_chapter++;
+    if (data.current_chapter === 1) { // initialize docx.js when we get to the last chapter
       console.log("Data.docx shall be created");
       initializeDocx();
     }
-    data.current_chapter++;
+
+    data.current_chapter = tableOfContents.length
+    
   }
 
 
@@ -1427,7 +1455,8 @@ function initializeDocx() {
       },
       sections: data.populatedSections
     })
-    console.log(`Initialized! This is type of data.docx: ${typeof (data.docx)}`)
+    console.log(`Initialized! This is type of data.docx: ${typeof (data.docx)}`);
+
 
   } catch (error) {
     console.error("weird error while initializing docx code: " + error)
