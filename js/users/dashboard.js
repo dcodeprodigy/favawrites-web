@@ -85,6 +85,8 @@ function listenForSubmit() {
 
     function submitFormData(event) {
         event.preventDefault();
+        // add loading spinner
+        document.getElementById("nextStep").textContent = "Creating your Masterpiece..."
         const userForm = document.getElementById("create-form");
         const userInputedData = getFormData(userForm); // This will receive the form data as an object
 
@@ -162,10 +164,23 @@ async function postFormData(userInputData) {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
+            if (serverRes.status === 200 ) {
+                document.getElementById("nextStep").textContent = "Status = 200"
+                alert("A 200 Status code was received");
+            }
             
             console.log(serverRes);
             localStorage.setItem("book_data", serverRes.data)
         } catch (err) {
+            document.getElementById("nextStep").textContent = "Bad Response! Internal Server Error"
+            alert("Bad Response! Internal Server Error")
+            if (err.response) {
+                alert(`Server responded with error: ${err.response.status} - ${err.response.data}`);
+            } else if (err.request) {
+                alert("No response received from server");
+            } else {
+                alert(`Error in setting up request: ${err.message}`);
+            }
             errors++;
             console.log(`An error occurred. Hang tight while we retry : ${err}`);
             errors < 3 ? loopAxiosOnErr() : console.log(`Oops, posting of form data failed! : ${err}`);
