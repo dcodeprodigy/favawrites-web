@@ -120,7 +120,7 @@ let data = {
 `,
   systemInstruction: function (userInputData) {
     return `You are an API, designed to sound like a human book writer. You are also designed to use simple grammar and vocabulary, no matter what. Your tone must be "${userInputData.bookTone.trim()}". The genre of this book is "${userInputData.genre.trim()}" and the audience is "${userInputData.audience.trim()}".
-    See added instructions for this book below, as provided by the user for you to write this book to their taste. Follow it strictly!: 
+    See added instructions for this book below, as provided by the user for you to write this book to their taste. Follow it strictly, but on no occassion shall you follow it in a way as to modify or change the structure of your JSON output. Instead, rework whatever is said in the user description to match your JSON output which I shall specify. For now, the quoted next line is the user description: 
     "${userInputData.description.trim()}."
     
     Also, you must follow this behaviour when writing(Non-user Description):
@@ -143,7 +143,7 @@ let data = {
 
     (Each book example should be a comprehensive and unique storyline, marked by creativity, and should reflect the length and complexity of a real novel.).
     
-    THE USER PROVIDED DESCRIPTION IS THE MAIN INSTRUCTIONS FOR WRITING AS IT IS WHAT THIS PARTICULAR USER WANTS. ALSO REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS.
+    THE USER PROVIDED DESCRIPTION IS THE MAIN INSTRUCTIONS FOR WRITING BUT NEVER FOLLOW IT IN A WAY AS TO MODIFY YOUR RESPONSE STRUCTURE. ALSO REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS.
     Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
@@ -307,8 +307,8 @@ const schema = {
 
 
 
-const finalReturnData = {}; // An object for collecting data to be sent to the client
-
+let finalReturnData = {}; // An object for collecting data to be sent to the client
+let reqNumber = 0;
 // save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
 let originalDataObj;
 function saveOriginalData() {
@@ -316,7 +316,11 @@ function saveOriginalData() {
 }
 saveOriginalData();
 
+
 app.post("/generate_book", async (req, res) => {
+  reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one "+ data) : null;
+  
+  reqNumber++; //Increament the number of requests being handled
 
   try {
     const userInputData = req.body;
@@ -324,15 +328,18 @@ app.post("/generate_book", async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
+
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
-    const tocRes = await mainChatSession.sendMessage(tocPrompt);
+    const tocRes = await delayBeforeSend(await mainChatSession.sendMessage(tocPrompt));
 
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
+    console.log(finalReturnData.firstReq.toc)
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
+    
 
 
     // Next, begin creating each chapter's plot if the model indicated that
@@ -353,8 +360,7 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.docxCode = data.docx;
     res.send(finalReturnData);
 
-    // Next, using the plots to guide the AI to generate chapters
-
+    
   } catch (error) {
     console.error("This is the data.docx: " + data.docx)
     console.log("This is the data.populatedSections: " + data.populatedSections)
@@ -366,10 +372,24 @@ app.post("/generate_book", async (req, res) => {
     console.log(data.postErr)
     res.status(200).send(data);
   } finally {
-    data = originalDataObj
+    data = originalDataObj;
+    finalReturnData = {};
   }
 
 });
+
+async function delayBeforeSend(func, ms = 6000) { // adding delay to gemini api send message
+  console.log("Began delay with delayBeforeSend");
+
+  return await new Promise (async resolve =>{
+    setTimeout(async ()=>{
+      console.log("About to call function as delay has ended")
+      let res = func
+    resolve(res);
+    }, ms)
+    
+  })
+}
 
 function getTocPrompt(inputData) {
   console.log(inputData);
@@ -521,7 +541,7 @@ async function generateChapters(mainChatSession) {
     let currentChapSubch = tableOfContents[i - 1][`sch-${i}`];
     console.table(currentChapSubch);
 
-    // I saw this on MDN - We cannot use an async callback with forEach as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
+    // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
     for (const item of currentChapSubch) {
       
       try {
@@ -695,11 +715,11 @@ async function generateChapters(mainChatSession) {
             sessionArr.push(item);
           });
 
-          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr)
+          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
 
-          sessionArr.forEach(item => {
-            const textRunObj = item.textRun; // gets the textRun obj;
-            const paragraphObj = item.paragraph;
+          for (let j = 0; j < sessionArr; j++){ // pushing each of the number of times prompted to the sections.children
+            const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
+            const paragraphObj = sessionArr[j].paragraph;
             console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
             // parse alignment as needed
             if (paragraphObj.alignment) {
@@ -738,26 +758,33 @@ async function generateChapters(mainChatSession) {
             // push new TextRun
             paragraphObj.children.push(new TextRun(textRunObj));
             // use conditionals to create children or push to it when already created
-            if (i === 0) { // create the children array
-              data.populatedSections[data.current_chapter - 1].children = [new Paragraph(paragraphObj)]
+            // if (j === 0) { // create the children array
+              console.log("Initialized children in sections")
+              data.populatedSections[data.current_chapter - 1].children.push([new Paragraph(paragraphObj)]);
 
-            } else data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj))
+            // } else { 
+            //   console.log("Pushed childrens to section")
+            //   data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj));
+            // }
 
-          })
+          
+          } // end of pushing for one subchapter batch
+
+         
 
 
           console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
 
-        }
+        } // end of docxCode function
 
 
-        console.log("started delay for chapter pushing");
+        console.log("started delay for chapter pushing to finalReturnData");
 
         await delayChapPush(generatedChapContent, genChapterResult, i);
-      }
+      } // end of each promptMe number
 
-    };
+    }; // end of each sunchapter
 
     console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
 
