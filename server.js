@@ -318,8 +318,8 @@ saveOriginalData();
 
 
 app.post("/generate_book", async (req, res) => {
-  reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one "+ data) : null;
-  
+  reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
+
   reqNumber++; //Increament the number of requests being handled
 
   try {
@@ -339,7 +339,7 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
-    
+
 
 
     // Next, begin creating each chapter's plot if the model indicated that
@@ -360,9 +360,9 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.docxCode = data.docx;
     res.send(finalReturnData);
 
-    
+
   } catch (error) {
-    throw Error()
+    throw new Error(error)
     console.error("This is the data.docx: " + data.docx)
     console.log("This is the data.populatedSections: " + data.populatedSections)
 
@@ -382,13 +382,13 @@ app.post("/generate_book", async (req, res) => {
 async function delayBeforeSend(func, ms = 6000) { // adding delay to gemini api send message
   console.log("Began delay with delayBeforeSend");
 
-  return await new Promise (async resolve =>{
-    setTimeout(async ()=>{
+  return await new Promise(async resolve => {
+    setTimeout(async () => {
       console.log("About to call function as delay has ended")
       let res = func
-    resolve(res);
+      resolve(res);
     }, ms)
-    
+
   })
 }
 
@@ -536,256 +536,508 @@ async function generateChapters(mainChatSession) {
   for (let i = 1; i <= chapterCount; i++) {
 
     // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
+    let promptNo;
+    let writingPatternRes;
+    let selectedPattern;
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
 
-    let promptNo;
-    let currentChapSubch = tableOfContents[i - 1][`sch-${i}`];
-    console.table(currentChapSubch);
+    if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
+      let currentChapSubch = tableOfContents[i - 1][`sch-${i}`];
+      console.table(currentChapSubch);
+      for (const item of currentChapSubch) {
 
-    // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
-    for (const item of currentChapSubch) {
-      
-      try {
-        promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`Let us continue our generation. 
+        try {
+          promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`Let us continue our generation. 
           On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing. The docx.js guildelines is listed below: 
             ${docxJsGuide()}. 
             
-          Now, you are writing for this subchapter ${item}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this subchapter needs to be longer, me prompting you just once for this chapter will make the subchapter very shallow. Therefore, the aim of this is for you to assess how long the subchapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`));
-      } catch (error) {
-        console.log("Error while getting prompt number: "+error)
-      }
-
-      console.log(`The item is ${item}`);
-
-      console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
-      console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
-      console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
-
-      let writingPatternRes;
-
-      // Get the suitable writing style for this current subchapter
-      try {
-        async function sendWritingStyleReq() {
-          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
-        }
-        await sendWritingStyleReq();
-      } catch (error) {
-        console.error("Error in Sending message to model at writingPatternRes: " + error);
-        await delay();
-
-        async function delay(ms = 6000) {
-          return await new Promise((resolve) => {
-            setTimeout(async () => {
-              console.log("Reaching Model Again");
-              let result = await sendWritingStyleReq()
-              resolve(result);
-            }, ms);
-          });
-        };
-      }
-
-      console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
-
-      let selectedPattern;
-
-      try {
-        selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
-      } catch (error) {
-        console.error(error);
-        selectedPattern = null;
-      }
-
-      if (selectedPattern !== null) { // checks if selectedPattern text selection was successful
-        try {
-          let parsedPatternJson = JSON.parse(selectedPattern);
-          selectedPattern = parsedPatternJson;
-
+          Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}`));
         } catch (error) {
-          console.error("Could not parse selectedPattern - Fixing: " + error)
-          selectedPattern = await fixJsonWithPro(selectedPattern)
+          console.log("Error while getting prompt number: " + error);
         }
 
-      } else {
-        selectedPattern = "You just choose one suitable one with example writeup"
-      }
+        console.log(`The item is ${item}`);
 
-      // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
-      promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+        console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this subchapter");
+        console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+        console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
-      for (let i = 0; i < promptNo.promptMe; i++) {
-        let errorCount  = 0;
-        async function genSubChapter() {
-          let chapterText;
 
+        // Get the suitable writing style for this current subchapter
+        try {
+          async function sendWritingStyleReq() {
+            writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+          }
+          await sendWritingStyleReq();
+        } catch (error) {
+          console.error("Error in Sending message to model at writingPatternRes: " + error);
+          await delay();
+
+          async function delay(ms = 6000) {
+            return await new Promise((resolve) => {
+              setTimeout(async () => {
+                console.log("Reaching Model Again");
+                let result = await sendWritingStyleReq()
+                resolve(result);
+              }, ms);
+            });
+          };
+        }
+
+        console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
+
+
+
+        try {
+          selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
+        } catch (error) {
+          console.error(error);
+          selectedPattern = null;
+        }
+
+        if (selectedPattern !== null) { // checks if selectedPattern text selection was successful
           try {
-            const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
-
-            chapterText = getSubChapterCont;
-            data.chapterText = getSubChapterCont;
-
-            console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
+            let parsedPatternJson = JSON.parse(selectedPattern);
+            selectedPattern = parsedPatternJson;
 
           } catch (error) {
-            console.error("An error in mainChatSession: " + error);
-            errorCount++;
-            if (errorCount <= 4 ){
-              // run a delay before retrying
-              async function delay (ms = 6000) {
-                return await new Promise (async resolve=>{
-                  setTimeout(async ()=>{
-                    let res = await genSubChapter();
-                  resolve(res);
-                  }, ms)
-                  
-                })
+            console.error("Could not parse selectedPattern - Fixing: " + error)
+            selectedPattern = await fixJsonWithPro(selectedPattern)
+          }
+
+        } else {
+          selectedPattern = "You just choose one suitable one with example writeup"
+        }
+
+        // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
+        promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+
+        for (let i = 0; i < promptNo.promptMe; i++) {
+          let errorCount = 0;
+          async function genSubChapter() {
+            let chapterText;
+
+            try {
+              const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+
+              chapterText = getSubChapterCont;
+              data.chapterText = getSubChapterCont;
+
+              console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
+
+            } catch (error) {
+              console.error("An error in mainChatSession: " + error);
+              errorCount++;
+              if (errorCount <= 4) {
+                // run a delay before retrying
+                async function delay(ms = 6000) {
+                  return await new Promise(async resolve => {
+                    setTimeout(async () => {
+                      let res = await genSubChapter();
+                      resolve(res);
+                    }, ms)
+
+                  })
+                }
+                await delay();
+              } else {
+                data.res.status(501).send("Network Error");
+
               }
-              await delay();
-            } else {
-              data.res.status(501).send("Network Error");
-              
-            }
-            
-            
-          }
 
-          try {
-            console.log("This is subchapter text: " + data.chapterText);
-            let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
-            console.log("Json parsed");
-            chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
-          } catch (error) {
-            if (data.chapterErrorCount >= 3) {
-              return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             }
 
-            console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+            try {
+              console.log("This is subchapter text: " + data.chapterText);
+              let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
+              console.log("Json parsed");
+              chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
-            async function delay(ms = 6000) {
-              return await new Promise((resolve) => {
-                setTimeout(async () => {
-                  data.chapterErrorCount++;
-                  console.log("Trying to Fix JSON...");
-                  // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
-
-                  console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
-
-                  let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
-                  data.fixJsonMsg = fixMsg;
-                  let result = await fixJsonWithPro(fixMsg);
-                  resolve(result);
-                }, ms);
-              });
-            };
-
-            chapterText = await delay();
-            console.log("This is the chapterText at delay() line: " + chapterText)
-            data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
-          }
-
-          console.log("This is the chapterText at return line: " + chapterText)
-          return chapterText; // as the parsed object
-        };
-        const genChapterResult = await genSubChapter();
-        await getDocxCode();
-
-        async function getDocxCode() {
-          let docxJsRes;
-
-          docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
-
-          let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-          // console.log("this is model res: " + modelRes)
-
-          let docxJs;
-          try { // parse the purported array
-            docxJs = JSON.parse(modelRes);
-            console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
-
-          } catch (error) {
-            console.error("We got bad json from model. Fixing... : " + error);
-            docxJs = await fixJsonWithPro(modelRes);
-          }
-
-          // extract textRun object
-          const sessionArr = [];
-          console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
-          console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
-
-          docxJs.forEach(item => {
-            sessionArr.push(item);
-          });
-
-          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
-
-          for (let j = 0; j < sessionArr; j++){ // pushing each of the number of times prompted to the sections.children
-            const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
-            const paragraphObj = sessionArr[j].paragraph;
-            console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
-            // parse alignment as needed
-            if (paragraphObj.alignment) {
-              switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
-                case "center":
-                  paragraphObj.alignment = AlignmentType.CENTER;
-                  break;
-                case "end":
-                case "right": // "end" is equivalent to "right"
-                  paragraphObj.alignment = AlignmentType.RIGHT;
-                  break;
-                case "start":
-                case "left": // "start" is equivalent to "left"
-                  paragraphObj.alignment = AlignmentType.LEFT;
-                  break;
-                case "justified":
-                  paragraphObj.alignment = AlignmentType.JUSTIFIED;
-                  break;
-                case "both":
-                  paragraphObj.alignment = AlignmentType.BOTH;
-                  break;
-                case "distribute":
-                  paragraphObj.alignment = AlignmentType.DISTRIBUTE;
-                  break;
-                case "mediumKashida":
-                  paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
-                default:
-                  console.warn("Unknown alignment: ", paragraphObj.alignment);
-                  // default to start
-                  paragraphObj.alignment = AlignmentType.LEFT;
-
-                  break;
+            } catch (error) {
+              if (data.chapterErrorCount >= 3) {
+                return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
               }
+
+              console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+
+              async function delay(ms = 6000) {
+                return await new Promise((resolve) => {
+                  setTimeout(async () => {
+                    data.chapterErrorCount++;
+                    console.log("Trying to Fix JSON...");
+                    // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
+
+                    console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
+
+                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
+                    data.fixJsonMsg = fixMsg;
+                    let result = await fixJsonWithPro(fixMsg);
+                    resolve(result);
+                  }, ms);
+                });
+              };
+
+              chapterText = await delay();
+              console.log("This is the chapterText at delay() line: " + chapterText)
+              data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
             }
 
-            // push new TextRun
-            paragraphObj.children.push(new TextRun(textRunObj));
-            // use conditionals to create children or push to it when already created
-            // if (j === 0) { // create the children array
+            console.log("This is the chapterText at return line: " + chapterText)
+            return chapterText; // as the parsed object
+          };
+          const genChapterResult = await genSubChapter();
+          await getDocxCode();
+
+          async function getDocxCode() {
+            let docxJsRes;
+
+            docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
+
+            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            // console.log("this is model res: " + modelRes)
+
+            let docxJs;
+            try { // parse the purported array
+              docxJs = JSON.parse(modelRes);
+              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+
+            } catch (error) {
+              console.error("We got bad json from model. Fixing... : " + error);
+              docxJs = await fixJsonWithPro(modelRes);
+            }
+
+            // extract textRun object
+            const sessionArr = [];
+            console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
+            console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
+
+            docxJs.forEach(item => {
+              sessionArr.push(item);
+            });
+
+            console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
+
+            for (let j = 0; j < sessionArr; j++) { // pushing each of the number of times prompted to the sections.children
+              const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
+              const paragraphObj = sessionArr[j].paragraph;
+              console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
+              // parse alignment as needed
+              if (paragraphObj.alignment) {
+                switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
+                  case "center":
+                    paragraphObj.alignment = AlignmentType.CENTER;
+                    break;
+                  case "end":
+                  case "right": // "end" is equivalent to "right"
+                    paragraphObj.alignment = AlignmentType.RIGHT;
+                    break;
+                  case "start":
+                  case "left": // "start" is equivalent to "left"
+                    paragraphObj.alignment = AlignmentType.LEFT;
+                    break;
+                  case "justified":
+                    paragraphObj.alignment = AlignmentType.JUSTIFIED;
+                    break;
+                  case "both":
+                    paragraphObj.alignment = AlignmentType.BOTH;
+                    break;
+                  case "distribute":
+                    paragraphObj.alignment = AlignmentType.DISTRIBUTE;
+                    break;
+                  case "mediumKashida":
+                    paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
+                  default:
+                    console.warn("Unknown alignment: ", paragraphObj.alignment);
+                    // default to start
+                    paragraphObj.alignment = AlignmentType.LEFT;
+
+                    break;
+                }
+              }
+
+              // push new TextRun
+              paragraphObj.children.push(new TextRun(textRunObj));
+              // use conditionals to create children or push to it when already created
+              // if (j === 0) { // create the children array
               console.log("Initialized children in sections")
               data.populatedSections[data.current_chapter - 1].children.push([new Paragraph(paragraphObj)]);
 
-            // } else { 
-            //   console.log("Pushed childrens to section")
-            //   data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj));
-            // }
-
-          
-          } // end of pushing for one subchapter batch
-
-         
+              // } else { 
+              //   console.log("Pushed childrens to section")
+              //   data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj));
+              // }
 
 
-          console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+            } // end of pushing for one subchapter batch
 
 
-        } // end of docxCode function
 
 
-        console.log("started delay for chapter pushing to finalReturnData");
+            console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
-        await delayChapPush(generatedChapContent, genChapterResult, i);
-      } // end of each promptMe number
 
-    }; // end of each sunchapter
+          } // end of docxCode function
+
+
+          console.log("started delay for chapter pushing to finalReturnData");
+
+          await delayChapPush(generatedChapContent, genChapterResult, i);
+        } // end of each promptMe number
+
+      }; // end of each subchapter
+    } else { // no subchapters
+      /* TODO
+      1. Ask model how many times to be prompted for each chapter
+      2. Generate based on that number
+      3. Include plots if available
+      4. Compile Docx
+      */
+      const currentChapter = tableOfContents[i - 1][`ch-${i}`];
+      const numberOfChapters = JSON.parse(finalReturnData.firstReq.chapter);
+
+      for (let k = 1; k <= numberOfChapters; k++) {
+
+        try {
+          promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`
+          ${getGenInstructions1()}
+          Since there are no subchapters, I want you to tell me, how many times should I prompt you for this chapter titled ${currentChapter}.
+          ${getGenInstructions2(false)}
+          `));
+        } catch (error) {
+          console.error(error);
+        }
+
+        console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
+        console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+        console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+
+        try {
+          async function sendWritingStyleReq() {
+            writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this chapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter '${currentChapter}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+          }
+          await sendWritingStyleReq();
+        } catch (error) {
+          let errorCount = 0;
+          console.error("Error in Sending message to model at writingPatternRes: " + error);
+          if (errorCount < 4) {
+            errorCount++
+            await delay();
+          }
+
+          async function delay(ms = 6000) {
+            return await new Promise((resolve) => {
+              setTimeout(async () => {
+                console.log("Reaching Model Again");
+                let result = await sendWritingStyleReq();
+                resolve(result);
+              }, ms);
+            });
+          };
+        }
+
+        console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
+
+        try {
+          selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
+        } catch (error) {
+          console.error(error);
+          selectedPattern = null;
+        }
+
+        if (selectedPattern !== null) { // checks if selectedPattern text selection was successful
+          try {
+            let parsedPatternJson = JSON.parse(selectedPattern);
+            selectedPattern = parsedPatternJson;
+
+          } catch (error) {
+            console.error("Could not parse selectedPattern - Fixing: " + error)
+            selectedPattern = await fixJsonWithPro(selectedPattern);
+          }
+
+        } else {
+          selectedPattern = "You just choose one suitable one with example writeup"
+        }
+
+
+        promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+
+        // generate the chapter for the number of times the model indicates
+        for (let i = 0; i < promptNo.promptMe; i++) {
+          let errorCount = 0;
+
+          async function genChapter() {
+            let chapterText;
+            try {
+              const getChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+
+              chapterText = getChapterCont;
+              data.chapterText = getChapterCont
+
+              console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
+            } catch (error) {
+              console.error("An error in mainChatSession for Chapter Gen: " + error);
+              errorCount++;
+              if (errorCount <= 4) {
+                // run a delay before retrying
+                async function delay(ms = 6000) {
+                  return await new Promise(async resolve => {
+                    setTimeout(async () => {
+                      let res = await genSubChapter();
+                      resolve(res);
+                    }, ms)
+
+                  })
+                }
+                await delay();
+              } else {
+                data.res.status(501).send("Network Error");
+
+              }
+
+
+            }
+
+            try {
+              console.log("This is chapter text: " + data.chapterText);
+              let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
+              console.log("Json parsed");
+              chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
+
+            } catch (error) {
+              if (data.chapterErrorCount >= 3) {
+                return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
+              }
+
+              console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+
+              async function delay(ms = 6000) {
+                return await new Promise((resolve) => {
+                  setTimeout(async () => {
+                    data.chapterErrorCount++;
+                    console.log("Trying to Fix JSON...");
+
+                    console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
+
+                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
+                    data.fixJsonMsg = fixMsg;
+                    let result = await fixJsonWithPro(fixMsg);
+                    resolve(result);
+                  }, ms);
+                });
+              };
+
+              chapterText = await delay();
+              console.log("This is the chapterText at delay() line: " + chapterText)
+              data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
+            }
+
+            console.log("This is the chapterText at return line: " + chapterText)
+            return chapterText; // as the parsed object
+          };
+
+          const genChapterResult = await genSubChapter();
+          await getDocxCode();
+
+          async function getDocxCode() {
+            let docxJsRes;
+
+            docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
+
+            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            // console.log("this is model res: " + modelRes)
+
+            let docxJs;
+            try { // parse the purported array
+              docxJs = JSON.parse(modelRes);
+              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+
+            } catch (error) {
+              console.error("We got bad json from model. Fixing... : " + error);
+              docxJs = await fixJsonWithPro(modelRes);
+            }
+
+            // extract textRun object
+            const sessionArr = [];
+            console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
+            console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
+
+            docxJs.forEach(item => {
+              sessionArr.push(item);
+            });
+
+            console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
+
+            for (let j = 0; j < sessionArr; j++) { // pushing each of the number of times prompted to the sections.children
+              const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
+              const paragraphObj = sessionArr[j].paragraph;
+              console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
+              // parse alignment as needed
+              if (paragraphObj.alignment) {
+                switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
+                  case "center":
+                    paragraphObj.alignment = AlignmentType.CENTER;
+                    break;
+                  case "end":
+                  case "right": // "end" is equivalent to "right"
+                    paragraphObj.alignment = AlignmentType.RIGHT;
+                    break;
+                  case "start":
+                  case "left": // "start" is equivalent to "left"
+                    paragraphObj.alignment = AlignmentType.LEFT;
+                    break;
+                  case "justified":
+                    paragraphObj.alignment = AlignmentType.JUSTIFIED;
+                    break;
+                  case "both":
+                    paragraphObj.alignment = AlignmentType.BOTH;
+                    break;
+                  case "distribute":
+                    paragraphObj.alignment = AlignmentType.DISTRIBUTE;
+                    break;
+                  case "mediumKashida":
+                    paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
+                  default:
+                    console.warn("Unknown alignment: ", paragraphObj.alignment);
+                    // default to start
+                    paragraphObj.alignment = AlignmentType.LEFT;
+
+                    break;
+                }
+              }
+
+              // push new TextRun
+              paragraphObj.children.push(new TextRun(textRunObj));
+
+              console.log("Initialized children in sections")
+              data.populatedSections[data.current_chapter - 1].children.push([new Paragraph(paragraphObj)]);
+
+
+
+            } // end of pushing for one chapter batch
+
+
+
+
+            console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+
+
+          } // end of docxCode function
+
+
+          console.log("started delay for chapter pushing to finalReturnData");
+
+          await delayChapPush(generatedChapContent, genChapterResult, i);
+
+        } //end of each promptMe umber
+
+      } // end of each chapter
+    }
+
+
+
+    // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
+
 
     console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
 
@@ -802,6 +1054,16 @@ async function generateChapters(mainChatSession) {
 }
 
 
+function getGenInstructions1() {
+  return `Let us continue our generation. 
+          On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing. The docx.js guildelines is listed below: 
+            ${docxJsGuide()}`
+}
+
+function getGenInstructions2(subchapter) {
+  const fill = `${subchapter == true ? "subchapter" : "chapter"}`
+  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`
+}
 
 function docxJsGuide() {
   return `PROMPT FOR GENERATING DOCX OBJECT
