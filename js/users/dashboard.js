@@ -13,7 +13,7 @@ const htmlComponents = {
     <label for="subtitle">Book Subtitle</label>
     <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="A Simple Guide to Building Confidence, Resilience, and Momentum through Small, Everyday Achievements">
 
-    <div class="hidden gap-3 flex-col" id="aiInputsContainer">
+    <div class="gap-3 flex-col flex" id="aiInputsContainer">
         <label for="author">Author/Pen Name</label>
         <input type="text" placeholder="Enter author or pen name" name="author">
 
@@ -36,7 +36,7 @@ const htmlComponents = {
             <option value="humorous">Humorous</option>
             <option value="serious">Serious</option>
             <option value="dark">Dark</option>
-            <option value="inspirational" selected>Inspirational</option>
+            <option value="inspirational" selected="">Inspirational</option>
             <option value="sarcastic">Sarcastic</option>
             <option value="whimsical">Whimsical (Light, fanciful, and imaginative, often with a magical or quirky vibe)</option>
             <option value="nostalgic">Nostalgic</option>
@@ -70,8 +70,7 @@ For each chapter, provide:
 Tone: Inspiring, instructive, and reflective—like a mentor's guidance, balanced with practical advice and emotional support.</textarea>
     </div>
     <button id="nextStep" class="py-3 px-6 bg-primary-green-mint rounded-lg mt-4 hover:bg-primary-green-600" type="submit">Next</button>
-</form>
-`
+</form>`
 }
 
 const pageState = {

@@ -362,6 +362,7 @@ app.post("/generate_book", async (req, res) => {
 
     
   } catch (error) {
+    throw Error()
     console.error("This is the data.docx: " + data.docx)
     console.log("This is the data.populatedSections: " + data.populatedSections)
 
@@ -545,11 +546,11 @@ async function generateChapters(mainChatSession) {
     for (const item of currentChapSubch) {
       
       try {
-        promptNo = await mainChatSession.sendMessage(`Let us continue our generation. 
+        promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`Let us continue our generation. 
           On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing. The docx.js guildelines is listed below: 
             ${docxJsGuide()}. 
             
-          Now, you are writing for this subchapter ${item}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this subchapter needs to be longer, me prompting you just once for this chapter will make the subchapter very shallow. Therefore, the aim of this is for you to assess how long the subchapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`);
+          Now, you are writing for this subchapter ${item}, how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this subchapter needs to be longer, me prompting you just once for this chapter will make the subchapter very shallow. Therefore, the aim of this is for you to assess how long the subchapter needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`));
       } catch (error) {
         console.log("Error while getting prompt number: "+error)
       }
@@ -565,7 +566,7 @@ async function generateChapters(mainChatSession) {
       // Get the suitable writing style for this current subchapter
       try {
         async function sendWritingStyleReq() {
-          writingPatternRes = await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`);
+          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
         }
         await sendWritingStyleReq();
       } catch (error) {
@@ -617,7 +618,7 @@ async function generateChapters(mainChatSession) {
           let chapterText;
 
           try {
-            const getSubChapterCont = await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `);
+            const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
 
             chapterText = getSubChapterCont;
             data.chapterText = getSubChapterCont;
@@ -691,7 +692,7 @@ async function generateChapters(mainChatSession) {
         async function getDocxCode() {
           let docxJsRes;
 
-          docxJsRes = await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`);
+          docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
 
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           // console.log("this is model res: " + modelRes)
@@ -1118,7 +1119,7 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
     try {
       console.log("TODO:Check if the plot prompt resolved as expected: " + plotPrompt);
 
-      sendPlotMsg = await plotChatSession.sendMessage(plotPrompt);
+      sendPlotMsg = await delayBeforeSend(await plotChatSession.sendMessage(plotPrompt));
       return sendPlotMsg;
     } catch (error) {
       // error sending message
@@ -1180,7 +1181,7 @@ async function compileDocx(userInputData) {
 }
 
 const PORT = process.env.PORT
-const HOST = "127.0.0.1"
-app.listen(PORT || 5000, HOST, () => {
+const HOST = process.env.HOST
+app.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}/${PORT}`);
 });
