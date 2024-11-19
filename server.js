@@ -164,7 +164,7 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
 **Reader's Reflection:** What is one small, concrete step you can take today to move towards a goal you've set for yourself? Write it down, commit to it, and celebrate its completion.  How does taking this first step make you feel?"`
   },
   sampleDocxCode: function () {
-    return `[
+    return `// this MUST be written this way. Do not try to generate like it is a docxJS code. This pattern here just represents a friendly way of sending it to me so that my app can use raw hard code to generate the docxJS \n \n[
     {
         "paragraph": {
             "alignment": "center",
@@ -320,17 +320,19 @@ app.post("/generate_book", async (req, res) => {
 
   try {
     const userInputData = req.body;
-    data.resParam = res;
+    data.res = res;
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", systemInstruction: data.systemInstruction(userInputData) });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
     const tocRes = await mainChatSession.sendMessage(tocPrompt);
+
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
+
 
 
     // Next, begin creating each chapter's plot if the model indicated that
@@ -604,6 +606,7 @@ async function generateChapters(mainChatSession) {
 
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
+            errorCount++;
             if (errorCount <= 4 ){
               // run a delay before retrying
               async function delay (ms = 6000) {
@@ -616,8 +619,11 @@ async function generateChapters(mainChatSession) {
                 })
               }
               await delay();
-              errorCount++;
+            } else {
+              data.res.status(501).send("Network Error");
+              
             }
+            
             
           }
 
@@ -683,12 +689,14 @@ async function generateChapters(mainChatSession) {
           // extract textRun object
           const sessionArr = [];
           console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
-          console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs)
+          console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
+
           docxJs.forEach(item => {
-            sessionArr.push(item)
-          })
+            sessionArr.push(item);
+          });
+
           console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr)
-          
+
           sessionArr.forEach(item => {
             const textRunObj = item.textRun; // gets the textRun obj;
             const paragraphObj = item.paragraph;
@@ -1038,7 +1046,7 @@ async function delayChapPush(generatedChapContent, genChapterResult, i, ms = 600
         resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
         console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
       }
-      console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
+      console.log(`pushed batch ${i + 1} of subchapter in chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
