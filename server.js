@@ -326,8 +326,15 @@ app.post("/generate_book", async (req, res) => {
   try {
     const userInputData = req.body;
     data.res = res;
+
+    const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest"];
+    userInputData.model = allowedModels.includes(userInputData.model)
+    ? userInputData.model
+    : "gemini-1.5-flash-001";
+
+
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", systemInstruction: data.systemInstruction(userInputData) });
+    const model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
 
     const mainChatSession = model.startChat({ safetySettings, generationConfig });

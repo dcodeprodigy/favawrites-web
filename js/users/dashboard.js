@@ -26,6 +26,13 @@ const htmlComponents = {
         <label for="category">Book Category</label>
         <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Small Wins, Resilience, Confidence, Simplicity, Personal Growth</textarea>
 
+        <label for="modelType">Book Tone</label>
+        <select name="model" id="modelType" class="max-w-[100%]">
+            <option value="gemini-1.5-flash-001" selected>Gemini-1.5-flash-001</option>
+            <option value="gemini-1.5-flash-002">Gemini-1.5-flash-002</option>
+            <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+        </select>
+
         <label for="bookTone">Book Tone</label>
         <select name="bookTone" id="bookTone" class="max-w-[100%]">
             <option value="entertaining">Entertaining</option>
