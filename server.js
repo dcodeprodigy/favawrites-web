@@ -62,6 +62,7 @@ const {
   TextWrappingSide
 } = require("docx");
 const { jsonrepair } = require('jsonrepair');
+const { error } = require('console');
 require('events').EventEmitter.defaultMaxListeners = 50;
 
 // Middleware to parse JSON bodies
@@ -329,8 +330,8 @@ app.post("/generate_book", async (req, res) => {
 
     const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest"];
     userInputData.model = allowedModels.includes(userInputData.model)
-    ? userInputData.model
-    : "gemini-1.5-flash-001";
+      ? userInputData.model
+      : "gemini-1.5-flash-001";
 
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -368,24 +369,32 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.docxCode = data.docx;
     res.send(finalReturnData);
 
-    
+
 
   } catch (error) {
-    compileDocx(req.body);
-    finalReturnData.file = `/docs/${req.body.title}.docx`;
-    finalReturnData.docxCode = data.docx;
+    console.error(error);
+    
+    // finalReturnData.file = `/docs/${req.body.title}.docx`;
+    // finalReturnData.docxCode = data.docx;
     // if (!data.postErr) {
     //   data.postErr = []
     // }
     // data.postErr.push(error);
     // console.log(data.postErr)
     // res.status(200).send(data);
+    if (error.message.includes("fetch failed")) {
+      finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
+      console.log(finalReturnData.response);
+      res.status(500).json(finalReturnData)
+    } else if (error.message.includes("overloaded")){
+      finalReturnData.response = { error: "Generative API is overloaded. Please, try again later!", status: 503 }
+      console.log(finalReturnData.response);
+      res.status(503).json(finalReturnData);
+    }
   } finally {
-    res.send(finalReturnData);
+    compileDocx(req.body);
     data = originalDataObj;
     finalReturnData = {};
-    
-
   }
 
 });
@@ -534,33 +543,29 @@ async function generateChapters(mainChatSession) {
   // console.log(tableOfContents);
   const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
-  console.log("Created data.populatedSections with type  of(expecting array 'true'):  " + Array.isArray(data.populatedSections));
 
   // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
   data.chapterErrorCount = 0;
 
-  console.log(`The type is TODO 1: ${typeof (finalReturnData.firstReq.chapters)}`)
-  let chapterCount = finalReturnData.firstReq.chapters;
-  console.log(`This is the type of chapCount: ${typeof (chapterCount)}`)
+  const chapterCount = finalReturnData.firstReq.chapters;
 
   // run a loop for each chapter available
   for (let i = 1; i <= chapterCount; i++) {
 
-    // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
     let promptNo;
     let writingPatternRes;
     let selectedPattern;
+    // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
 
     if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
       let currentChapSubch = tableOfContents[i - 1][`sch-${i}`];
       console.table(currentChapSubch);
-      for (const item of currentChapSubch) {
+      for (const [index, item] of currentChapSubch.entries()) {
 
         try {
           promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`Let us continue our generation. 
-          On request, you shall be generating a docx.js code for me. That is, after generating the contents for a chapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing. The docx.js guildelines is listed below: 
-            ${docxJsGuide()}. 
+          On request, you shall be generating a docx.js code for me. That is, after generating the contents for a subchapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing.
             
           Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}`));
         } catch (error) {
@@ -569,16 +574,17 @@ async function generateChapters(mainChatSession) {
 
         console.log(`The item is ${item}`);
 
-        console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this subchapter");
+        console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text.trim() + " times for this subchapter");
         console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
         console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
 
         // Get the suitable writing style for this current subchapter
+        async function sendWritingStyleReq() {
+          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+        }
+
         try {
-          async function sendWritingStyleReq() {
-            writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
-          }
           await sendWritingStyleReq();
         } catch (error) {
           console.error("Error in Sending message to model at writingPatternRes: " + error);
@@ -629,7 +635,9 @@ async function generateChapters(mainChatSession) {
             let chapterText;
 
             try {
-              const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+              const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`${i>0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+
+              console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
               chapterText = getSubChapterCont;
               data.chapterText = getSubChapterCont;
@@ -703,7 +711,7 @@ async function generateChapters(mainChatSession) {
           async function getDocxCode() {
             let docxJsRes;
 
-            docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
+            docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, which is under chapter ${data.current_chapter}, following this guide: ${docxJsGuide()}.`));
 
             let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
             // console.log("this is model res: " + modelRes)
@@ -715,13 +723,13 @@ async function generateChapters(mainChatSession) {
 
             } catch (error) {
               console.error("We got bad json from model. Fixing... : " + error);
-              docxJs = JSON.parse(await fixJsonWithPro(modelRes));
+              docxJs = await fixJsonWithPro(modelRes); // I do not thing there is any need to run JSON.parse() since the function called already did that
             }
 
             // extract textRun object
             const sessionArr = [];
-            console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
-            console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
+            // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
+            // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
 
             docxJs.forEach(item => {
               sessionArr.push(item);
@@ -732,7 +740,6 @@ async function generateChapters(mainChatSession) {
             for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
               const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
               const paragraphObj = sessionArr[j].paragraph;
-              console.log("This is the paragraphObj: " + paragraphObj + typeof (paragraphObj))
               // parse alignment as needed
               if (paragraphObj.alignment) {
                 switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
@@ -767,34 +774,25 @@ async function generateChapters(mainChatSession) {
                 }
               }
 
-              // push new TextRun
-              paragraphObj.children.push(new TextRun(textRunObj));
-              for (const item of textRunObj) {
-                console.log(`This is textRunObj: \n \n ${item}`)
-              }
 
-              for (const item of sessionArr) {
-                console.log(`This is sessionArr: \n \n ${item}`)
+
+              // push new TextRun
+              try {
+                paragraphObj.children.push(new TextRun(textRunObj));
+                console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
+              } catch (error) {
+                console.error(error);
               }
-              // console.log(`This is textRunObj: \n \n ${textRunObj}`);
-              console.log(`This is paragraphObj: \n \n ${paragraphObj.children}`);
-              // console.log(`This is sessionArr: \n \n ${sessionArr}`);
-              console.log(`This is the docxJs : \n \n ${docxJs}`)
+              
               // use conditionals to create children or push to it when already created
-              // if (j === 0) { // create the children array
-              console.log("Initialized children in sections");
+              
               const childrenProp = data.populatedSections[data.current_chapter - 1];
               if (childrenProp.children) { // if it already exists, push subsequent data
                 childrenProp.children.push(new Paragraph(paragraphObj));
               } else {
                 childrenProp["children"] = [new Paragraph(paragraphObj)];
-
+                console.log("Initialized children in sections");
               }
-
-              // } else { 
-              //   console.log("Pushed childrens to section")
-              //   data.populatedSections[data.current_chapter - 1].children.push(new Paragraph(paragraphObj));
-              // }
 
 
             } // end of pushing for one subchapter batch
@@ -810,7 +808,7 @@ async function generateChapters(mainChatSession) {
 
           console.log("started delay for chapter pushing to finalReturnData");
 
-          await delayChapPush(generatedChapContent, genChapterResult, i);
+          await delayChapPush(generatedChapContent, genChapterResult, i, index);
         } // end of each promptMe number
 
       }; // end of each subchapter
@@ -840,10 +838,10 @@ async function generateChapters(mainChatSession) {
         console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
         console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
+        async function sendWritingStyleReq() {
+          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this chapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter '${currentChapter}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+        }
         try {
-          async function sendWritingStyleReq() {
-            writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this chapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter '${currentChapter}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
-          }
           await sendWritingStyleReq();
         } catch (error) {
           let errorCount = 0;
@@ -1080,7 +1078,7 @@ async function generateChapters(mainChatSession) {
     }
 
     data.current_chapter = tableOfContents.length
-    
+
   }
 
 
@@ -1096,7 +1094,7 @@ function getGenInstructions1() {
 }
 
 function getGenInstructions2(subchapter) {
-  const fill = `${subchapter == true ? "subchapter" : "chapter"}`
+  const fill = `${subchapter === true ? "subchapter" : "chapter"}`
   return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`
 }
 
@@ -1104,7 +1102,6 @@ function docxJsGuide() {
   return `PROMPT FOR GENERATING DOCX OBJECT
 - Do not add colons or semicolons after headings.
 - Anything after '##' is the heading 1/Chapter title.
-- Make sure you include the current chapter alongside the name of that chapter. For example, 'Chapter 1 - The Little Boy from the Ring' and not just 'The Little Boy from the Ring'
 - Do not make quotes a heading.
 - Always set the heading1 to 40 (represents 20px), heading2 to 36 (represents 18px), heading3 to 32  (represents 16px), heading4 to 28 (represents 14px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
 - New chapters shall begin in new pages. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed - this is the available docx.js method from my code. Do not go outside it so things won't break. Utilize it as much as possible too : "const {
@@ -1167,8 +1164,12 @@ function docxJsGuide() {
 You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
 
-	
-Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
+	- When starting a new sub-chapter, just write the heading for that subchapter(for e.g, '1.1 Subchapter name') and ignore the chapter name. There is absolutely no need adding to chapter name for each new subchapter.
+  - When you are just beginning the chapter, it is absolutely important to add the chapter title as heading1
+
+  - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was '...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring..(More write-up)'
+
+  Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
 }
 
 async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
@@ -1360,7 +1361,7 @@ function makeValidJS(str) {
   }
 }
 
-async function delayChapPush(generatedChapContent, genChapterResult, i, ms = 6000) { // pushing generated chapter to final return data
+async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = 6000) { // pushing generated chapter to final return data
   return await new Promise((resolve) => {
     setTimeout(async () => {
       console.log("ended delay");
@@ -1371,7 +1372,8 @@ async function delayChapPush(generatedChapContent, genChapterResult, i, ms = 600
         resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
         console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
       }
-      console.log(`pushed batch ${i + 1} of subchapter in chapter ${data.current_chapter} to finalReturnData `);
+      // conditional for when there is subchapter and when there isn't
+      subChIndex !== undefined ? console.log(`pushed batch ${i + 1} of subchapter ${subChIndex} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
@@ -1440,7 +1442,7 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
 
 function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
   if (promptNo.promptMe > 1) {
-    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter - This instruction is very important. This is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt. 
+    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, and this is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? "Do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. " : ""}Your write-up should be long while maintaining meaning.
     
     ${plot === true ? `Use this plot for every instance/batch of this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} 
     ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this subchapter, at the end of its content, conclude appropriately." : ""} Just know that for this subchapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}. Also note that when writing, do not use any of these words or phrases: \n ${getAiPhrase()}`

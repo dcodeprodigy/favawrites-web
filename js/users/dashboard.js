@@ -151,18 +151,22 @@ function getFormData(userForm) {
 }
 
 async function postFormData(userInputData) {
-    let errors = 0;
+    let serverRes;
     await loopAxiosOnErr();
+
     async function loopAxiosOnErr() {
         try {
             console.log(`This is what is being posted to our server:`, userInputData);
-            const serverRes = await axios.post("/generate_book", userInputData, {
+            serverRes = await axios.post("/generate_book", userInputData, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
             document.getElementById("nextStep").disabled = true;
-
+            console.log(serverRes.status);
+            console.log(serverRes.data);
+            console.log(serverRes.headers);
+            console.log(serverRes.config);
             if (serverRes.status === 200) {
                 document.getElementById("nextStep").textContent = "Status = 200";
                 document.getElementById("nextStep").disabled = false;
@@ -170,32 +174,47 @@ async function postFormData(userInputData) {
             }
 
             console.log(serverRes);
-            localStorage.setItem("book_data", serverRes.data)
-        } catch (err) {
-            errors++;
-            console.log(`An error occurred. Hang tight while we retry : ${err}`);
-            if (errors < 3) {
-                loopAxiosOnErr();
-            } else {
-                console.log(`Oops, posting of form data failed! : ${err}.}`);
-                alert(`Oops, posting of form data failed! : ${err}.`);
-                document.getElementById("nextStep").textContent = "Bad Response! Internal Server Error"
-
-                new Promise(async resolve=> {
-                    let result;
-                     setTimeout(async function () {
-                        if (document.getElementById("nextStep").textContent == "Creating your Masterpiece..."){
-                            null
-                        } else {
-                            result = document.getElementById("nextStep").textContent = "Next"
-                        }
-                        resolve(result);
-                    }, 5000)
-                });
-
-                document.getElementById("nextStep").disabled = false;
+            if (serverRes.data.file) {
+                localStorage.setItem("bookLink", serverRes.data.file);
+                const windowLocation = window.Location.hostname;
+                alert(`${window.location.protocol}//${windowLocation}${window.location.host}${localStorage.getItem("bookLink")}`)
             }
+        } catch (error) {
+            if (error.response) {
+                // Server responded with a status other than 2xx
+                console.log('Error data:', error.response.data); // Access server's error data
+                console.log('Status:', error.response.status); // Status code
+                console.log('Headers:', error.response.headers); // Headers sent by server
+                
+                error.response.data.response ? alert("Status Text: " + error.response.data.response.statusText + "With Code: " + error.response.data.response.status) : alert(error.response.data + 'Status: ' + error.response.status);
+            } else if (error.request) {
+                // No response was received
+                console.log('No response:', error.request);
+                alert("App probably crashed because no response was received");
+            } else {
+                // Something else caused the error
+                console.log('Error:', error.message);
+                alert(error.message);
+            }
+
             
+
+
+            new Promise(async resolve => {
+                let result;
+                setTimeout(async function () {
+                    if (document.getElementById("nextStep").textContent == "Creating your Masterpiece...") {
+                        null
+                    } else {
+                        result = document.getElementById("nextStep").textContent = "Next"
+                    }
+                    resolve(result);
+                }, 5000)
+            });
+
+            document.getElementById("nextStep").disabled = false;
+
+
         }
 
     }
