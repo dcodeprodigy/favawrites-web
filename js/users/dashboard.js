@@ -8,25 +8,28 @@ const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
     <h3>Create Your Book with AI</h3>
     <label for="title">Book Title</label>
-    <input type="text" placeholder="Enter your book's title" name="title" value="The Power of Small Wins">
+    <input type="text" placeholder="Enter your book's title" name="title" value="The Mindful Minute:">
 
     <label for="subtitle">Book Subtitle</label>
-    <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Building Confidence and Resilience, One Step at a Time">
+    <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Finding Calm in a Chaotic World">
 
     <div class="gap-3 flex-col flex" id="aiInputsContainer">
         <label for="author">Author/Pen Name</label>
-        <input type="text" placeholder="Enter author or pen name" name="author">
+        <input type="text" placeholder="Enter author or pen name" name="author" value="Ethan Cole">
 
         <label for="genre">Book Genre</label>
-        <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Self-Help / Personal Development">
+        <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Self-Help / Mindfulness">
 
         <label for="audience">Book Audience</label>
-        <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Anyone looking to create positive change in their life through small, manageable steps.">
+        <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Individuals experiencing stress, anxiety, or simply seeking more peace in their daily lives.">
+
+        <label for="writing_voice">Writer's Voice</label>
+        <input type="text" placeholder="e.g., Calm and Empathetic Mindfulness Instructor" name="writing_voice" value="Calm and Empathetic Mindfulness Instructor">
 
         <label for="category">Book Category</label>
-        <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Small Wins, Resilience, Confidence, Simplicity, Personal Growth</textarea>
+        <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Mindfulness, Stress Reduction, Meditation, Breathing Exercises, Emotional Regulation, Inner Peace</textarea>
 
-        <label for="modelType">Book Tone</label>
+        <label for="modelType">AI Model</label>
         <select name="model" id="modelType" class="max-w-[100%]">
             <option value="gemini-1.5-flash-001" selected>Gemini-1.5-flash-001</option>
             <option value="gemini-1.5-flash-002">Gemini-1.5-flash-002</option>
@@ -35,9 +38,8 @@ const htmlComponents = {
 
         <label for="bookTone">Book Tone</label>
         <select name="bookTone" id="bookTone" class="max-w-[100%]">
-            <option value="entertaining">Entertaining</option>
-            <option value="casual" selected>Casual</option>
-            <option value="formal">Formal</option>
+            <option value="casual">Casual</option>
+            <option value="calm and reassuring" selected>Calm and reassuring</option> <option value="formal">Formal</option>
             <option value="narrative">Narrative</option>
             <option value="informative">Informative</option>
             <option value="humorous">Humorous</option>
@@ -53,16 +55,22 @@ const htmlComponents = {
             <option value="instructive">Instructive</option>
         </select>
 
+
         <label for="description">Book Description/Fine Tuning</label>
         <textarea name="description" id="book-description" cols="30" rows="8">
-This book focuses on transforming your life through small wins—achievable steps that gradually build confidence and resilience.
+This book offers practical, easy-to-implement mindfulness techniques to manage stress and cultivate inner peace, even in the busiest of lives.  Each chapter focuses on a specific aspect of mindfulness, providing clear explanations, guided exercises, and real-world examples.
 
 Chapter Outline:
-1. **The Magic of Small Wins** - Discover how tiny, consistent successes lead to big life changes. This chapter emphasizes the power of small efforts and why they matter in the long run.
 
-2. **Navigating Setbacks with Positivity** - Life happens, but setbacks don’t have to derail you. Learn practical ways to stay grounded and keep moving forward, even when things don’t go as planned.
+1. **Understanding Mindfulness:**  Demystifying mindfulness and its benefits for stress reduction and overall well-being.
 
-These two chapters provide simple strategies to help you develop momentum and create meaningful progress, one small win at a time.
+2. **The Breath as an Anchor:**  Learning fundamental breathing techniques to calm the mind and body in stressful situations.
+
+3. **Mindful Moments in Daily Life:**  Integrating mindfulness into everyday activities, from eating and walking to working and interacting with others.
+
+4. **Cultivating Self-Compassion:**  Developing kindness and understanding towards oneself, especially during challenging times.
+
+5. **Creating a Sustainable Mindfulness Practice:**  Building a long-term mindfulness routine that fits seamlessly into your lifestyle.
         </textarea>
     </div>
     <button id="nextStep" class="py-3 px-6 bg-primary-green-mint rounded-lg mt-4 hover:bg-primary-green-600" type="submit">Next</button>
@@ -182,11 +190,12 @@ async function postFormData(userInputData) {
         } catch (error) {
             if (error.response) {
                 // Server responded with a status other than 2xx
-                console.log('Error data:', error.response.data); // Access server's error data
+                const err = JSON.parse(error.response.data)
+                console.log('Error data:', err); // Access server's error data
                 console.log('Status:', error.response.status); // Status code
                 console.log('Headers:', error.response.headers); // Headers sent by server
-                
-                error.response.data.response ? alert("Status Text: " + error.response.data.response.statusText + "With Code: " + error.response.data.response.status) : alert(error.response.data + 'Status: ' + error.response.status);
+
+                err.response ? alert("Status Text: " + err.response.statusText + "With Code: " + err.response.status) : alert(err + 'Status: ' + error.response.status);
             } else if (error.request) {
                 // No response was received
                 console.log('No response:', error.request);
@@ -197,19 +206,12 @@ async function postFormData(userInputData) {
                 alert(error.message);
             }
 
-            
-
-
             new Promise(async resolve => {
                 let result;
                 setTimeout(async function () {
-                    if (document.getElementById("nextStep").textContent == "Creating your Masterpiece...") {
-                        null
-                    } else {
-                        result = document.getElementById("nextStep").textContent = "Next"
-                    }
+                    result = document.getElementById("nextStep").textContent = "Next"
                     resolve(result);
-                }, 5000)
+                }, 1000)
             });
 
             document.getElementById("nextStep").disabled = false;

@@ -90,7 +90,7 @@ const safetySettings = [
 ];
 
 const generationConfig = {
-  temperature: 0.7,
+  temperature: 1,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
@@ -121,6 +121,7 @@ let data = {
 `,
   systemInstruction: function (userInputData) {
     return `You are an API, designed to sound like a human book writer. You are also designed to use simple grammar and vocabulary, no matter what. Your tone must be "${userInputData.bookTone.trim()}". The genre of this book is "${userInputData.genre.trim()}" and the audience is "${userInputData.audience.trim()}".
+    Writer's Voice - ${userInputData.writing_voice.trim()}.
     See added instructions for this book below, as provided by the user for you to write this book to their taste. Follow it strictly, but on no occassion shall you follow it in a way as to modify or change the structure of your JSON output. Instead, rework whatever is said in the user description to match your JSON output which I shall specify. For now, the quoted next line is the user description: 
     "${userInputData.description.trim()}."
     Follow the user's request for the number of chapters he/she needs. This is a must!
@@ -149,6 +150,8 @@ let data = {
     Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
+
+    - Your Chapter One when writing must contain an introduction
     `
   },
   current_chapter: 1,
@@ -373,7 +376,7 @@ app.post("/generate_book", async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    
+
     // finalReturnData.file = `/docs/${req.body.title}.docx`;
     // finalReturnData.docxCode = data.docx;
     // if (!data.postErr) {
@@ -385,8 +388,8 @@ app.post("/generate_book", async (req, res) => {
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
-      res.status(500).json(finalReturnData)
-    } else if (error.message.includes("overloaded")){
+      res.status(500).json(finalReturnData);
+    } else if (error.message.includes("overloaded")) {
       finalReturnData.response = { error: "Generative API is overloaded. Please, try again later!", status: 503 }
       console.log(finalReturnData.response);
       res.status(503).json(finalReturnData);
@@ -543,6 +546,7 @@ async function generateChapters(mainChatSession) {
   // console.log(tableOfContents);
   const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
+  let currentChapterText = ""; // saving the chapter content here.
 
   // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
   data.chapterErrorCount = 0;
@@ -628,6 +632,7 @@ async function generateChapters(mainChatSession) {
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
         promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+        let genChapterResult;
 
         for (let i = 0; i < promptNo.promptMe; i++) {
           let errorCount = 0;
@@ -635,14 +640,17 @@ async function generateChapters(mainChatSession) {
             let chapterText;
 
             try {
-              const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`${i>0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+              const getSubChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+              Lastly, this is what you have written so far. => '${currentChapterText}';
+              `));
 
               console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
               chapterText = getSubChapterCont;
+              currentChapterText.concat(getSubChapterCont.content); // Save to context
               data.chapterText = getSubChapterCont;
 
-              console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
+              console.log("this is the type of get: " + Array.isArray(data.chapterText))
 
             } catch (error) {
               console.error("An error in mainChatSession: " + error);
@@ -667,10 +675,12 @@ async function generateChapters(mainChatSession) {
 
             }
 
+
             try {
               console.log("This is subchapter text: " + data.chapterText);
               let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
               console.log("Json parsed");
+              console.log(currentChapterText)
               chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -705,112 +715,112 @@ async function generateChapters(mainChatSession) {
             console.log("This is the chapterText at return line: " + chapterText)
             return chapterText; // as the parsed object
           };
-          const genChapterResult = await genSubChapter();
-          await getDocxCode();
+          genChapterResult = await genSubChapter();
 
-          async function getDocxCode() {
-            let docxJsRes;
 
-            docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, which is under chapter ${data.current_chapter}, following this guide: ${docxJsGuide()}.`));
+        } // end of each promptMe number
+        await getDocxCode();
+        async function getDocxCode() {
+          let docxJsRes;
 
-            let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-            // console.log("this is model res: " + modelRes)
+          docxJsRes = await delayBeforeSend(await mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
 
-            let docxJs;
-            try { // parse the purported array
-              docxJs = JSON.parse(modelRes);
-              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+          let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          // console.log("this is model res: " + modelRes)
 
-            } catch (error) {
-              console.error("We got bad json from model. Fixing... : " + error);
-              docxJs = await fixJsonWithPro(modelRes); // I do not thing there is any need to run JSON.parse() since the function called already did that
+          let docxJs;
+          try { // parse the purported array
+            docxJs = JSON.parse(modelRes);
+            console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+
+          } catch (error) {
+            console.error("We got bad json from model. Fixing... : " + error);
+            docxJs = await fixJsonWithPro(modelRes); // I do not thing there is any need to run JSON.parse() since the function called already did that
+          }
+
+          // extract textRun object
+          const sessionArr = [];
+          // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
+          // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
+
+          docxJs.forEach(item => {
+            sessionArr.push(item);
+          });
+
+          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
+
+          for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
+            const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
+            const paragraphObj = sessionArr[j].paragraph;
+            // parse alignment as needed
+            if (paragraphObj.alignment) {
+              switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
+                case "center":
+                  paragraphObj.alignment = AlignmentType.CENTER;
+                  break;
+                case "end":
+                case "right": // "end" is equivalent to "right"
+                  paragraphObj.alignment = AlignmentType.RIGHT;
+                  break;
+                case "start":
+                case "left": // "start" is equivalent to "left"
+                  paragraphObj.alignment = AlignmentType.LEFT;
+                  break;
+                case "justified":
+                  paragraphObj.alignment = AlignmentType.JUSTIFIED;
+                  break;
+                case "both":
+                  paragraphObj.alignment = AlignmentType.BOTH;
+                  break;
+                case "distribute":
+                  paragraphObj.alignment = AlignmentType.DISTRIBUTE;
+                  break;
+                case "mediumKashida":
+                  paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
+                default:
+                  console.warn("Unknown alignment: ", paragraphObj.alignment);
+                  // default to start
+                  paragraphObj.alignment = AlignmentType.LEFT;
+
+                  break;
+              }
             }
 
-            // extract textRun object
-            const sessionArr = [];
-            // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
-            // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
-
-            docxJs.forEach(item => {
-              sessionArr.push(item);
-            });
-
-            console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
-
-            for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
-              const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
-              const paragraphObj = sessionArr[j].paragraph;
-              // parse alignment as needed
-              if (paragraphObj.alignment) {
-                switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
-                  case "center":
-                    paragraphObj.alignment = AlignmentType.CENTER;
-                    break;
-                  case "end":
-                  case "right": // "end" is equivalent to "right"
-                    paragraphObj.alignment = AlignmentType.RIGHT;
-                    break;
-                  case "start":
-                  case "left": // "start" is equivalent to "left"
-                    paragraphObj.alignment = AlignmentType.LEFT;
-                    break;
-                  case "justified":
-                    paragraphObj.alignment = AlignmentType.JUSTIFIED;
-                    break;
-                  case "both":
-                    paragraphObj.alignment = AlignmentType.BOTH;
-                    break;
-                  case "distribute":
-                    paragraphObj.alignment = AlignmentType.DISTRIBUTE;
-                    break;
-                  case "mediumKashida":
-                    paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
-                  default:
-                    console.warn("Unknown alignment: ", paragraphObj.alignment);
-                    // default to start
-                    paragraphObj.alignment = AlignmentType.LEFT;
-
-                    break;
-                }
-              }
 
 
+            // push new TextRun
+            try {
+              paragraphObj.children.push(new TextRun(textRunObj));
+              console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
+            } catch (error) {
+              console.error(error);
+            }
 
-              // push new TextRun
-              try {
-                paragraphObj.children.push(new TextRun(textRunObj));
-                console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
-              } catch (error) {
-                console.error(error);
-              }
-              
-              // use conditionals to create children or push to it when already created
-              
-              const childrenProp = data.populatedSections[data.current_chapter - 1];
-              if (childrenProp.children) { // if it already exists, push subsequent data
-                childrenProp.children.push(new Paragraph(paragraphObj));
-              } else {
-                childrenProp["children"] = [new Paragraph(paragraphObj)];
-                console.log("Initialized children in sections");
-              }
+            // use conditionals to create children or push to it when already created
+
+            const childrenProp = data.populatedSections[data.current_chapter - 1];
+            if (childrenProp.children) { // if it already exists, push subsequent data
+              childrenProp.children.push(new Paragraph(paragraphObj));
+            } else {
+              childrenProp["children"] = [new Paragraph(paragraphObj)];
+              console.log("Initialized children in sections");
+            }
 
 
-            } // end of pushing for one subchapter batch
+          } // end of pushing for one subchapter batch
 
 
 
 
-            console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+          console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
 
-          } // end of docxCode function
+        } // end of docxCode function
 
 
-          console.log("started delay for chapter pushing to finalReturnData");
+        console.log("started delay for chapter pushing to finalReturnData");
 
-          await delayChapPush(generatedChapContent, genChapterResult, i, index);
-        } // end of each promptMe number
-
+        await delayChapPush(generatedChapContent, genChapterResult, i, index);
       }; // end of each subchapter
     } else { // no subchapters
       /* TODO
@@ -1067,17 +1077,18 @@ async function generateChapters(mainChatSession) {
 
     console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
 
-    // if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
-    //   console.log("Data.docx shall be created");
-    //   initializeDocx();
-    // }
-    // data.current_chapter++;
-    if (data.current_chapter === 1) { // initialize docx.js when we get to the last chapter
+    if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
       console.log("Data.docx shall be created");
       initializeDocx();
     }
+    data.current_chapter++;
+    
+    // if (data.current_chapter === 1) { // initialize docx.js when we get to the last chapter
+    //   console.log("Data.docx shall be created");
+    //   initializeDocx();
+    // }
 
-    data.current_chapter = tableOfContents.length
+    // data.current_chapter = tableOfContents.length
 
   }
 
@@ -1098,7 +1109,7 @@ function getGenInstructions2(subchapter) {
   return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`
 }
 
-function docxJsGuide() {
+function docxJsGuide(subChapter) {
   return `PROMPT FOR GENERATING DOCX OBJECT
 - Do not add colons or semicolons after headings.
 - Anything after '##' is the heading 1/Chapter title.
@@ -1159,16 +1170,17 @@ function docxJsGuide() {
   TextWrappingSide
 } = require("docx");"
 
-  The below is is not a limitation but just a general template. Assuming you were served this text to generate the docx.js template:
-"${data.sampleChapter()}".
+  The below is is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. Then you shall generate the docx.js template, using the guide that I shall specify.
+
 You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
 
 	- When starting a new sub-chapter, just write the heading for that subchapter(for e.g, '1.1 Subchapter name') and ignore the chapter name. There is absolutely no need adding to chapter name for each new subchapter.
   - When you are just beginning the chapter, it is absolutely important to add the chapter title as heading1
 
-  - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was '...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring..(More write-up)'
+  - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was something like - ('...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring...') - The bracketed here means I am just giving you instructions. Do not go including that in the book.
 
+  - Also, for each prompt I am giving you on each subchapter, You are not returning the same write up. That just leads to redundancy.
   Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
 }
 
@@ -1373,7 +1385,7 @@ async function delayChapPush(generatedChapContent, genChapterResult, i, subChInd
         console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
       }
       // conditional for when there is subchapter and when there isn't
-      subChIndex !== undefined ? console.log(`pushed batch ${i + 1} of subchapter ${subChIndex} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
+      subChIndex !== undefined ? console.log(`pushed batch ${i + 1} of subchapter ${subChIndex + 1} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
@@ -1381,7 +1393,7 @@ async function delayChapPush(generatedChapContent, genChapterResult, i, subChInd
 function getAiPhrase() {
   return `Here's a consolidated list of words and phrases commonly associated with AI-generated text. Limit their use in my any of your writings to a great extent. Avoid them completely even:
 
-General/Overused Words: Elevate, tapestry, leverage, journey, seamless, multifaceted, convey, beacon, testament, explore, delve, enrich, foster, binary, multifaceted, groundbreaking, pivotal, innovative, disruptive, transformative.
+General/Overused Words: Elevate, tapestry, leverage, journey, seamless, multifaceted, convey, beacon, testament, explore, delve, enrich, foster, binary, multifaceted, groundbreaking, pivotal, innovative, disruptive, transformative, reframing, reframe.
 
 Overused Intensifiers/Adverbs: Very, really, extremely.
 
@@ -1401,7 +1413,7 @@ Nouns: Efficiency, innovation, institution, integration, implementation, landsca
 
 Verbs: Aligns, augment, delve, embark, facilitate, maximize, underscores, utilize.
 
-Phrases: A testament to, in conclusion, in summary, it's important to note/consider, it's worth noting that, on the contrary, objective study aimed, research needed to understand, despite facing, today's digital age, expressed excitement, deliver actionable insights through in-depth data analysis, drive insightful data-driven decisions, leveraging data-driven insights, leveraging complex datasets to extract meaningful insights, notable works include, play a significant role in shaping, crucial role in shaping, crucial role in determining.
+Phrases: A testament to, in conclusion, in summary, it's important to note/consider, it's worth noting that, on the contrary, objective study aimed, research needed to understand, despite facing, today's digital age, expressed excitement, deliver actionable insights through in-depth data analysis, drive insightful data-driven decisions, leveraging data-driven insights, leveraging complex datasets to extract meaningful insights, notable works include, play a significant role in shaping, crucial role in shaping, crucial role in determining, so let us.
 
 Conclusion Crutches: In conclusion, to sum up, all things considered, ultimately.
 
