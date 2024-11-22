@@ -8,10 +8,10 @@ const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
     <h3>Create Your Book with AI</h3>
     <label for="title">Book Title</label>
-    <input type="text" placeholder="Enter your book's title" name="title" value="The Mindful Minute:">
+    <input type="text" placeholder="Enter your book's title" name="title" value="The Power of Self Discipline">
 
     <label for="subtitle">Book Subtitle</label>
-    <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Finding Calm in a Chaotic World">
+    <input type="text" placeholder="Enter your book's subtitle" name="subtitle" value="Dedicated Strategies for Building Consistency and Lasting Growth">
 
     <div class="gap-3 flex-col flex" id="aiInputsContainer">
         <label for="author">Author/Pen Name</label>
@@ -21,17 +21,17 @@ const htmlComponents = {
         <input type="text" placeholder="Enter genre (e.g., Fantasy, Romance)" name="genre" value="Self-Help / Mindfulness">
 
         <label for="audience">Book Audience</label>
-        <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Individuals experiencing stress, anxiety, or simply seeking more peace in their daily lives.">
+        <input type="text" placeholder="Enter the target audience of this book (e.g., Adults(18+)" name="audience" value="Individuals looking to build Self Discipline">
 
         <label for="writing_voice">Writer's Voice</label>
-        <input type="text" placeholder="e.g., Calm and Empathetic Mindfulness Instructor" name="writing_voice" value="Calm and Empathetic Mindfulness Instructor">
+        <input type="text" placeholder="e.g., Calm and Empathetic Mindfulness Instructor" name="writing_voice" value="Strong, Understanding, Like He knows what it feels like to struggle with self discipline">
 
         <label for="category">Book Category</label>
-        <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Mindfulness, Stress Reduction, Meditation, Breathing Exercises, Emotional Regulation, Inner Peace</textarea>
+        <textarea name="category" id="book-category" cols="30" rows="8" placeholder="Enter a list of comma separated values that sets the atmosphere of the book (e.g., Violence, Suicide, Sex)">Deliberate Self Discipline</textarea>
 
         <label for="modelType">AI Model</label>
         <select name="model" id="modelType" class="max-w-[100%]">
-            <option value="gemini-1.5-flash-001" selected>Gemini-1.5-flash-001</option>
+            <option value="gemini-1.5-flash-001" selected="">Gemini-1.5-flash-001</option>
             <option value="gemini-1.5-flash-002">Gemini-1.5-flash-002</option>
             <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
         </select>
@@ -39,11 +39,11 @@ const htmlComponents = {
         <label for="bookTone">Book Tone</label>
         <select name="bookTone" id="bookTone" class="max-w-[100%]">
             <option value="casual">Casual</option>
-            <option value="calm and reassuring" selected>Calm and reassuring</option> <option value="formal">Formal</option>
+            <option value="calm and reassuring">Calm and reassuring</option> <option value="formal">Formal</option>
             <option value="narrative">Narrative</option>
             <option value="informative">Informative</option>
             <option value="humorous">Humorous</option>
-            <option value="serious">Serious</option>
+            <option value="serious" selected>Serious</option>
             <option value="dark">Dark</option>
             <option value="inspirational">Inspirational</option>
             <option value="sarcastic">Sarcastic</option>
@@ -57,20 +57,26 @@ const htmlComponents = {
 
 
         <label for="description">Book Description/Fine Tuning</label>
-        <textarea name="description" id="book-description" cols="30" rows="8">
-This book offers practical, easy-to-implement mindfulness techniques to manage stress and cultivate inner peace, even in the busiest of lives.  Each chapter focuses on a specific aspect of mindfulness, providing clear explanations, guided exercises, and real-world examples.
+        <textarea name="description" id="book-description" cols="30" rows="8">Table of Contents
 
-Chapter Outline:
+Introduction
+1. What to expect in this book
+2. Willpower vs. Wiring : Why your brain works against you
+3. Rewiring your Mind
+4. The emotional undercurrent of discipline
+5. Stress and Burnout : The enemy of self control
+6. The "Just Start" Fallacy: Why action backfires
+7. Outsmarting Procrastination using temptation bundling and Micro-commitments
+8. The Power of "Productive Procrastination": When Distraction is a tool
+9. Rethinking Failure - Building Resilience for the long haul
+10. Your Focus fortress - crafting a distraction-proof workspace
+11. Easily find your accountability network
+12. When willpower wanes Systems over Motivation
+13. The habit loop: rewiring your brain for effortless action
+14. Rest as a weapon: Strategic Recovery for better performance
+15. Redefining Success through Discipline and Fulfillment
+16. Embrace change, stay balanced
 
-1. **Understanding Mindfulness:**  Demystifying mindfulness and its benefits for stress reduction and overall well-being.
-
-2. **The Breath as an Anchor:**  Learning fundamental breathing techniques to calm the mind and body in stressful situations.
-
-3. **Mindful Moments in Daily Life:**  Integrating mindfulness into everyday activities, from eating and walking to working and interacting with others.
-
-4. **Cultivating Self-Compassion:**  Developing kindness and understanding towards oneself, especially during challenging times.
-
-5. **Creating a Sustainable Mindfulness Practice:**  Building a long-term mindfulness routine that fits seamlessly into your lifestyle.
         </textarea>
     </div>
     <button id="nextStep" class="py-3 px-6 bg-primary-green-mint rounded-lg mt-4 hover:bg-primary-green-600" type="submit">Next</button>

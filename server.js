@@ -377,14 +377,6 @@ app.post("/generate_book", async (req, res) => {
   } catch (error) {
     console.error(error);
 
-    // finalReturnData.file = `/docs/${req.body.title}.docx`;
-    // finalReturnData.docxCode = data.docx;
-    // if (!data.postErr) {
-    //   data.postErr = []
-    // }
-    // data.postErr.push(error);
-    // console.log(data.postErr)
-    // res.status(200).send(data);
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
@@ -395,7 +387,7 @@ app.post("/generate_book", async (req, res) => {
       res.status(503).json(finalReturnData);
     }
   } finally {
-    compileDocx(req.body);
+    // compileDocx(req.body);
     data = originalDataObj;
     finalReturnData = {};
   }
@@ -563,11 +555,11 @@ async function generateChapters(mainChatSession) {
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
 
     if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
-      let currentChapSubch = tableOfContents[i - 1][`sch-${i}`];
+      let currentChapSubch = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
       console.table(currentChapSubch);
       for (const [index, item] of currentChapSubch.entries()) {
 
-        try {
+        try { // Asks the model how may times it should be prompted
           promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`Let us continue our generation. 
           On request, you shall be generating a docx.js code for me. That is, after generating the contents for a subchapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing.
             
@@ -579,13 +571,12 @@ async function generateChapters(mainChatSession) {
         console.log(`The item is ${item}`);
 
         console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text.trim() + " times for this subchapter");
-        console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
-        console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
+        
 
 
-        // Get the suitable writing style for this current subchapter
+        // Get the suitable writing style for the current subchapter
         async function sendWritingStyleReq() {
-          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under this chapter - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
         }
 
         try {
@@ -603,10 +594,9 @@ async function generateChapters(mainChatSession) {
               }, ms);
             });
           };
-        }
+        };
 
         console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
-
 
 
         try {
@@ -1082,7 +1072,7 @@ async function generateChapters(mainChatSession) {
       initializeDocx();
     }
     data.current_chapter++;
-    
+
     // if (data.current_chapter === 1) { // initialize docx.js when we get to the last chapter
     //   console.log("Data.docx shall be created");
     //   initializeDocx();
@@ -1105,7 +1095,7 @@ function getGenInstructions1() {
 }
 
 function getGenInstructions2(subchapter) {
-  const fill = `${subchapter === true ? "subchapter" : "chapter"}`
+  const fill = `${subchapter === true ? "subchapter" : "chapter"}`;
   return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`
 }
 
@@ -1114,61 +1104,8 @@ function docxJsGuide(subChapter) {
 - Do not add colons or semicolons after headings.
 - Anything after '##' is the heading 1/Chapter title.
 - Do not make quotes a heading.
-- Always set the heading1 to 40 (represents 20px), heading2 to 36 (represents 18px), heading3 to 32  (represents 16px), heading4 to 28 (represents 14px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
-- New chapters shall begin in new pages. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed - this is the available docx.js method from my code. Do not go outside it so things won't break. Utilize it as much as possible too : "const {
-  // Core elements
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  // Alignment and positioning
-  AlignmentType,
-  VerticalAlign,
-  TextDirection,
-  // Styling and formatting
-  BorderStyle,
-  HeadingLevel,
-  LineRuleType,
-  NumberFormat,
-  PageOrientation,
-  SectionType,
-  TabStopPosition,
-  TabStopType,
-  UnderlineType,
-  // Page elements
-  Footer,
-  Header,
-  ImageRun,
-  PageBreak,
-  PageNumber,
-  TableCell,
-  TableRow,
-  Table,
-  // List elements
-  Bookmark,
-  ExternalHyperlink,
-  Tab,
-  // Spacing and measurements
-  WidthType,
-  convertInchesToTwip,
-  convertMillimetersToTwip,
-  // Sections and breaks
-  LineBreak,
-  SectionProperties,
-  // Math elements
-  Math,
-  MathRun,
-  // Advanced features
-  Comments,
-  FootNotes,
-  // Styles
-  Style,
-  StyleLevel,
-  // Drawing elements
-  Drawing,
-  TextWrappingType,
-  TextWrappingSide
-} = require("docx");"
+- Always set the heading1 to 36 (represents 18px), heading2 to 32 (represents 16px), heading3 to 30  (represents 15px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
+- New chapters shall begin in new pages. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed. For example, making something bold or italics. Incorporate and breakdown large chunks of text into paragraphs as needed. I do not want the final book to be a huge chunky mess of text okay?
 
   The below is is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. Then you shall generate the docx.js template, using the guide that I shall specify.
 
