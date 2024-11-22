@@ -343,13 +343,18 @@ app.post("/generate_book", async (req, res) => {
 
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
-    const tocRes = await delayBeforeSend(await mainChatSession.sendMessage(tocPrompt));
+    // const tocRes = await delayBeforeSend(await mainChatSession.sendMessage(tocPrompt));
+
+    const proModel = genAI.getGenerativeModel({model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents."});
+    const tocChatSession = proModel.startChat({safetySettings, generationConfig});
+    const tocRes = await delayBeforeSend(await tocChatSession.sendMessage(tocPrompt));
 
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
-    console.log(finalReturnData.firstReq.toc)
+    console.log(finalReturnData.firstReq)
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
+
 
 
 
@@ -412,6 +417,7 @@ function getTocPrompt(inputData) {
   return `Generate a comprehensive table of contents for a book titled ${inputData.title.trim()}. ${checkForSubtitle(inputData)}.
   In your response, if this book is a novel or one that you think deserves a plot, respond with "true" as a boolean and if it does not, respond with "false" as a boolean.
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
+  If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc!
     
   Finally, Return your response in this schema: ${schema.toc}`
 }
@@ -576,7 +582,7 @@ async function generateChapters(mainChatSession) {
 
         // Get the suitable writing style for the current subchapter
         async function sendWritingStyleReq() {
-          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+          writingPatternRes = await delayBeforeSend(await mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n ${writingPattern()}.`));
         }
 
         try {
@@ -820,7 +826,7 @@ async function generateChapters(mainChatSession) {
       4. Compile Docx
       */
       const currentChapter = tableOfContents[i - 1][`ch-${i}`];
-      const numberOfChapters = JSON.parse(finalReturnData.firstReq.chapter);
+      const numberOfChapters = JSON.parse(finalReturnData.firstReq.chapters);
 
       for (let k = 1; k <= numberOfChapters; k++) {
 
@@ -909,7 +915,7 @@ async function generateChapters(mainChatSession) {
                 async function delay(ms = 6000) {
                   return await new Promise(async resolve => {
                     setTimeout(async () => {
-                      let res = await genSubChapter();
+                      let res = await genChapter();
                       resolve(res);
                     }, ms)
 
@@ -962,7 +968,7 @@ async function generateChapters(mainChatSession) {
             return chapterText; // as the parsed object
           };
 
-          const genChapterResult = await genSubChapter();
+          const genChapterResult = await genChapter();
           await getDocxCode();
 
           async function getDocxCode() {
@@ -1173,127 +1179,95 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
 function writingPattern() {
   const stylesOfWriting = `Here are 30 tones that can be employed across different chapters of a book, depending on the subject matter, audience, and narrative goals:
 
-### 1. **Inquisitive**  
+### 1. Inquisitive
 An inquisitive tone sparks curiosity, drawing the reader into a journey of exploration. It often begins with questions or observations that challenge conventional thinking.  
-*"Have you ever wondered why some people thrive under pressure while others crumble? Is it luck, strategy, or something more profound? Let’s uncover what lies beneath the surface."*
 
-### 2. **Reflective**  
+### 2. Reflective
 A reflective tone allows the reader to pause and contemplate deeper meanings. It’s often used to share personal insights or universal truths.  
-*"Looking back on those days, I see more clearly now. Every failure wasn’t just a setback but a lesson, shaping who I was becoming. Sometimes, the hardest paths lead to the most fulfilling destinations."*
 
-### 3. **Optimistic**  
+### 3. Optimistic
 Optimism uplifts and encourages, highlighting possibilities even in challenging circumstances. It focuses on hope and forward momentum.  
-*"The road ahead may be uncertain, but every step brings us closer to something extraordinary. With persistence and faith, even the smallest actions can create monumental change."*
 
-### 4. **Authoritative**  
+### 4. Authoritative
 An authoritative tone exudes confidence and provides clarity, ensuring the reader trusts the information or guidance.  
-*"Here’s the truth: success doesn’t come by chance. It’s the result of consistent habits, deliberate action, and the ability to learn from failure. These principles aren’t optional; they’re foundational."*
 
-### 5. **Conversational**  
+### 5. Conversational 
 A conversational tone makes the writing feel personal, as though the author is directly speaking to the reader.  
-*"Let’s be honest—we’ve all been there. That moment when you’re staring at the ceiling, wondering where it all went wrong. Don’t worry; it’s not the end. It’s just the beginning of something better."*
 
-### 6. **Suspenseful**  
+### 6. Suspenseful
 Suspense keeps readers on edge, drawing them into the scene with vivid details and unanswered questions.  
-*"The footsteps grew louder, echoing in the empty hall. Her breath quickened, but she didn’t dare turn around. Something was there—watching, waiting."*
 
-### 7. **Humorous**  
+### 7. Humorous
 Humor adds a light-hearted touch, making the narrative more engaging and relatable.  
-*"I tried to follow the yoga instructor’s advice to 'breathe deeply,' but all I could think about was not face-planting into my mat. Apparently, inner peace isn’t my strong suit."*
 
-### 8. **Melancholic**  
+### 8. Melancholic 
 A melancholic tone evokes a sense of loss or bittersweet reflection, often touching the heart.  
-*"The letter sat unopened on the table, its edges worn from months of hesitation. What could have been was now just a memory, lingering like a shadow."*
 
-### 9. **Inspiring**  
+### 9. Inspiring
 An inspiring tone motivates and instills a sense of possibility, often through vivid imagery or uplifting examples.  
-*"When the storm finally passed, the sun emerged, bathing the world in a golden glow. It was a reminder that even after the darkest nights, there’s always a new dawn."*
 
-### 10. **Critical**  
+### 10. Critical 
 A critical tone challenges assumptions and provokes thought, encouraging readers to question established ideas.  
-*"It’s easy to accept trends at face value, but have we stopped to consider their consequences? Beneath the shiny exterior lies a complex web of challenges we can’t afford to ignore."*
 
-### 11. **Empathetic**  
+### 11. Empathetic
 An empathetic tone connects deeply with the reader's emotions, showing understanding and compassion.  
-*"I know it feels overwhelming right now, like the weight of the world is on your shoulders. But even in your darkest moments, you’re not alone. You’re stronger than you believe."*
 
-### 12. **Nostalgic**  
+### 12. Nostalgic
 A nostalgic tone takes the reader on a journey to the past, evoking fond memories or wistful longing.  
-*"The scent of rain on dry soil brought me back to childhood summers, running barefoot under stormy skies. Those days felt endless, each moment brimming with possibility."*
 
-### 13. **Cynical**  
+### 13. Cynical
 A cynical tone questions motives and outcomes, often with a touch of irony or skepticism.  
-*"Sure, they promised change, but doesn’t it always end the same? Big words, bold promises, and we’re left cleaning up the mess."*
 
-### 14. **Inspirational**  
+### 14. Inspirational
 Inspirational tones elevate the reader, often by emphasizing resilience, courage, and the human spirit.  
-*"The odds were impossible, the obstacles unrelenting, but they didn’t stop. Each step forward was a victory, proving that limits are just illusions."*
 
-### 15. **Romantic**  
+### 15. Romantic
 A romantic tone is passionate and emotional, often highlighting beauty and desire.  
-*"Her laughter danced through the air like music, weaving a spell he couldn’t resist. In that moment, everything else faded away—there was only her."*
 
-### 16. **Ironic**  
+### 16. Ironic
 An ironic tone highlights contradictions, often using humor or wit to make a point.  
-*"He spent years climbing the corporate ladder, only to discover it was leaning against the wrong wall."*
 
-### 17. **Defiant**  
+### 17. Defiant
 A defiant tone is bold and rebellious, challenging norms or authority with conviction.  
-*"They told me to stay quiet, to follow the rules. But rules were made to be broken, and silence isn’t my strength."*
 
-### 18. **Playful**  
+### 18. Playful 
 A playful tone is light and fun, often using whimsy or humor to engage the reader.  
-*"If cats could talk, they’d probably demand royalties for every viral video. Honestly, they’re the real influencers."*
 
-### 19. **Tragic**  
+### 19. Tragic
 A tragic tone evokes deep sorrow, often highlighting loss or unavoidable pain.  
-*"He stood by the graveside, the words he’d left unsaid echoing louder than any eulogy. It was too late now—too late to fix what was broken."*
 
-### 20. **Mysterious**  
+### 20. Mysterious
 A mysterious tone keeps readers intrigued, often hinting at hidden truths or secrets.  
-*"The old key sat in her palm, its intricate design whispering of secrets long buried. What door did it open—and what lay beyond?"*
 
-Sure, here are 10 additional tones you can use for variety in a book:
-
-### 21. **Optimistic-Realistic**  
+### 21. Optimistic-Realistic
 This tone strikes a balance between hope and practicality, acknowledging challenges but emphasizing possibility.  
-*"The journey will be hard—no shortcuts, no guarantees. But with each small win, you’ll see it’s worth every step."*
 
-### 22. **Persuasive**  
+### 22. Persuasive
 A persuasive tone encourages the reader to embrace an idea or take action, appealing to logic and emotion.  
-*"You can keep waiting for the right time, but here’s the truth: the right time is now. Every moment you delay is an opportunity missed."*
 
-### 23. **Skeptical**  
+### 23. Skeptical
 A skeptical tone questions assumptions and pushes the reader to think critically.  
-*"They say money buys happiness, but does it? Or does it just buy distractions that mask what’s really missing?"*
 
-### 24. **Rebellious**  
+### 24. Rebellious
 A rebellious tone challenges societal norms and inspires bold action.  
-*"Who decided we have to follow their rules? Maybe it’s time we write our own story, on our own terms."*
 
-### 25. **Hopeful**  
+### 25. Hopeful
 A hopeful tone reassures the reader and highlights the potential for a better future.  
-*"Even when the world feels broken, there’s always a chance to rebuild. Tomorrow holds more promise than you think."*
 
-### 26. **Philosophical**  
+### 26. Philosophical
 This tone invites readers to reflect on life’s bigger questions and explore abstract ideas.  
-*"What if time isn’t something we lose, but something we create? Perhaps the problem isn’t running out of it but not understanding it."*
 
-### 27. **Enthusiastic**  
+### 27. Enthusiastic 
 An enthusiastic tone conveys excitement and energy, motivating the reader to engage fully.  
-*"This is it—the moment you’ve been waiting for! Everything you’ve done has led to this, and the best is yet to come."*
 
-### 28. **Witty**  
+### 28. Witty
 A witty tone uses clever humor and sharp insights to entertain while making a point.  
-*"They say patience is a virtue, but whoever said that clearly never stood in line for coffee during rush hour."*
 
-### 29. **Anguished**  
+### 29. Anguished
 An anguished tone communicates deep pain or inner turmoil, often evoking strong emotional resonance.  
-*"The words stuck in her throat, each one a blade she couldn’t bear to release. How do you say goodbye when you don’t want to let go?"*
 
-### 30. **Ethereal**  
+### 30. Ethereal
 An ethereal tone creates a dreamlike or otherworldly atmosphere, often blending reality with imagination.  
-*"The light filtered through the mist, painting the world in shades of gold and silver. Time seemed to stand still, as if the universe held its breath."*
 
 These tones can add even more depth and nuance to your writing, helping to shape your story’s emotional and thematic layers.`
   return stylesOfWriting;
