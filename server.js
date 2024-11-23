@@ -407,53 +407,52 @@ app.post("/generate_book", async (req, res) => {
   }
 
 });
+}
 
-async function delayBeforeSend(func, ms = modelDelay.flash) { // adding delay to gemini api send message
+async function delayBeforeSend(func, ms = modelDelay.flash) {
   console.log("Began delay with delayBeforeSend()");
-  const randomDelay = Math.random() * 10000; 
+  const randomDelay = Math.random() * 10000;
   ms += randomDelay;
   console.log(`Actual Delay is ${ms}ms`);
+  
   let returnRes;
-  console.log("this is func param. Has it executed? " + func, typeof(func));
-
   
   try {
-    async function sendMessage() {
-      return await new Promise(async resolve => {
-        setTimeout(async () => {
-          console.log("About to call function, as delay has ended")
-          let res = await func();
-          resolve(res);
-        }, ms);
+    // Initial delay and function call
+    await new Promise(resolve => setTimeout(resolve, ms));
+    console.log("About to call function, as delay has ended");
+    returnRes = await func();
     
-      });
-    };
-    returnRes = await sendMessage();
+    // Reset backoff count on success
+    data["backOff"].backOffCount = 0;
+    return returnRes;
+    
   } catch (error) {
-    if (error.message.includes("Resource has been exhausted")){
-      // back-off for like 5 minutes before retrying
-      async function initBackOff () {
-        return await new Promise(async resolve => {
-        setTimeout(async () => {
-          console.log("Backoff Delay Ended!");
-          let res = await func();
-          resolve(res);
-        }, data.backOffDuration /* default is 5 minutes */)
-    
-      });
+    if (error.message.includes("Resource has been exhausted")) {
+      if (data["backOff"].backOffCount >= data["backOff"].maxRetries) {
+        return data.res.status(503).send(`Back off failed after ${data["backOff"].maxRetries} attempts`);
       }
       
-      if (data.backOffCount < data.maxRetries) {
-        data.maxRetries++;
-        returnRes = await initBackOff();
-      } else {
-        data.res.status(503).send(`Back Off failed after ${data.maxRetries} attempts`);
-      }
+      console.log(`Attempt ${data["backOff"].backOffCount + 1} failed, backing off for ${data["backOff"].backOffDuration/1000} seconds`);
+      data["backOff"].backOffCount++;
+      
+      // Wait for backoff period
+      await new Promise(resolve => setTimeout(resolve, data["backOff"].backOffDuration));
+      
+      // Retry the function after backoff
+      returnRes = await func();
+      
+      // Reset backoff count on successful retry
+      data["backOff"].backOffCount = 0;
+    } else {
+      // If it's not a resource exhaustion error, throw it
+      throw error;
     }
   }
+  
   return returnRes;
 }
- 
+
 
 function getTocPrompt(inputData) {
   console.log(inputData);
