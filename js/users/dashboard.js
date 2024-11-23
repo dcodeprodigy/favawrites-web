@@ -157,51 +157,66 @@ createAiBtn.addEventListener("click", () => {
                 console.log("Got FormData")
                 const storedFormData = JSON.parse(localStorage.getItem("FormData"));
                 const form = document.getElementById("create-form");
-                
-                    for (const key in storedFormData) {
-                      const element = form.elements[key];
-                
-                      if (element) {
+
+                for (const key in storedFormData) {
+                    const element = form.elements[key];
+
+                    if (element) {
                         if (element.type === "checkbox" || element.type === "radio") {
-                           element.checked = storedFormData[key];
+                            element.checked = storedFormData[key];
                         }
-                        else if(element.nodeName.toLowerCase() == 'textarea') {
-                           element.value = storedFormData[key]
+                        else if (element.nodeName.toLowerCase() == 'textarea') {
+                            element.value = storedFormData[key]
                         }
-                        else if(element.nodeName.toLowerCase() == 'select') {
+                        else if (element.nodeName.toLowerCase() == 'select') {
                             element.value = storedFormData[key]
                         }
                         else {
-                          element.value = storedFormData[key]; // Regular input fields
+                            element.value = storedFormData[key]; // Regular input fields
                         }
-                      }
                     }
-                  }
+                }
+            }
         }
         function clearForm() {
             // clear local storage
             const formObj = JSON.parse(localStorage.getItem("FormData"));
-            for (const [key, value] of Object.entries(formObj)) {
-                if (value == true){
-                formObj[key] = false
-             } else {
-                formObj[key] = ""
-             }
+            if (formObj) {
+                for (const [key, value] of Object.entries(formObj)) {
+                    if (value == true) {
+                        formObj[key] = false
+                    } else {
+                        formObj[key] = ""
+                    }
+                }
+                localStorage.setItem("FormData", JSON.stringify(formObj));
+                // populate form with empty data
+                populateWithSavedData();
+                // remove FormData from loacal storage to avoid an empty field being populated when we refresh the page
+                localStorage.removeItem("FormData");
+                clearFormBtn.textContent = "Cleared!";
+                setTimeout(() => {
+                    if (clearFormBtn.textContent === "Cleared!") {
+                        clearFormBtn.textContent = "Clear Form";
+                    }
+                }, 3000);
             }
-            localStorage.setItem("FormData", JSON.stringify(formObj));
-            // populate form with empty data
-            populateWithSavedData();
-            // remove FormData from loacal storage to avoid an empty field being populated when we refresh the page
-            localStorage.removeItem("FormData");
         }
-        function saveFormData(){ // save form data at will
+        function saveFormData() { // save form data at will
             const formObject = getFormData(form);
             localStorage.setItem("FormData", JSON.stringify(formObject));
+
+            saveFormBtn.textContent = "Saved to Local Storage!";
+            setTimeout(() => {
+                if (saveFormBtn.textContent === "Saved to Local Storage!") {
+                    saveFormBtn.textContent = "Save Form";
+                }
+            }, 3000)
+            populateWithSavedData();
+            listenForSubmit();
+
+
         }
-        populateWithSavedData()
-        listenForSubmit();
-
-
     } else {
         // remove the form if it is already true.
         const aiInputsContainer = document.getElementById("aiInputsContainer");
@@ -247,11 +262,11 @@ async function postFormData(userInputData) {
             }
         } catch (error) {
             if (error.response) {
-                
+
                 const err = error.response.data
                 console.log('Error data:', err);
-                console.log('Status:', error.response.status); 
-                
+                console.log('Status:', error.response.status);
+
 
                 alert("An error occured: " + error);
 

@@ -15,3 +15,6 @@ Basically, you tell the AI how to tap into the emotions of users to get them to 
 
 ## forEach()
 Note that this method expects a synchronous operation and does not wait for promises
+
+## Deep Copy Objects to Retain Functions
+I used the NPM library; lodash, to achive this seemlessly
