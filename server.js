@@ -48,7 +48,6 @@ const {
   LineBreak,
   SectionProperties,
   // Math elements
-  Math,
   MathRun,
   // Advanced features
   Comments,
