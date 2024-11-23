@@ -177,11 +177,8 @@ async function postFormData(userInputData) {
                 }
             });
             document.getElementById("nextStep").disabled = true;
-            console.log(serverRes.status);
-            console.log(serverRes.data);
-            console.log(serverRes.headers);
-            console.log(serverRes.config);
-            if (serverRes.status === 200) {
+
+            if (serverRes.status >= 200 && serverRes.status < 300) {
                 document.getElementById("nextStep").textContent = "Status = 200";
                 document.getElementById("nextStep").disabled = false;
                 alert("A 200 Status code was received");
@@ -195,11 +192,13 @@ async function postFormData(userInputData) {
             }
         } catch (error) {
             if (error.response) {
-                // Server responded with a status other than 2xx
-                const err = JSON.parse(error.response.data)
-                console.log('Error data:', err); // Access server's error data
-                console.log('Status:', error.response.status); // Status code
-                console.log('Headers:', error.response.headers); // Headers sent by server
+                
+                const err = error.response.data
+                console.log('Error data:', err);
+                console.log('Status:', error.response.status); 
+                
+
+                alert("An error occured: " + error);
 
                 err.response ? alert("Status Text: " + err.response.statusText + "With Code: " + err.response.status) : alert(err + 'Status: ' + error.response.status);
             } else if (error.request) {

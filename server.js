@@ -66,7 +66,6 @@ const job = require('./cron.js');
 require('events').EventEmitter.defaultMaxListeners = 50;
 
 // Middleware to parse JSON bodies
-// app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 
@@ -315,9 +314,9 @@ const schema = {
 let finalReturnData = {}; // An object for collecting data to be sent to the client
 let reqNumber = 0;
 // save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
-let originalDataObj;
+let originalDataObj = {};
 function saveOriginalData() {
-  originalDataObj = data;
+  originalDataObj = JSON.parse(JSON.stringify(data)); // Creates a deep copy
 }
 saveOriginalData();
 
@@ -375,7 +374,7 @@ app.post("/generate_book", async (req, res) => {
     await compileDocx(userInputData);
     finalReturnData.file = `/docs/${userInputData.title}.docx`;
     finalReturnData.docxCode = data.docx;
-    res.send(finalReturnData);
+    res.status(200).send(finalReturnData);
 
 
 
@@ -385,15 +384,17 @@ app.post("/generate_book", async (req, res) => {
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
-      res.status(500).json(finalReturnData);
+      res.status(500).send(finalReturnData);
     } else if (error.message.includes("overloaded")) {
       finalReturnData.response = { error: "Generative API is overloaded. Please, try again later!", status: 503 }
       console.log(finalReturnData.response);
-      res.status(503).json(finalReturnData);
+      res.status(503).send(finalReturnData);
+    } else {
+      res.send("An Unknown Error Occured");
     }
   } finally {
-    // compileDocx(req.body);
-    data = originalDataObj;
+    data = JSON.parse(JSON.stringify(originalDataObj));
+    originalDataObj = {};
     finalReturnData = {};
   }
 
@@ -404,7 +405,7 @@ async function delayBeforeSend(func, ms = 6000) { // adding delay to gemini api 
 
   return await new Promise(async resolve => {
     setTimeout(async () => {
-      console.log("About to call function as delay has ended")
+      console.log("About to call function, as delay has ended")
       let res = func
       resolve(res);
     }, ms)
@@ -905,9 +906,8 @@ async function generateChapters(mainChatSession) {
               const getChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${currentChapterText}`));
 
               chapterText = getChapterCont;
-              currentChapterText.concat(getSubChapterCont.content); // Save to context
+              currentChapterText.concat(getChapterCont.content); // Save to context
               data.chapterText = getChapterCont
-
               console.log("this is the type of data.chapterText: " + typeof (data.chapterText));
             } catch (error) {
               console.error("An error in mainChatSession for Chapter Gen: " + error);
@@ -984,7 +984,7 @@ async function generateChapters(mainChatSession) {
             let docxJs;
             try { // parse the purported array
               docxJs = JSON.parse(modelRes);
-              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+              console.log("type of the docxJS is now: " + Array.isArray(docxJs) + " " + docxJs);
 
             } catch (error) {
               console.error("We got bad json from model. Fixing... : " + error);
