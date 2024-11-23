@@ -7,7 +7,7 @@ const job = new cron.CronJob("*/14 * * * *", function () {
     console.log("Restarting Server...");
     https.get(backendUrl, (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) { // Checks for success status codes (2xx range)
-            console.log("Server pinged successfully.");
+            
         } else {
             console.error(`Failed to ping server with status code ${res.statusCode}`);
         }
