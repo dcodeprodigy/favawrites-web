@@ -62,8 +62,7 @@ const {
   TextWrappingSide
 } = require("docx");
 const { jsonrepair } = require('jsonrepair');
-const job = require("~/cron.js");
-job.start(); // keep server alive
+const job = require('./cron.js');
 require('events').EventEmitter.defaultMaxListeners = 50;
 
 // Middleware to parse JSON bodies
