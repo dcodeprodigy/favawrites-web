@@ -676,7 +676,7 @@ async function generateChapters(mainChatSession) {
               console.log("This is subchapter text: " + data.chapterText);
               let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
               console.log("Json parsed");
-              console.log(currentChapterText)
+              console.log(currentChapterText);
               chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -826,9 +826,9 @@ async function generateChapters(mainChatSession) {
       4. Compile Docx
       */
       const currentChapter = tableOfContents[i - 1][`ch-${i}`];
-      const numberOfChapters = JSON.parse(finalReturnData.firstReq.chapters);
+      
 
-      for (let k = 1; k <= numberOfChapters; k++) {
+      
 
         try {
           promptNo = await delayBeforeSend(await mainChatSession.sendMessage(`
@@ -895,18 +895,20 @@ async function generateChapters(mainChatSession) {
         promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
 
         // generate the chapter for the number of times the model indicates
+        let genChapterResult;
         for (let i = 0; i < promptNo.promptMe; i++) {
           let errorCount = 0;
 
           async function genChapter() {
             let chapterText;
             try {
-              const getChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. `));
+              const getChapterCont = await delayBeforeSend(await mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${currentChapterText}`));
 
               chapterText = getChapterCont;
+              currentChapterText.concat(getSubChapterCont.content); // Save to context
               data.chapterText = getChapterCont
 
-              console.log("this is the type of data.chapterText: " + typeof (data.chapterText))
+              console.log("this is the type of data.chapterText: " + typeof (data.chapterText));
             } catch (error) {
               console.error("An error in mainChatSession for Chapter Gen: " + error);
               errorCount++;
@@ -924,16 +926,14 @@ async function generateChapters(mainChatSession) {
                 await delay();
               } else {
                 data.res.status(501).send("Network Error");
-
               }
-
-
             }
 
             try {
               console.log("This is chapter text: " + data.chapterText);
               let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
               console.log("Json parsed");
+              console.log(currentChapterText);
               chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -968,7 +968,9 @@ async function generateChapters(mainChatSession) {
             return chapterText; // as the parsed object
           };
 
-          const genChapterResult = await genChapter();
+          genChapterResult = await genChapter();
+        } //end of each promptMe number
+
           await getDocxCode();
 
           async function getDocxCode() {
@@ -1039,11 +1041,14 @@ async function generateChapters(mainChatSession) {
               }
 
               // push new TextRun
-              paragraphObj.children.push(new TextRun(textRunObj));
 
-              console.log("Initialized children in sections")
-              data.populatedSections[data.current_chapter - 1].children.push([new Paragraph(paragraphObj)]);
-
+              const childrenProp = data.populatedSections[data.current_chapter - 1];
+            if (childrenProp.children) { // if it already exists, push subsequent data
+              childrenProp.children.push(new Paragraph(paragraphObj));
+            } else {
+              childrenProp["children"] = [new Paragraph(paragraphObj)];
+              console.log("Initialized children in sections");
+            }
 
 
             } // end of pushing for one chapter batch
@@ -1061,10 +1066,10 @@ async function generateChapters(mainChatSession) {
 
           await delayChapPush(generatedChapContent, genChapterResult, i);
 
-        } //end of each promptMe umber
+        
 
       } // end of each chapter
-    }
+    
 
 
 
@@ -1079,15 +1084,7 @@ async function generateChapters(mainChatSession) {
     }
     data.current_chapter++;
 
-    // if (data.current_chapter === 1) { // initialize docx.js when we get to the last chapter
-    //   console.log("Data.docx shall be created");
-    //   initializeDocx();
-    // }
-
-    // data.current_chapter = tableOfContents.length
-
   }
-
 
   finalReturnData.genAIChapters = generatedChapContent;
 
@@ -1271,17 +1268,6 @@ An ethereal tone creates a dreamlike or otherworldly atmosphere, often blending 
 
 These tones can add even more depth and nuance to your writing, helping to shape your story’s emotional and thematic layers.`
   return stylesOfWriting;
-}
-
-function makeValidJS(str) {
-  try {
-    const validJs = eval(str); // makes the string an executable array
-    return validJs;
-
-  } catch (error) {
-    console.error("Failed to Make code executable: " + error);
-    return null;
-  }
 }
 
 async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = 6000) { // pushing generated chapter to final return data

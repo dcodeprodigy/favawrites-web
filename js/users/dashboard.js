@@ -190,8 +190,8 @@ async function postFormData(userInputData) {
             console.log(serverRes);
             if (serverRes.data.file) {
                 localStorage.setItem("bookLink", serverRes.data.file);
-                const windowLocation = window.Location.hostname;
-                alert(`${window.location.protocol}//${windowLocation}${window.location.host}${localStorage.getItem("bookLink")}`)
+                const windowLocation = window.location.hostname;
+                alert(`${window.location.protocol}//${windowLocation}${localStorage.getItem("bookLink")}`)
             }
         } catch (error) {
             if (error.response) {
@@ -205,7 +205,7 @@ async function postFormData(userInputData) {
             } else if (error.request) {
                 // No response was received
                 console.log('No response:', error.request);
-                alert("App probably crashed because no response was received");
+                alert(error.request);
             } else {
                 // Something else caused the error
                 console.log('Error:', error.message);
