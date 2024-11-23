@@ -409,11 +409,13 @@ app.post("/generate_book", async (req, res) => {
 
 });
 
-async function delayBeforeSend(func, ms = modelDelay.flash) { // adding delay to gemini api send message
+
+async function delayBeforeSend(func, ms = modelDelay.flash) {
   console.log("Began delay with delayBeforeSend()");
   const randomDelay = Math.random() * 3000;
   ms += randomDelay;
   console.log(`Actual Delay is ${ms}ms`);
+  
   let returnRes;
   console.log("this is func param. Has it executed? " + func, typeof (func));
 
