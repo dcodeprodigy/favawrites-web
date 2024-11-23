@@ -207,7 +207,7 @@ async function postFormData(userInputData) {
                 alert(error.request);
             } else {
                 // Something else caused the error
-                console.log('Error:', error.message);
+                console.log('Error:', error.message + " " + error.status);
                 alert(error.message);
             }
 

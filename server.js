@@ -394,7 +394,7 @@ app.post("/generate_book", async (req, res) => {
       console.log(finalReturnData.response);
       res.status(503).send(finalReturnData);
     } else {
-      res.send("An Unknown Error Occured");
+      res.status(500).send("An Unknown Error Occured");
     }
   } finally {
     data = JSON.parse(JSON.stringify(originalDataObj));
@@ -406,8 +406,8 @@ app.post("/generate_book", async (req, res) => {
 
 async function delayBeforeSend(func, ms = modelDelay.flash) { // adding delay to gemini api send message
   console.log("Began delay with delayBeforeSend");
-  const randomDelay = (Math.random().toFixed(2) * 10) * 1000; 
-  ms += randomDelay
+  const randomDelay = Math.random().toFixed(2) * 10000; 
+  ms += randomDelay;
   console.log(`Actual Delay is ${ms}ms`);
   return await new Promise(async resolve => {
     setTimeout(async () => {

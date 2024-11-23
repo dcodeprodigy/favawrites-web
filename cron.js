@@ -4,7 +4,6 @@ const https = require("https");
 const backendUrl = "https://favawrites.onrender.com"; 
 
 const job = new cron.CronJob("*/14 * * * *", function () {
-    console.log("Restarting Server...");
     https.get(backendUrl, (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) { // Checks for success status codes (2xx range)
             
