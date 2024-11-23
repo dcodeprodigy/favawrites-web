@@ -93,14 +93,14 @@ const pageState = {
 
 
 function listenForSubmit() {
+    const userForm = document.getElementById("create-form");
     console.log('listening for nextbtn click');
-    document.getElementById("create-form").addEventListener("submit", submitFormData)
+    userForm.addEventListener("submit", submitFormData)
 
     function submitFormData(event) {
         event.preventDefault();
         // add loading spinner
-        document.getElementById("nextStep").textContent = "Creating your Masterpiece..."
-        const userForm = document.getElementById("create-form");
+        document.getElementById("nextStep").textContent = "Creating your Masterpiece...";
         const userInputedData = getFormData(userForm); // This will receive the form data as an object
         localStorage.setItem("FormData", JSON.stringify(userInputedData)); // save object to local storage
 

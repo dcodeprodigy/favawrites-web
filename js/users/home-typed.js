@@ -1,8 +1,8 @@
-import Typed from "typed.js";
+const { typed } = require("typed.js");
 
 function beginTypedJS() {
   setTimeout(() => {
-    let typedH1 = new Typed("#typed-texts", {
+    let typedH1 = new typed("#typed-texts", {
       strings: [
         "Craft your <span class='type-color text-primary-green-mint'>masterpiece</span> with AI.",
         "Generate chapters, outlines, and more with Fava<span class='type-color text-primary-green-mint'>writes.</span>",
