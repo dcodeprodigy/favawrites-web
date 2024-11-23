@@ -8,7 +8,7 @@ const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
     <h3>Create Your Book with AI</h3>
     <button id="clearForm" type="button" class="py-3 px-6 rounded-lg mt-4 bg-secondary-black-slate hover:bg-secondary-black-slate-light">Clear Form</button>
-    <button id="saveForm" type="button" class="py-3 px-6 rounded-lg mt-4 bg-primary-green-mint  hover:bg-primary-green-600">Save Form</button>
+    <button id="saveForm" type="button" class="py-3 px-6 rounded-lg bg-primary-green-mint  hover:bg-primary-green-600">Save Form</button>
     <label for="title">Book Title</label>
     <input type="text" placeholder="Enter your book's title" name="title" value="The Power of Self Discipline">
 
