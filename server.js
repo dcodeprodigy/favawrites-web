@@ -87,6 +87,10 @@ const safetySettings = [
     threshold: HarmBlockThreshold.BLOCK_NONE
   }
 ];
+const modelDelay = {
+  flash : 6000,
+  pro: 30000
+}
 
 const generationConfig = {
   temperature: 1,
@@ -400,9 +404,11 @@ app.post("/generate_book", async (req, res) => {
 
 });
 
-async function delayBeforeSend(func, ms = 6000) { // adding delay to gemini api send message
+async function delayBeforeSend(func, ms = modelDelay.flash) { // adding delay to gemini api send message
   console.log("Began delay with delayBeforeSend");
-
+  const randomDelay = (Math.random().toFixed(2) * 10) * 1000; 
+  ms += randomDelay
+  console.log(`Actual Delay is ${ms}ms`);
   return await new Promise(async resolve => {
     setTimeout(async () => {
       console.log("About to call function, as delay has ended")
@@ -592,7 +598,7 @@ async function generateChapters(mainChatSession) {
           console.error("Error in Sending message to model at writingPatternRes: " + error);
           await delay();
 
-          async function delay(ms = 6000) {
+          async function delay(ms = modelDelay.flash) {
             return await new Promise((resolve) => {
               setTimeout(async () => {
                 console.log("Reaching Model Again");
@@ -654,7 +660,7 @@ async function generateChapters(mainChatSession) {
               errorCount++;
               if (errorCount <= 4) {
                 // run a delay before retrying
-                async function delay(ms = 6000) {
+                async function delay(ms = modelDelay.flash) {
                   return await new Promise(async resolve => {
                     setTimeout(async () => {
                       let res = await genSubChapter();
@@ -687,7 +693,7 @@ async function generateChapters(mainChatSession) {
 
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
-              async function delay(ms = 6000) {
+              async function delay(ms = modelDelay.flash) {
                 return await new Promise((resolve) => {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
@@ -858,7 +864,7 @@ async function generateChapters(mainChatSession) {
             await delay();
           }
 
-          async function delay(ms = 6000) {
+          async function delay(ms = modelDelay.flash) {
             return await new Promise((resolve) => {
               setTimeout(async () => {
                 console.log("Reaching Model Again");
@@ -914,7 +920,7 @@ async function generateChapters(mainChatSession) {
               errorCount++;
               if (errorCount <= 4) {
                 // run a delay before retrying
-                async function delay(ms = 6000) {
+                async function delay(ms = modelDelay.flash) {
                   return await new Promise(async resolve => {
                     setTimeout(async () => {
                       let res = await genChapter();
@@ -943,7 +949,7 @@ async function generateChapters(mainChatSession) {
 
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
-              async function delay(ms = 6000) {
+              async function delay(ms = modelDelay.flash) {
                 return await new Promise((resolve) => {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
@@ -1270,7 +1276,7 @@ These tones can add even more depth and nuance to your writing, helping to shape
   return stylesOfWriting;
 }
 
-async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = 6000) { // pushing generated chapter to final return data
+async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = modelDelay.flash) { // pushing generated chapter to final return data
   return await new Promise((resolve) => {
     setTimeout(async () => {
       console.log("ended delay");
