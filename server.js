@@ -417,7 +417,7 @@ async function delayBeforeSend(func, ms = modelDelay.flash) {
   console.log(`Actual Delay is ${ms}ms`);
   
   let returnRes;
-  console.log("this is func param. Has it executed? " + func, typeof (func));
+  // console.log("this is func param. Has it executed? " + func, typeof (func));
 
   async function sendMessage() {
     return await new Promise(async resolve => {
