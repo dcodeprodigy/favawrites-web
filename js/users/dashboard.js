@@ -7,6 +7,8 @@ const createContainer = document.getElementById("create-btn-container");
 const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
     <h3>Create Your Book with AI</h3>
+    <button id="clearForm" type="button" class="py-3 px-6 rounded-lg mt-4 bg-secondary-black-slate hover:bg-secondary-black-slate-light">Clear Form</button>
+    <button id="saveForm" type="button" class="py-3 px-6 rounded-lg mt-4 bg-primary-green-mint  hover:bg-primary-green-600">Save Form</button>
     <label for="title">Book Title</label>
     <input type="text" placeholder="Enter your book's title" name="title" value="The Power of Self Discipline">
 
@@ -100,6 +102,7 @@ function listenForSubmit() {
         document.getElementById("nextStep").textContent = "Creating your Masterpiece..."
         const userForm = document.getElementById("create-form");
         const userInputedData = getFormData(userForm); // This will receive the form data as an object
+        localStorage.setItem("FormData", JSON.stringify(userInputedData)); // save object to local storage
 
         // Now, time to query the generative AI Innit?
         // Make a requet to our server api
@@ -144,6 +147,58 @@ createAiBtn.addEventListener("click", () => {
         aiInputsContainer.classList.add("flex");
         // set state to true
         pageState.fromAIForm = true;
+        const clearFormBtn = document.getElementById("clearForm");
+        const saveFormBtn = document.getElementById("saveForm");
+        saveFormBtn.addEventListener("click", saveFormData);
+        clearFormBtn.addEventListener("click", clearForm);
+        const form = document.getElementById("create-form");
+        function populateWithSavedData() {
+            if (localStorage.getItem("FormData")) {
+                console.log("Got FormData")
+                const storedFormData = JSON.parse(localStorage.getItem("FormData"));
+                const form = document.getElementById("create-form");
+                
+                    for (const key in storedFormData) {
+                      const element = form.elements[key];
+                
+                      if (element) {
+                        if (element.type === "checkbox" || element.type === "radio") {
+                           element.checked = storedFormData[key];
+                        }
+                        else if(element.nodeName.toLowerCase() == 'textarea') {
+                           element.value = storedFormData[key]
+                        }
+                        else if(element.nodeName.toLowerCase() == 'select') {
+                            element.value = storedFormData[key]
+                        }
+                        else {
+                          element.value = storedFormData[key]; // Regular input fields
+                        }
+                      }
+                    }
+                  }
+        }
+        function clearForm() {
+            // clear local storage
+            const formObj = JSON.parse(localStorage.getItem("FormData"));
+            for (const [key, value] of Object.entries(formObj)) {
+                if (value == true){
+                formObj[key] = false
+             } else {
+                formObj[key] = ""
+             }
+            }
+            localStorage.setItem("FormData", JSON.stringify(formObj));
+            // populate form with empty data
+            populateWithSavedData();
+            // remove FormData from loacal storage to avoid an empty field being populated when we refresh the page
+            localStorage.removeItem("FormData");
+        }
+        function saveFormData(){ // save form data at will
+            const formObject = getFormData(form);
+            localStorage.setItem("FormData", JSON.stringify(formObject));
+        }
+        populateWithSavedData()
         listenForSubmit();
 
 
@@ -200,14 +255,14 @@ async function postFormData(userInputData) {
 
                 alert("An error occured: " + error);
 
-                err.response ? alert("Status Text: " + err.response.statusText + "With Code: " + err.response.status) : alert(err + 'Status: ' + error.response.status);
+                err.response ? alert("Status Text: " + err.response.statusText + " With Code: " + err.response.status) : alert(err + 'Status: ' + error.response.status);
             } else if (error.request) {
                 // No response was received
                 console.log('No response:', error.request);
                 alert(error.request);
             } else {
                 // Something else caused the error
-                console.log('Error:', error.message + " " + error.status);
+                console.log('Error: ', error.message + " " + error.status);
                 alert(error.message);
             }
 

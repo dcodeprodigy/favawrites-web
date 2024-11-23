@@ -1,12 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./index.html",
-    // "./login.html",
-    // "./dashboard.html",
-    // "./signup.html",
-    "./**/*.js",
     "./**/*.html",
+    "./js/users/dashboard.js",
     "./src/**/*.{js,jsx}",
   ],
   theme: {
@@ -26,7 +22,9 @@ module.exports = {
           "800": "#196619"
         },
         "secondary-black":{
-          "main": "#030303"
+          "main": "#030303",
+          "slate": "rgb(71 85 105)",
+          "slate-light": "rgb(71 85 105)"
         }
       },
       fontFamily: {

@@ -48,7 +48,6 @@ const {
   LineBreak,
   SectionProperties,
   // Math elements
-  Math,
   MathRun,
   // Advanced features
   Comments,
@@ -63,6 +62,7 @@ const {
 } = require("docx");
 const { jsonrepair } = require('jsonrepair');
 const job = require('./cron.js');
+const _ = require('lodash');
 require('events').EventEmitter.defaultMaxListeners = 50;
 
 // Middleware to parse JSON bodies
@@ -318,11 +318,17 @@ const schema = {
 let finalReturnData = {}; // An object for collecting data to be sent to the client
 let reqNumber = 0;
 // save the original data Object so that we can easily reset it to defailt when returning res to user. This should prevent subsequent request from using the data from a previous session
-let originalDataObj = {};
-function saveOriginalData() {
-  originalDataObj = JSON.parse(JSON.stringify(data)); // Creates a deep copy
-}
-saveOriginalData();
+
+function deepCopyObj(obj) { // maintains functions when copying. Alternatively, Lodash could help too but I just do not want to install another library
+  return _.cloneDeepWith(obj, value => {
+    if (typeof value === 'function') {
+      return value; // Return the original function
+    }
+  });
+};
+
+let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
+
 
 
 app.post("/generate_book", async (req, res) => {
@@ -354,7 +360,7 @@ app.post("/generate_book", async (req, res) => {
 
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
-    console.log(finalReturnData.firstReq)
+    console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
@@ -394,29 +400,59 @@ app.post("/generate_book", async (req, res) => {
       console.log(finalReturnData.response);
       res.status(503).send(finalReturnData);
     } else {
-      res.status(500).send("An Unknown Error Occured");
+      res.status(500).send("An Unknown Error Occured ");
     }
   } finally {
-    data = JSON.parse(JSON.stringify(originalDataObj));
-    originalDataObj = {};
+    data = deepCopyObj(originalDataObj);
     finalReturnData = {};
   }
 
 });
 
 async function delayBeforeSend(func, ms = modelDelay.flash) { // adding delay to gemini api send message
-  console.log("Began delay with delayBeforeSend");
+  console.log("Began delay with delayBeforeSend()");
   const randomDelay = Math.random() * 10000; 
   ms += randomDelay;
   console.log(`Actual Delay is ${ms}ms`);
-  return await new Promise(async resolve => {
-    setTimeout(async () => {
-      console.log("About to call function, as delay has ended")
-      let res = func
-      resolve(res);
-    }, ms)
+  let returnRes;
+  console.log("this is func param. Has it executed? " + func, typeof(func));
 
-  })
+  
+  try {
+    async function sendMessage() {
+      return await new Promise(async resolve => {
+        setTimeout(async () => {
+          console.log("About to call function, as delay has ended")
+          let res = func
+          resolve(res);
+        }, ms);
+    
+      });
+    };
+    returnRes = await sendMessage();
+  } catch (error) {
+    if (error.message.includes("Resource has been exhausted")){
+      // back-off for like 5 minutes before retrying
+      async function initBackOff () {
+        return await new Promise(async resolve => {
+        setTimeout(async () => {
+          console.log("Backoff Delay Ended!");
+          let res = func
+          resolve(res);
+        }, data.backOffDuration /* default is 5 minutes */)
+    
+      });
+      }
+      
+      if (data.backOffCount < data.maxRetries) {
+        data.maxRetries++;
+        returnRes = await initBackOff();
+      } else {
+        data.res.status(503).send(`Back Off failed after ${data.maxRetries} attempts`);
+      }
+    }
+  }
+  return returnRes;
 }
  
 
@@ -553,6 +589,7 @@ async function generateChapters(mainChatSession) {
   const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
   let currentChapterText = ""; // saving the chapter content here.
+  data["backOff"] = {backOffDuration : 300000, backOffCount : 0, maxRetries : 4} // set a backoff duration for when API says that there is too many requests
 
   // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
   data.chapterErrorCount = 0;
@@ -1137,7 +1174,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
     return "Model Failed to fix Json after numerous retries. Try again later, please."
   }
   const generationConfig = {
-    temperature: 0.5,
+    temperature: 0.3,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
@@ -1152,7 +1189,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   // confirm if this operation was successful
   try {
     let fixedRes;
-    async function delay(ms = 30000) {
+    async function delay(ms = modelDelay.pro) {
       return await new Promise((resolve) => {
         setTimeout(async () => {
           console.log("30s delay ended");
@@ -1280,16 +1317,16 @@ These tones can add even more depth and nuance to your writing, helping to shape
 async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = modelDelay.flash) { // pushing generated chapter to final return data
   return await new Promise((resolve) => {
     setTimeout(async () => {
-      console.log("ended delay");
+      console.log("Ended delay. Now pushing data for docx generation...");
       if (!generatedChapContent[`chapter${data.current_chapter}`]) {
         resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
-        // console.log(genChapterResult.content);
+        console.log("Array not present. Therefore, created a new one.");
       } else {
         resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
-        console.log(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`]);
+        console.log("Array PRESENT FOR SOME REASON. Therefore, pushed to existing");
       }
       // conditional for when there is subchapter and when there isn't
-      subChIndex !== undefined ? console.log(`pushed batch ${i + 1} of subchapter ${subChIndex + 1} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch ${i + 1} of chapter ${data.current_chapter} to finalReturnData `);
+      subChIndex !== undefined ? console.log(`pushed batch entire subchapter ${subChIndex + 1} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch entire chapter ${data.current_chapter} to finalReturnData `);
     }, ms);
   });
 };
