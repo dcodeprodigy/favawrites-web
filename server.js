@@ -5,7 +5,7 @@ const path = require('path');
 // const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
-const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, ChatSession } = require('@google/generative-ai');
 const fs = require("fs");
 const {
   // Core elements
@@ -334,6 +334,7 @@ function deepCopyObj(obj) { // maintains functions when copying.
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
 
 
+
 app.post("/generate_book", async (req, res) => {
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
@@ -363,7 +364,10 @@ app.post("/generate_book", async (req, res) => {
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
 
-    console.log("This is the model response as an object: \n" + parseJson(tocRes));
+    if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
+      return; // Stop further processing and return the 503 error already sent.
+    }
+  
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
@@ -405,7 +409,7 @@ app.post("/generate_book", async (req, res) => {
       console.log(finalReturnData.response);
       res.status(503).send(finalReturnData);
     } else {
-      res.status(500).send("An Unknown Error Occured ");
+      res.status(500).send("An Unknown Error Occured " + error);
     }
   } finally {
     data = deepCopyObj(originalDataObj);
@@ -426,8 +430,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
   try {
     const randomDelay = Math.random() * 3000;
     delayMs += randomDelay;
-
-    cconsole.log(`Actual Delay is ${ms}ms`);
+    console.log(`Actual Delay is ${ms}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
         const res = await func();
