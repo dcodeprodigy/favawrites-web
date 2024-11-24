@@ -430,7 +430,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
   try {
     const randomDelay = Math.random() * 3000;
     delayMs += randomDelay;
-    console.log(`Actual Delay is ${ms}ms`);
+    console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
         const res = await func();
