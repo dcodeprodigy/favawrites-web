@@ -331,11 +331,13 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 
 
 
+
 app.post("/generate_book", async (req, res) => {
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
   reqNumber++; //Increament the number of requests being handled
   data["backOff"] = { backOffDuration: 5 * 60 * 1000, backOffCount: 0, maxRetries: 4 } // set a backoff duration for when API says that there is too many requests
+  data.error = {pro : 0}
 
   try {
     const userInputData = req.body;
@@ -356,7 +358,7 @@ app.post("/generate_book", async (req, res) => {
 
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents." });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
-    const tocRes = await delayBeforeSend(() => tocChatSession.sendMessage(tocPrompt));
+    const tocRes = await delayBeforeSend(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
 
     console.log("This is the model response as an object: \n" + parseJson(tocRes));
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
@@ -409,6 +411,13 @@ app.post("/generate_book", async (req, res) => {
 
 });
 
+function errorAppendMessage () {
+  if (data.error.pro > 0) {
+    data.error.pro = 0; // reset it to zero, with the assumption that the model will behave. If it still spits another error, the fixErrorWithPro will increment this and then we warn model about errors again.
+    return `Your last json response included an error. Once again, Your next response must contain no JSON error. Error in JSON are in the form: Missing commas, Extra, commas (trailing commas), Incorrect use of quotes (single quotes, missing quotes),Unmatched brackets [] or braces {}, Incorrect nesting of arrays/objects, Unexpected characters, Invalid number formats (leading zeros, multiple decimal points, Infinity, NaN), Incorrect boolean values (True, False, 1, 0), Missing values (omitting a value after a key-colon), Incorrect character encoding (not UTF-8, UTF-16, or UTF-32), Presence of Byte Order Mark (BOM), Comments, Circular references. Avoid getting into such errors.`
+
+  }
+}
 
 async function delayBeforeSend(func, ms = modelDelay.flash) {
   console.log("Began delay with delayBeforeSend()");
@@ -611,7 +620,7 @@ async function generateChapters(mainChatSession) {
           promptNo = await delayBeforeSend(() => mainChatSession.sendMessage(`Let us continue our generation. 
           On request, you shall be generating a docx.js code for me. That is, after generating the contents for a subchapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing.
             
-          Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}`));
+          Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}. ${errorAppendMessage()}.`));
         } catch (error) {
           console.log("Error while getting prompt number: " + error);
         }
@@ -631,7 +640,7 @@ async function generateChapters(mainChatSession) {
 
         // Get the suitable writing style for the current subchapter
         async function sendWritingStyleReq() {
-          writingPatternRes = await delayBeforeSend(() => mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n ${writingPattern()}.`));
+          writingPatternRes = await delayBeforeSend(() => mainChatSession.sendMessage(`${errorAppendMessage()}. Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n ${writingPattern()}.`));
         }
 
         try {
@@ -685,7 +694,7 @@ async function generateChapters(mainChatSession) {
             let chapterText;
 
             try {
-              const getSubChapterCont = await delayBeforeSend(() => mainChatSession.sendMessage(`${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+              const getSubChapterCont = await delayBeforeSend(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far. => '${currentChapterText}';
               `));
 
@@ -768,7 +777,7 @@ async function generateChapters(mainChatSession) {
         async function getDocxCode() {
           let docxJsRes;
 
-          docxJsRes = await delayBeforeSend(() => mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
+          docxJsRes = await delayBeforeSend(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
 
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           // console.log("this is model res: " + modelRes)
@@ -880,7 +889,7 @@ async function generateChapters(mainChatSession) {
 
 
       try {
-        promptNo = await delayBeforeSend(() => mainChatSession.sendMessage(`
+        promptNo = await delayBeforeSend(() => mainChatSession.sendMessage(` ${errorAppendMessage()}.
           ${getGenInstructions1()}
           Since there are no subchapters, I want you to tell me, how many times should I prompt you for this chapter titled ${currentChapter}.
           ${getGenInstructions2(false)}
@@ -901,7 +910,7 @@ async function generateChapters(mainChatSession) {
       console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
       async function sendWritingStyleReq() {
-        writingPatternRes = await delayBeforeSend(() => mainChatSession.sendMessage(`Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this chapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter '${currentChapter}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
+        writingPatternRes = await delayBeforeSend(() => mainChatSession.sendMessage(`${errorAppendMessage()}. Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this chapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current chapter '${currentChapter}' and return your response in the schema: {"pattern":"the selected pattern, alongside the example as in the available patterns"}. The patterns available are: \n ${writingPattern()}.`));
       }
       try {
         await sendWritingStyleReq();
@@ -958,7 +967,7 @@ async function generateChapters(mainChatSession) {
         async function genChapter() {
           let chapterText;
           try {
-            const getChapterCont = await delayBeforeSend(() => mainChatSession.sendMessage(`You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${currentChapterText}`));
+            const getChapterCont = await delayBeforeSend(() => mainChatSession.sendMessage(` ${errorAppendMessage()}. You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${currentChapterText}`));
 
             chapterText = getChapterCont;
             currentChapterText.concat(getChapterCont.content); // Save to context
@@ -1031,7 +1040,7 @@ async function generateChapters(mainChatSession) {
       async function getDocxCode() {
         let docxJsRes;
 
-        docxJsRes = await delayBeforeSend(() => mainChatSession.sendMessage(`This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
+        docxJsRes = await delayBeforeSend(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
 
         let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
         // console.log("this is model res: " + modelRes)
@@ -1180,6 +1189,7 @@ You shall return an array json using this schema below as the template for this 
 }
 
 async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
+  data.error.pro++;
   if (data.proModelErrors >= 5) {
     data.res.status(501).send("Model Failed to fix Json after numerous retries. Try again later");
     return "Model Failed to fix Json after numerous retries. Try again later, please."
@@ -1193,7 +1203,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   };
   const fixerSchema = `{"fixedJson" : "The fixed JSON"}`;
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will be sent to you in the first place. Your response schema must be in this schema ${fixerSchema}` });
+  const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will be sent to you in the first place. Your response schema must be in this schema ${fixerSchema}` });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
 
@@ -1382,7 +1392,7 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
     try {
       console.log("TODO:Check if the plot prompt resolved as expected: " + plotPrompt);
 
-      sendPlotMsg = await delayBeforeSend(() => plotChatSession.sendMessage(plotPrompt));
+      sendPlotMsg = await delayBeforeSend(() => plotChatSession.sendMessage(`${errorAppendMessage()}${plotPrompt}`));
       return sendPlotMsg;
     } catch (error) {
       // error sending message
