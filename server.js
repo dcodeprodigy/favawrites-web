@@ -443,6 +443,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
 
     if (response.error) { // Check if there was an error during sendMessage
       const error = response.error;
+      console.warn(error)
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
           data.backOff.backOffCount++;
