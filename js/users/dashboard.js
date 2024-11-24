@@ -95,23 +95,23 @@ const pageState = {
 function listenForSubmit() {
     const userForm = document.getElementById("create-form");
     console.log('listening for nextbtn click');
-    userForm.addEventListener("submit", submitFormData)
-
-    function submitFormData(event) {
+    userForm.addEventListener("submit", (event)=> {
         event.preventDefault();
         const submitBtn = document.getElementById("nextStep");
         // add loading spinner
         submitBtn.textContent = "Creating your Masterpiece...";
         submitBtn.disabled = true;
+        submitBtn.style.cursor = "wait";
 
         const userInputedData = getFormData(userForm); // This will receive the form data as an object
         localStorage.setItem("FormData", JSON.stringify(userInputedData)); // save object to local storage
 
         // Now, time to query the generative AI Innit?
         // Make a requet to our server api
-        postFormData(userInputedData);
+        postFormData(userInputedData, submitBtn);
 
-    }
+    })
+
 }
 
 createScratchBtn.addEventListener("click", () => {
@@ -214,12 +214,11 @@ createAiBtn.addEventListener("click", () => {
                 if (saveFormBtn.textContent === "Saved to Local Storage!") {
                     saveFormBtn.textContent = "Save Form";
                 }
-            }, 3000)
-            populateWithSavedData();
-            listenForSubmit();
-
-
+            }, 3000);
+            
         }
+        populateWithSavedData();
+        listenForSubmit();
     } else {
         // remove the form if it is already true.
         const aiInputsContainer = document.getElementById("aiInputsContainer");
@@ -237,7 +236,7 @@ function getFormData(userForm) {
     return formObject;
 }
 
-async function postFormData(userInputData) {
+async function postFormData(userInputData, submitBtn) {
     let serverRes;
     await loopAxiosOnErr();
 
@@ -249,11 +248,11 @@ async function postFormData(userInputData) {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
-            document.getElementById("nextStep").disabled = true;
 
             if (serverRes.status >= 200 && serverRes.status < 300) {
-                document.getElementById("nextStep").textContent = "Status = 200";
-                document.getElementById("nextStep").disabled = false;
+                submitBtn.textContent = "Status = 200";
+                submitBtn.disabled = false;
+                submitBtn.style.cursor = "pointer"
                 alert("A 200 Status code was received");
             }
 
@@ -264,6 +263,8 @@ async function postFormData(userInputData) {
                 alert(`${window.location.protocol}//${windowLocation}${localStorage.getItem("bookLink")}`)
             }
         } catch (error) {
+            submitBtn.disabled = false;
+                submitBtn.style.cursor = "pointer"
             if (error.response) {
 
                 const err = error.response.data
@@ -287,14 +288,10 @@ async function postFormData(userInputData) {
             new Promise(async resolve => {
                 let result;
                 setTimeout(async function () {
-                    result = document.getElementById("nextStep").textContent = "Next"
+                    result = submitBtn.textContent = "Next"
                     resolve(result);
                 }, 1000)
             });
-
-            document.getElementById("nextStep").disabled = false;
-
-
         }
 
     }
