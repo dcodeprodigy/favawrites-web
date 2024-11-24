@@ -99,8 +99,11 @@ function listenForSubmit() {
 
     function submitFormData(event) {
         event.preventDefault();
+        const submitBtn = document.getElementById("nextStep");
         // add loading spinner
-        document.getElementById("nextStep").textContent = "Creating your Masterpiece...";
+        submitBtn.textContent = "Creating your Masterpiece...";
+        submitBtn.disabled = true;
+
         const userInputedData = getFormData(userForm); // This will receive the form data as an object
         localStorage.setItem("FormData", JSON.stringify(userInputedData)); // save object to local storage
 
@@ -191,7 +194,7 @@ createAiBtn.addEventListener("click", () => {
                 }
                 localStorage.setItem("FormData", JSON.stringify(formObj));
                 // populate form with empty data
-                populateWithSavedData();
+                populateWithSavedData();  
                 // remove FormData from loacal storage to avoid an empty field being populated when we refresh the page
                 localStorage.removeItem("FormData");
                 clearFormBtn.textContent = "Cleared!";
