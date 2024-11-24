@@ -437,8 +437,10 @@ async function delayBeforeSend(func, ms = modelDelay.flash) {
               let res = await sendMessage();
               resolve(res);
             } else {
-              resolve(data.res.status(503).send(`Back Off failed after ${data.backOff.maxRetries} attempts`));
+              resolve(data.res.status(503).send(`Back Off failed after ${data.backOff.backOffCount} attempts`));
             }
+          } else {
+            resolve(error);
           }
         }
       }, ms);
