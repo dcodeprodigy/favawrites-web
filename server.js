@@ -438,7 +438,7 @@ async function delayBeforeSend(func, ms = modelDelay.flash) {
           resolve(res);
 
         } catch (error) {
-          if (error.message.includes("Resource has been exhausted")) {``
+          if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later")) {
             // back-off for like 5 minutes before retrying
             ms = data.backOffDuration; // set ms to 5 minutes
             if (data.backOff.backOffCount < data.backOff.maxRetries) {
@@ -446,7 +446,7 @@ async function delayBeforeSend(func, ms = modelDelay.flash) {
               let res = await sendMessage();
               resolve(res);
             } else {
-              resolve(data.res.status(503).send(`Back Off failed after ${data.backOff.backOffCount} attempts`));
+              resolve(data.res.status(503).send(`Back-Off failed after ${data.backOff.backOffCount} attempts`));
             }
           } else {
             resolve(error);
