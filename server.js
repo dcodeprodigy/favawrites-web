@@ -1214,8 +1214,8 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
       return await new Promise((resolve) => {
         setTimeout(async () => {
           console.log("30s delay ended");
-          fixedRes = await jsonFixer.sendMessage(fixMsg);
-          resolve(fixedRes)
+          fixedRes = await delayBeforeSend(() => jsonFixer.sendMessage(fixMsg));
+          resolve(fixedRes);
         }, ms); // delay for 30 seconds due to proModel Limitations
 
       })
