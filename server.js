@@ -435,6 +435,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       try {
         const res = await func();
         data.backOff.backOffCount = 0; // Reset backoff count on success
+        data.backOff.backOffDuration = backOffDuration;
         resolve(res);
       } catch (innerError) {
         resolve({ error: innerError}); // Resolve with the error
@@ -446,6 +447,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       console.warn(error)
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
+          data.backOff.backOffCount > 1 ? data.backOff.backOffDuration += 6 * 60 * 1000 : null; // add 6 minutes for each backoff retry
           data.backOff.backOffCount++;
           console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
 
