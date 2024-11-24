@@ -429,7 +429,7 @@ async function delayBeforeSend(func, ms = modelDelay.flash) {
           resolve(res);
 
         } catch (error) {
-          if (error.message.includes("Resource has been exhausted")) {
+          if (error.message.includes("Resource has been exhausted")) {``
             // back-off for like 5 minutes before retrying
             ms = data.backOffDuration; // set ms to 5 minutes
             if (data.backOff.backOffCount < data.backOff.maxRetries) {
@@ -616,9 +616,16 @@ async function generateChapters(mainChatSession) {
           console.log("Error while getting prompt number: " + error);
         }
 
+        try {
+          let attemptPromptNoParse = JSON.parse(promptNo.response.candidates[0].content.parts[0].text.trim());
+          promptNo = attemptPromptNoParse;
+        } catch (error) {
+          promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim())
+        }
+
         console.log(`The item is ${item}`);
 
-        console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text.trim() + " times for this subchapter");
+        console.log("Prompt me " + promptNo.promptMe + " times for this subchapter");
 
 
 
@@ -669,7 +676,7 @@ async function generateChapters(mainChatSession) {
         }
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
-        promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+        // promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
         let genChapterResult;
 
         for (let i = 0; i < promptNo.promptMe; i++) {
@@ -882,7 +889,14 @@ async function generateChapters(mainChatSession) {
         console.error(error);
       }
 
-      console.log("Prompt me " + promptNo.response.candidates[0].content.parts[0].text + "times for this chapter");
+      try {
+        let attemptPromptNoParse = JSON.parse(promptNo.response.candidates[0].content.parts[0].text.trim());
+        promptNo = attemptPromptNoParse;
+      } catch (error) {
+        promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim())
+      }
+
+      console.log("Prompt me " + promptNo.promptMe + "times for this chapter");
       console.log(`${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
       console.log(`Uhm, this is the chapter number used, if that helps: ${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}`);
 
@@ -934,7 +948,7 @@ async function generateChapters(mainChatSession) {
       }
 
 
-      promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+      // promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
 
       // generate the chapter for the number of times the model indicates
       let genChapterResult;
