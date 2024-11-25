@@ -792,14 +792,22 @@ async function generateChapters(mainChatSession) {
                 });
               };
 
-              chapterText = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
-              console.log("Is chapterText an array? : " + Array.isArray(chapterText));
-              console.log(chapterText);
-              chapterText = JSON.parse(chapterText.content);
+              let response = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
 
-              currentChapterText = currentChapterText.concat(chapterText);
+              if (typeof(response) === 'string'){
+                console.log("response is a json string")
+                console.log(response)
+              } else if (typeof(response) === 'object'){
+                 const parsedResponse = response;
+
+              currentChapterText = currentChapterText.concat(parsedResponse.content);
+              chapterText = parsedResponse.content;
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
+              }
+              
+              
+             
             }
 
             return await chapterText; // as the parsed object
@@ -1239,7 +1247,7 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContent = firstStageJson.fixedJson;
     console.log("This is the fixedContent: ", fixedContent);
-    return fixedContent; // Return an object, with "content" as the property
+    return fixedContent; 
 
   } catch (error) {
     if (retries < 5) {
