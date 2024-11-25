@@ -771,7 +771,6 @@ async function generateChapters(mainChatSession) {
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
-              console.log("JSON for current chapter text not parsed")
               if (data.chapterErrorCount > 4) {
                 return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
               }
@@ -792,13 +791,15 @@ async function generateChapters(mainChatSession) {
                 });
               };
 
-              chapterText = await delay().content; // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
+              chapterText = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
+              chapterText = chapterText.content
+              
               currentChapterText = currentChapterText.concat(chapterText);
-              console.log("This is the chapterText at after model fixed the json: " + chapterText)
+              console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
             }
 
-            return chapterText; // as the parsed object
+            return await chapterText; // as the parsed object
           };
           genChapterResult = await genSubChapter();
 
