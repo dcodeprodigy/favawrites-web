@@ -814,6 +814,8 @@ async function generateChapters(mainChatSession) {
           docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
 
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          console.log(`This is the docxJsRes: ${docxJsRes}`);
+          console.log(`This is the modelRes: ${modelRes}`)
           // console.log("this is model res: " + modelRes)
 
           let docxJs;
@@ -823,14 +825,14 @@ async function generateChapters(mainChatSession) {
 
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
-            docxJs = await fixJsonWithPro(modelRes); // I do not thing there is any need to run JSON.parse() since the function called already did that
+            docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
           }
 
           // extract textRun object
           const sessionArr = [];
           // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
           // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
-
+          console.log("DocxJs is an array?: " + Array.isArray(docxJs));
           docxJs.forEach(item => {
             sessionArr.push(item);
           });
@@ -1211,7 +1213,8 @@ You shall return an array json using this schema below as the template for this 
 
 async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
-  const modelSelected = data.proModelErrors >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
+  const modelSelected = retries >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
+  console.log(`Selected ${modelSelected}`);
 
   const generationConfig = {
     temperature: 0.4,
