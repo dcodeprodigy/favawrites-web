@@ -886,9 +886,6 @@ async function generateChapters(mainChatSession) {
         } // end of docxCode function
 
 
-        console.log("started delay for chapter pushing to finalReturnData");
-
-        await delayChapPush(generatedChapContent, genChapterResult, i, index);
       }; // end of each subchapter
     } else { // no subchapters
       /* TODO
@@ -1134,13 +1131,6 @@ async function generateChapters(mainChatSession) {
 
 
       } // end of docxCode function
-
-
-      console.log("started delay for chapter pushing to finalReturnData");
-
-      await delayChapPush(generatedChapContent, genChapterResult, i);
-
-
 
     } // end of each chapter
 
@@ -1415,22 +1405,6 @@ These tones expand the versatility of your writing, allowing you to navigate aca
   return stylesOfWriting;
 }
 
-async function delayChapPush(generatedChapContent, genChapterResult, i, subChIndex, ms = modelDelay.flash) { // pushing generated chapter to final return data
-  return await new Promise((resolve) => {
-    setTimeout(async () => {
-      console.log("Ended delay. Now pushing data for docx generation...");
-      if (!generatedChapContent[`chapter${data.current_chapter}`]) {
-        resolve(generatedChapContent.push({ [`chapter${data.current_chapter}`]: genChapterResult.content }));
-        console.log("Array not present. Therefore, created a new one.");
-      } else {
-        resolve(generatedChapContent[data.current_chapter - 1][`chapter${data.current_chapter}`].concat(`\n \n ${genChapterResult.content}`));
-        console.log("Array PRESENT FOR SOME REASON. Therefore, pushed to existing");
-      }
-      // conditional for when there is subchapter and when there isn't
-      subChIndex !== undefined ? console.log(`pushed batch entire subchapter ${subChIndex + 1} in chapter ${data.current_chapter} to finalReturnData `) : console.log(`pushed batch entire chapter ${data.current_chapter} to finalReturnData `);
-    }, ms);
-  });
-};
 
 function getAiPhrase() {
   return `Here's a consolidated list of words and phrases commonly associated with AI-generated text. Limit their use in my any of your writings to a great extent. Avoid them completely even:
