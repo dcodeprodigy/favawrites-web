@@ -783,7 +783,7 @@ async function generateChapters(mainChatSession) {
 
             return chapterText; // as the parsed object
           };
-          genChapterResult = genChapterResult.concat(await genSubChapter());
+          genChapterResult = await genSubChapter();
 
 
         } // end of each promptMe number
