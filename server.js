@@ -467,7 +467,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
-          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 3 * 60 * 1000 : null; // add 3 minutes for each backoff retry
+          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 35 * 60 * 1000 : null; // add 3 minutes for each backoff retry
           data.backOff.backOffCount++;
           console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
 
@@ -814,7 +814,7 @@ async function generateChapters(mainChatSession) {
 
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
-          console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`)
+          console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
           // console.log("this is model res: " + modelRes)
 
           let docxJs;
