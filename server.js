@@ -446,7 +446,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       const error = response.error;
       console.warn(error);
 
-      if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later")) {
+      if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
           data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 5 * 60 * 1000 : null; // add 5 minutes for each backoff retry
           data.backOff.backOffCount++;
@@ -699,7 +699,7 @@ async function generateChapters(mainChatSession) {
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
 
-        let genChapterResult;
+        let genChapterResult = "";
 
         for (let i = 0; i < promptNo.promptMe; i++) { // this loop is for each subchapter
           let errorCount = 0;
