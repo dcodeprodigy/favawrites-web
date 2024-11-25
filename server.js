@@ -814,7 +814,7 @@ async function generateChapters(mainChatSession) {
 
           let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
-          console.log(`This is the modelRes: ${modelRes}`)
+          console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`)
           // console.log("this is model res: " + modelRes)
 
           let docxJs;
