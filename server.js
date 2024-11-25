@@ -428,7 +428,7 @@ function errorAppendMessage () {
 
 async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
   try {
-    const randomDelay = Math.random() * 3000;
+    const randomDelay = Math.random() * 1000;
     delayMs += randomDelay;
     console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
@@ -444,10 +444,11 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
 
     if (response.error) { // Check if there was an error during sendMessage
       const error = response.error;
-      console.warn(error)
+      console.warn(error);
+
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
-          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 6 * 60 * 1000 : null; // add 6 minutes for each backoff retry
+          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 5 * 60 * 1000 : null; // add 5 minutes for each backoff retry
           data.backOff.backOffCount++;
           console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
 
@@ -614,6 +615,8 @@ async function generateChapters(mainChatSession) {
   // run a loop for each chapter available
   for (let i = 1; i <= chapterCount; i++) {
 
+    currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
+    // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
     let promptNo;
     let writingPatternRes;
     let selectedPattern;
@@ -624,6 +627,7 @@ async function generateChapters(mainChatSession) {
       let currentChapSubch = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
       console.table(currentChapSubch);
       for (const [index, item] of currentChapSubch.entries()) {
+        currentChapterText = ""; // reset from the last subchapter generation
 
         try { // Asks the model how may times it should be prompted
           promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. 
@@ -694,26 +698,27 @@ async function generateChapters(mainChatSession) {
         }
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
-        // promptNo = JSON.parse(promptNo.response.candidates[0].content.parts[0].text);
+
         let genChapterResult;
 
-        for (let i = 0; i < promptNo.promptMe; i++) {
+        for (let i = 0; i < promptNo.promptMe; i++) { // this loop is for each subchapter
           let errorCount = 0;
           async function genSubChapter() {
             let chapterText;
 
             try {
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far. => '${currentChapterText}';
+              Lastly, this is what you have written so far, only use it as context, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch.
               `));
 
-              console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
+              // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
-              chapterText = getSubChapterCont;
-              currentChapterText.concat(getSubChapterCont.content); // Save to context
-              data.chapterText = getSubChapterCont;
+              chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
+              // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
+              
+              // currentChapterText.concat(getSubChapterCont.content); // Save to context
+              data.chapterText = getSubChapterCont; // saving this here so that I can access it outside this function
 
-              console.log("this is the type of get: " + Array.isArray(data.chapterText))
 
             } catch (error) {
               console.error("An error in mainChatSession: " + error);
@@ -740,14 +745,17 @@ async function generateChapters(mainChatSession) {
 
 
             try {
-              console.log("This is subchapter text: " + data.chapterText);
-              let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
-              console.log("Json parsed");
-              console.log(currentChapterText);
-              chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
+              // JSON.parse(chapterText);
+              let parsedChapterText = JSON.parse(chapterText);
+              console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
+            
+              currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
+              console.log("\n \nTODO: CHECK THIS currentChapterText: "+ currentChapterText);
+              chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
-              if (data.chapterErrorCount >= 3) {
+              console.log("JSON for current chapter text not parsed")
+              if (data.chapterErrorCount > 4) {
                 return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
               }
 
@@ -758,11 +766,8 @@ async function generateChapters(mainChatSession) {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
                     console.log("Trying to Fix JSON...");
-                    // let result = await genChapter(true, `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n `);
 
-                    console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
-
-                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
+                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText}}`;
                     data.fixJsonMsg = fixMsg;
                     let result = await fixJsonWithPro(fixMsg);
                     resolve(result);
@@ -770,15 +775,15 @@ async function generateChapters(mainChatSession) {
                 });
               };
 
-              chapterText = await delay();
-              console.log("This is the chapterText at delay() line: " + chapterText)
+              chapterText = await delay().content; // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
+              currentChapterText = currentChapterText.concat(chapterText);
+              console.log("This is the chapterText at after model fixed the json: " + chapterText)
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
             }
 
-            console.log("This is the chapterText at return line: " + chapterText)
             return chapterText; // as the parsed object
           };
-          genChapterResult = await genSubChapter();
+          genChapterResult = genChapterResult.concat(await genSubChapter());
 
 
         } // end of each promptMe number
@@ -894,9 +899,6 @@ async function generateChapters(mainChatSession) {
       */
       const currentChapter = tableOfContents[i - 1][`ch-${i}`];
 
-
-
-
       try {
         promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(` ${errorAppendMessage()}.
           ${getGenInstructions1()}
@@ -955,7 +957,6 @@ async function generateChapters(mainChatSession) {
         try {
           let parsedPatternJson = JSON.parse(selectedPattern);
           selectedPattern = parsedPatternJson;
-
         } catch (error) {
           console.error("Could not parse selectedPattern - Fixing: " + error)
           selectedPattern = await fixJsonWithPro(selectedPattern);
@@ -1149,7 +1150,7 @@ async function generateChapters(mainChatSession) {
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
 
 
-    console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : "Moving to the next chapter"}`);
+    console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
 
     if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
       console.log("Data.docx shall be created");
@@ -1200,20 +1201,24 @@ You shall return an array json using this schema below as the template for this 
 async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
   const modelSelected = data.proModelErrors >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
-  if (data.proModelErrors >= 5) {
+
+  if (data.proModelErrors > 5) {
     data.res.status(501).send("Model Failed to fix Json after numerous retries. Try again later");
-    return "Model Failed to fix Json after numerous retries. Try again later, please."
-  }
+    return "Model Failed to fix Json after numerous retries. Try again later."
+  };
+
   const generationConfig = {
-    temperature: 0.3,
+    temperature: 0.4,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
   };
+
   const fixerSchema = `{"fixedJson" : "The fixed JSON"}`;
+
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const proModel = genAI.getGenerativeModel({ model: modelSelected, systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will be sent to you in the first place. Your response schema must be in this schema ${fixerSchema}` });
+  const proModel = genAI.getGenerativeModel({ model: modelSelected, systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place. Also, do note that if a json has a double quote inside a double quote, make that inner quote single. Your response schema must be in this schema ${fixerSchema}` });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
 
@@ -1221,8 +1226,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
   try {
     let fixedRes;
     async function delay(ms = modelDelay.pro) {
-      return await new Promise((resolve) => {
-        setTimeout(async () => {
+      return await new Promise((resolve) => { setTimeout(async () => {
           console.log("30s delay ended");
           fixedRes = await sendMessageWithRetry(() => jsonFixer.sendMessage(fixMsg));
           resolve(fixedRes);
@@ -1233,17 +1237,19 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
 
     }
     await delay();
-    console.log(fixedRes.response.candidates[0].content.parts[0].text);
+
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
-    const secondStageJson = JSON.parse(firstStageJson.fixedJson);
+    console.log("This is the FIRSTSTAGEJSON___" + firstStageJson);
+
+    const secondStageJson = JSON.parse(firstStageJson.fixedJson); // "content" is now selectable as an object property
 
     console.log(`Pro Model Fixed our Json. The Json is now : ${secondStageJson}`);
     // reset error count before returning successful fix
     data.proModelErrors = 0;
-    return secondStageJson;
+    return secondStageJson; // Return an object, with "content" as the property
   } catch (error) {
     data.proModelErrors++;
-    console.log("Pro Model failed to fix our Json, trying again...");
+    console.log(`Pro Model failed to fix our Json after ${data.proModelErrors} attempt. Retrying...`);
     return await fixJsonWithPro(fixMsg);
   }
 }
@@ -1341,7 +1347,71 @@ An anguished tone communicates deep pain or inner turmoil, often evoking strong 
 ### 30. Ethereal
 An ethereal tone creates a dreamlike or otherworldly atmosphere, often blending reality with imagination.  
 
-These tones can add even more depth and nuance to your writing, helping to shape your story’s emotional and thematic layers.`
+Here are 10 more tones, including more technical and specialized approaches:
+
+---
+
+### 31. Scientific
+A scientific tone is objective, analytical, and precise, ideal for discussing research or evidence-based topics.  
+*"According to recent studies, the phenomenon is attributable to a 25% increase in atmospheric CO2 levels, which accelerates the greenhouse effect. This correlation is statistically significant across multiple datasets."*
+
+---
+
+### 32. Analytical  
+An analytical tone breaks down complex ideas into manageable parts, focusing on logic and structure.  
+*"To understand the impact of this policy, we must consider its economic, social, and environmental implications. Each factor reveals distinct trade-offs."*
+
+---
+
+### 33. Technical 
+A technical tone uses specialized language tailored for an audience familiar with the subject matter.  
+*"The algorithm optimizes throughput by implementing dynamic load balancing, which reduces bottlenecks in high-traffic scenarios. This is achieved using a distributed hash table architecture."*
+
+---
+
+### 34. Formal  
+A formal tone conveys professionalism and is often used in academic or official settings.  
+*"This report aims to evaluate the efficacy of current methodologies in achieving stated objectives. It will present findings and propose actionable recommendations."*
+
+---
+
+### 35. Instructional
+An instructional tone is direct and step-by-step, guiding the reader through a process or teaching a concept.  
+*"To assemble the device, first connect the red wire to terminal A. Ensure the connection is secure before proceeding to the next step."*
+
+---
+
+### 36. Speculative
+A speculative tone explores possibilities and "what if" scenarios, often blending fact and imagination.  
+*"If humanity were to colonize Mars, how would our understanding of community and resource management evolve? Such an endeavor could redefine civilization as we know it."*
+
+---
+
+### 37. Journalistic
+A journalistic tone is factual and unbiased, presenting information clearly and concisely.  
+*"The hurricane made landfall early Tuesday morning, causing widespread power outages and displacing thousands. Officials estimate damages could exceed $2 billion."*
+
+---
+
+### 38. Imaginative
+An imaginative tone stretches the boundaries of reality, creating vivid worlds or surreal possibilities.  
+*"In this realm, gravity doesn’t hold sway; the rivers flow upward, and stars glimmer within reach of outstretched hands."*
+
+---
+
+### 39. Perspicacious
+A perspicacious tone is insightful, shedding light on underlying truths or overlooked nuances.  
+*"Beneath the apparent chaos lies a pattern—subtle yet undeniable—that reveals a deeper structure to what we often dismiss as random."*
+
+---
+
+### 40. Detached
+A detached tone observes events or emotions from a distance, creating a sense of impartiality.  
+*"The crowd surged forward, their shouts blending into an indistinct roar. Amidst the chaos, she stood motionless, watching with neither fear nor excitement."*
+
+---
+
+These tones expand the versatility of your writing, allowing you to navigate academic, professional, and creative, and various other contexts effectively. These tones can add even more depth and nuance to your writing, helping to shape your story’s emotional and thematic layers.`
   return stylesOfWriting;
 }
 

@@ -18,3 +18,10 @@ Note that this method expects a synchronous operation and does not wait for prom
 
 ## Deep Copy Objects to Retain Functions
 I used the NPM library; lodash, to achive this seemlessly
+
+## When Using JS Concat() METHOD
+The concat() method joins two or more strings.
+
+The concat() method does not change the existing strings.
+
+The concat() method returns a new string.
