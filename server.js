@@ -159,6 +159,7 @@ let data = {
   },
   current_chapter: 1,
   proModelErrors: 0,
+  communicateWithApiError: 0,
   sampleChapter: function () {
     return `## Day 1: The Fresh Start
 **Quote:** "The first step towards getting somewhere is to decide you're not going to stay where you are." - J.P. Morgan
@@ -340,7 +341,7 @@ app.post("/generate_book", async (req, res) => {
 
   reqNumber++; //Increament the number of requests being handled
   data["backOff"] = { backOffDuration, backOffCount: 0, maxRetries } // set a backoff duration for when API says that there is too many requests
-  data.error = { pro : 0 }
+  data.error = { pro: 0 }
 
   try {
     const userInputData = req.body;
@@ -367,7 +368,7 @@ app.post("/generate_book", async (req, res) => {
     if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
       return; // Stop further processing and return the 503 error already sent.
     }
-  
+
     finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
@@ -393,10 +394,10 @@ app.post("/generate_book", async (req, res) => {
     await compileDocx(userInputData);
     finalReturnData.file = `/docs/${userInputData.title}.docx`;
     finalReturnData.docxCode = data.docx;
-    
+
     try {
       res.status(200).send(finalReturnData);
-  
+
     } catch (error) {
       console.error(error);
     }
@@ -408,7 +409,7 @@ app.post("/generate_book", async (req, res) => {
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
-      
+
       try {
         res.status(500).send(finalReturnData);
       } catch (error) {
@@ -423,9 +424,10 @@ app.post("/generate_book", async (req, res) => {
         console.error(error);
       }
     } else {
-      try{res.status(500).send("An Unknown Error Occured " + error);
-      } catch (error) {console.error(error)}
-      
+      try {
+        res.status(500).send("An Unknown Error Occured " + error);
+      } catch (error) { console.error(error) }
+
     }
   } finally {
     data = deepCopyObj(originalDataObj);
@@ -434,7 +436,7 @@ app.post("/generate_book", async (req, res) => {
 
 });
 
-function errorAppendMessage () {
+function errorAppendMessage() {
   if (data.error.pro > 0) {
     data.error.pro = 0; // reset it to zero, with the assumption that the model will behave. If it still spits another error, the fixErrorWithPro will increment this and then we warn model about errors again.
     return `Your last json response included an error. Once again, Your next response must contain no JSON error. Error in JSON are in the form: Missing commas, Extra, commas (trailing commas), Incorrect use of quotes (single quotes, missing quotes),Unmatched brackets [] or braces {}, Incorrect nesting of arrays/objects, Unexpected characters, Invalid number formats (leading zeros, multiple decimal points, Infinity, NaN), Incorrect boolean values (True, False, 1, 0), Missing values (omitting a value after a key-colon), Incorrect character encoding (not UTF-8, UTF-16, or UTF-32), Presence of Byte Order Mark (BOM), Comments, Circular references. Avoid getting into such errors.`
@@ -455,7 +457,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
         resolve(res);
       } catch (innerError) {
         console.log("An error was recorded while running func()")
-        resolve({ error: innerError}); // Resolve with the error
+        resolve({ error: innerError }); // Resolve with the error
       }
     }, delayMs));
 
@@ -484,7 +486,7 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     return response; // Return the successful response
 
   } catch (error) { // Catch and re-throw errors to be handled in the /generate_book route
-    throw error;  
+    throw error;
   }
 }
 
@@ -622,7 +624,7 @@ async function generateChapters(mainChatSession) {
   const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
   let currentChapterText = ""; // saving the chapter content here.
-  
+
 
   // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
   data.chapterErrorCount = 0;
@@ -732,7 +734,7 @@ async function generateChapters(mainChatSession) {
 
               chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
               // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
-              
+
               // currentChapterText.concat(getSubChapterCont.content); // Save to context
               data.chapterText = getSubChapterCont; // saving this here so that I can access it outside this function
 
@@ -765,9 +767,9 @@ async function generateChapters(mainChatSession) {
               // JSON.parse(chapterText);
               let parsedChapterText = JSON.parse(chapterText);
               console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
-            
+
               currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
-              console.log("\n \nTODO: CHECK THIS currentChapterText: "+ currentChapterText);
+              console.log("\n \nTODO: CHECK THIS currentChapterText: " + currentChapterText);
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -777,8 +779,8 @@ async function generateChapters(mainChatSession) {
 
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
-              async function delay(ms = modelDelay.flash) {
-                return await new Promise((resolve) => {
+              async function delay(ms = 0) {
+                return new Promise((resolve) => {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
                     console.log("Trying to Fix JSON...");
@@ -793,7 +795,7 @@ async function generateChapters(mainChatSession) {
 
               chapterText = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
               chapterText = chapterText.content
-              
+
               currentChapterText = currentChapterText.concat(chapterText);
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
@@ -1206,14 +1208,10 @@ You shall return an array json using this schema below as the template for this 
   Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
 }
 
-async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gemini pro model
+
+async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
   const modelSelected = data.proModelErrors >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
-
-  if (data.proModelErrors > 5) {
-    data.res.status(501).send("Model Failed to fix Json after numerous retries. Try again later");
-    return "Model Failed to fix Json after numerous retries. Try again later."
-  };
 
   const generationConfig = {
     temperature: 0.4,
@@ -1232,33 +1230,28 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
 
   // confirm if this operation was successful
   try {
-    let fixedRes;
-    async function delay(ms = modelDelay.pro) {
-      return await new Promise((resolve) => { setTimeout(async () => {
-          console.log("30s delay ended");
-          fixedRes = await sendMessageWithRetry(() => jsonFixer.sendMessage(fixMsg));
-          resolve(fixedRes);
-        }, ms); // delay for 30 seconds due to proModel Limitations
+    const fixedRes = await jsonFixer.sendMessage(fixMsg); // Attempt to send message
 
-      })
-
-
-    }
-    await delay();
-
+    data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
-    console.log("This is the FIRSTSTAGEJSON___" + firstStageJson);
+    const fixedContent = firstStageJson.fixedJson;
+    return fixedContent; // Return an object, with "content" as the property
 
-    const secondStageJson = JSON.parse(firstStageJson.fixedJson); // "content" is now selectable as an object property
-
-    console.log(`Pro Model Fixed our Json. The Json is now : ${secondStageJson}`);
-    // reset error count before returning successful fix
-    data.proModelErrors = 0;
-    return secondStageJson; // Return an object, with "content" as the property
   } catch (error) {
-    data.proModelErrors++;
-    console.log(`Pro Model failed to fix our Json after ${data.proModelErrors} attempts. Retrying...`);
-    return await fixJsonWithPro(fixMsg);
+    if (retries < 5) {
+      console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
+
+      const delayMs = modelDelay.pro; 
+      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); //Informative log
+      await new Promise(resolve => setTimeout(resolve, delayMs)); // Wait before retrying
+
+      return fixJsonWithPro(fixMsg, retries + 1); // Recursive retry
+    } else {
+      // Handle failure after multiple retries and delays.
+      console.error("Failed to fix JSON after multiple retries:", error);
+
+      throw error; // Re-throw for external handling
+    }
   }
 }
 
