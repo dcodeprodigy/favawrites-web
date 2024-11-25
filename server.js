@@ -312,7 +312,7 @@ const schema = {
 
 }
 
-const backOffDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
 
 
@@ -393,8 +393,13 @@ app.post("/generate_book", async (req, res) => {
     await compileDocx(userInputData);
     finalReturnData.file = `/docs/${userInputData.title}.docx`;
     finalReturnData.docxCode = data.docx;
-    res.status(200).send(finalReturnData);
-
+    
+    try {
+      res.status(200).send(finalReturnData);
+  
+    } catch (error) {
+      console.error(error);
+    }
 
 
   } catch (error) {
@@ -403,13 +408,24 @@ app.post("/generate_book", async (req, res) => {
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
-      res.status(500).send(finalReturnData);
+      
+      try {
+        res.status(500).send(finalReturnData);
+      } catch (error) {
+        console.error(error)
+      }
     } else if (error.message.includes("overloaded")) {
       finalReturnData.response = { error: "Generative API is overloaded. Please, try again later!", status: 503 }
       console.log(finalReturnData.response);
-      res.status(503).send(finalReturnData);
+      try {
+        res.status(503).send(finalReturnData);
+      } catch (error) {
+        console.error(error);
+      }
     } else {
-      res.status(500).send("An Unknown Error Occured " + error);
+      try{res.status(500).send("An Unknown Error Occured " + error);
+      } catch (error) {console.error(error)}
+      
     }
   } finally {
     data = deepCopyObj(originalDataObj);
@@ -435,9 +451,10 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       try {
         const res = await func();
         data.backOff.backOffCount = 0; // Reset backoff count on success
-        data.backOff.backOffDuration = backOffDuration; // reset back off duration to 5 minutes once there is success
+        data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
         resolve(res);
       } catch (innerError) {
+        console.log("An error was recorded while running func()")
         resolve({ error: innerError}); // Resolve with the error
       }
     }, delayMs));
@@ -446,9 +463,9 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       const error = response.error;
       console.warn(error);
 
-      if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed")) {
+      if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         if (data.backOff.backOffCount < data.backOff.maxRetries) {
-          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 5 * 60 * 1000 : null; // add 5 minutes for each backoff retry
+          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 3 * 60 * 1000 : null; // add 3 minutes for each backoff retry
           data.backOff.backOffCount++;
           console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
 
@@ -1239,7 +1256,7 @@ async function fixJsonWithPro(fixMsg) { // function for fixing bad json with gem
     return secondStageJson; // Return an object, with "content" as the property
   } catch (error) {
     data.proModelErrors++;
-    console.log(`Pro Model failed to fix our Json after ${data.proModelErrors} attempt. Retrying...`);
+    console.log(`Pro Model failed to fix our Json after ${data.proModelErrors} attempts. Retrying...`);
     return await fixJsonWithPro(fixMsg);
   }
 }
