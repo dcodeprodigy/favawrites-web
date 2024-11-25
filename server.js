@@ -778,15 +778,14 @@ async function generateChapters(mainChatSession) {
               }
 
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+              
 
-              async function delay(ms = 0) {
-                return new Promise((resolve) => {
+              async function delay(ms = 6000) {
+                return await new Promise((resolve) => {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
                     console.log("Trying to Fix JSON...");
-
                     let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText}}`;
-                    data.fixJsonMsg = fixMsg;
                     let result = await fixJsonWithPro(fixMsg);
                     resolve(result);
                   }, ms);
@@ -820,7 +819,7 @@ async function generateChapters(mainChatSession) {
 
           let docxJs;
           try { // parse the purported array
-            docxJs = JSON.parse(modelRes);
+            docxJs = await JSON.parse(modelRes);
             console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
 
           } catch (error) {
@@ -1045,7 +1044,6 @@ async function generateChapters(mainChatSession) {
                   console.log("this is chapter text - " + data.chapterText.response.candidates[0].content.parts[0].text, typeof (data.chapterText.response.candidates[0].content.parts[0].text));
 
                   let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${data.chapterText.response.candidates[0].content.parts[0].text}}`;
-                  data.fixJsonMsg = fixMsg;
                   let result = await fixJsonWithPro(fixMsg);
                   resolve(result);
                 }, ms);
