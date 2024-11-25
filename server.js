@@ -793,7 +793,9 @@ async function generateChapters(mainChatSession) {
               };
 
               chapterText = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
-              chapterText = chapterText.content
+              console.log("Is chapterText an array? : " + Array.isArray(chapterText));
+              console.log(chapterText);
+              chapterText = JSON.parse(chapterText.content);
 
               currentChapterText = currentChapterText.concat(chapterText);
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
@@ -1236,6 +1238,7 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContent = firstStageJson.fixedJson;
+    console.log("This is the fixedContent: ", fixedContent);
     return fixedContent; // Return an object, with "content" as the property
 
   } catch (error) {
