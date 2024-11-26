@@ -355,15 +355,20 @@ app.post("/generate_book", async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+    const tokenCountWithNoInstructions = await model.countTokens();
+    console.log(`This is token count with only the SYSTEM_INSTRUCTIONS_COUNT_: ${tokenCountWithNoInstructions}`);
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
 
     const mainChatSession = model.startChat({ safetySettings, generationConfig });
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
 
+    console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${await model.countTokens(tocPrompt)}`);
+
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents." });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
+    console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata}`)
 
     if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
       return; // Stop further processing and return the 503 error already sent.
@@ -373,6 +378,8 @@ app.post("/generate_book", async (req, res) => {
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
+
+    data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
 
 
 
@@ -389,7 +396,8 @@ app.post("/generate_book", async (req, res) => {
     2. If there is plot, append it when generating the subchapter or chapter
 
     */
-    await generateChapters(mainChatSession);
+    await generateChapters(mainChatSession, model);
+    
 
     await compileDocx(userInputData);
     finalReturnData.file = `/docs/${userInputData.title}.docx`;
@@ -452,6 +460,12 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
         const res = await func();
+        console.log(`This is the usageMetaData: ${res.response.usageMetadata}`);
+        const totalMainChatSession = await data.model.countTokens({
+          generateContentRequest: { contents: await data.mainChat.getHistory() },
+        });
+        console.log("Total chat tokens on the main chat session is____ "+totalMainChatSession.totalTokens)
+
         data.backOff.backOffCount = 0; // Reset backoff count on success
         data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
         resolve(res);
@@ -617,7 +631,7 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config, 
 }
 
 
-async function generateChapters(mainChatSession) {
+async function generateChapters(mainChatSession, model) {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
   // console.log(tableOfContents);
@@ -632,7 +646,22 @@ async function generateChapters(mainChatSession) {
   const chapterCount = finalReturnData.firstReq.chapters;
 
   // run a loop for each chapter available
+  async function countTokens (req, responseObj) {
+    let tokens;
+    if (req === "total") {
+      tokens = await model.countTokens({
+      generateContentRequest: { contents: await mainChatSession.getHistory() },
+    });
+    
+    } else {
+      tokens = responseObj.response.usageMetadata
+    }
+    return tokens
+  }
+
   for (let i = 1; i <= chapterCount; i++) {
+    let tokens = await countTokens("total");
+    console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
 
     currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
     // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
@@ -657,11 +686,13 @@ async function generateChapters(mainChatSession) {
           console.log("Error while getting prompt number: " + error);
         }
 
+        console.log(`usageMetadata for promptNo: ${await countTokens(promptNo)}`);
+
         try {
           let attemptPromptNoParse = JSON.parse(promptNo.response.candidates[0].content.parts[0].text.trim());
           promptNo = attemptPromptNoParse;
         } catch (error) {
-          promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim())
+          promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim());
         }
 
         console.log(`The item is ${item}`);
@@ -693,6 +724,8 @@ async function generateChapters(mainChatSession) {
         };
 
         console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
+
+        console.log(`usageMetadata for writingPattern: ${await countTokens(writingPatternRes)}`);
 
 
         try {
@@ -726,6 +759,7 @@ async function generateChapters(mainChatSession) {
             let chapterText;
 
             try {
+              console.log("TOKEN COUNT FOR Current Chapter Text___: "+ await model.countTokens(currentChapterText).totalTokens);
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far, only use it as context, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch.
               `));
@@ -794,20 +828,12 @@ async function generateChapters(mainChatSession) {
 
               let response = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
 
-              if (typeof(response) === 'string'){
-                console.log("response is a json string")
-                console.log(response)
-              } else if (typeof(response) === 'object'){
-                 const parsedResponse = response;
-
-              currentChapterText = currentChapterText.concat(parsedResponse.content);
-              chapterText = parsedResponse.content;
+              const content = response.content;
+              currentChapterText = currentChapterText.concat(content);
+              chapterText = content;
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
-              }
               
-              
-             
             }
 
             return await chapterText; // as the parsed object
@@ -1245,7 +1271,8 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
 
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
-    const fixedContent = firstStageJson.fixedJson;
+    const fixedContentStr = firstStageJson.fixedJson;
+    const fixedContent = JSON.parse(fixedContentStr);
     console.log("This is the fixedContent: ", fixedContent);
     return fixedContent; 
 
