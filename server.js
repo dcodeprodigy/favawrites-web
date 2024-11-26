@@ -101,6 +101,7 @@ const generationConfig = {
 };
 
 let data = {
+  totalRequestsMade : 0,
   kdp_titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -465,14 +466,15 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
         const res = await func();
-
-        console.log(`This is the usageMetaData: ${res.response.usageMetadata.totalTokenCount}`);
+        data.totalRequestsMade++;
+        console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
+        console.log(`THIS IS THE USAGEMETADATA___ ${res.response.usageMetadata.totalTokenCount}`);
         const mainChatHistory = await mainChatSession.getHistory();
         if (mainChatHistory.length > 0) {
           const totalMainChatSession = await model.countTokens({
           generateContentRequest: { contents: await mainChatSession.getHistory() }
         });
-        console.log("Total chat tokens on the main chat session is____ "+totalMainChatSession.totalTokens)
+        console.log("TOTAL CHATTOKENS on the main chat session is____ "+totalMainChatSession.totalTokens)
 
         }
         
@@ -769,7 +771,8 @@ async function generateChapters() {
             let chapterText;
 
             try {
-              console.log("TOKEN COUNT FOR Current Chapter Text___: "+ await model.countTokens(currentChapterText).totalTokens);
+              const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
+              console.log("TOKEN COUNT FOR Current Chapter Text___: "+ currentChapterTextTokenCount.totalTokens);
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far, only use it as context, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch.
               `));
