@@ -101,7 +101,10 @@ const generationConfig = {
 };
 
 let data = {
-  totalRequestsMade : 0,
+  pauseRequests: false,
+  pauseThreshold : 0,
+  totalRequestsMade: 0,
+  prevMainChatSessionTokens : 0,
   kdp_titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -338,7 +341,7 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-async function setUpModel (userInputData) {
+async function setUpModel(userInputData) {
   model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
 
   mainChatSession = model.startChat({ safetySettings, generationConfig });
@@ -363,7 +366,7 @@ app.post("/generate_book", async (req, res) => {
 
     await setUpModel(userInputData); // This way, mainChatSession and model is accessible globally, as well as everything about them being reset on each new request
 
-    
+
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
@@ -385,7 +388,7 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
-    
+
 
 
 
@@ -403,7 +406,7 @@ app.post("/generate_book", async (req, res) => {
 
     */
     await generateChapters();
-    
+
 
     await compileDocx(userInputData);
     finalReturnData.file = `/docs/${userInputData.title}.docx`;
@@ -465,19 +468,44 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
+
+        if (data.pauseRequests === true) {
+          // It means model may soon get overwhelmed. Pause execution for set time of 10 minutes
+          await new Promise(resolve => { setTimeout(resolve, 600000) });
+          data.pauseRequests = false; // reset pause flag
+          data.pauseThreshold = 0; // reset threshold to 0
+        };
+
+        let mainChatHistory = await mainChatSession.getHistory();
+        let previousMainChatSession = {totalTokens : 0} // set a tokens property the avoid issue of undefined when mainChatHistory.length is 0
+        if (mainChatHistory.length > 0) { // get current token count before calling a new request
+          previousMainChatSession = await model.countTokens({
+            generateContentRequest: { contents: await mainChatSession.getHistory() }
+          });
+
+        }
+
         const res = await func();
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         console.log(`THIS IS THE USAGEMETADATA___ ${res.response.usageMetadata.totalTokenCount}`);
-        const mainChatHistory = await mainChatSession.getHistory();
+
+        mainChatHistory = await mainChatSession.getHistory(); // get history after previous request
         if (mainChatHistory.length > 0) {
           const totalMainChatSession = await model.countTokens({
-          generateContentRequest: { contents: await mainChatSession.getHistory() }
-        });
-        console.log("TOTAL CHATTOKENS on the main chat session is____ "+totalMainChatSession.totalTokens)
+            generateContentRequest: { contents: await mainChatSession.getHistory() }
+          });
+
+          if (data.pauseThreshold > 150000) {
+            data.pauseRequests = true; // set true, so that we ca pause the next execution to API for a set time. This should allow our rate limit get healthy again before retrying.
+          } else if (data.pauseThreshold <= 150000) { // continuously ADD this as long as it is below 150k tokens
+            data.pauseThreshold += totalMainChatSession.totalTokens - previousMainChatSession.totalTokens;
+          }
+
+          console.log("TOTAL CHATTOKENS on the main chat session is____ " + totalMainChatSession.totalTokens)
 
         }
-        
+
         data.backOff.backOffCount = 0; // Reset backoff count on success
         data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
         resolve(res);
@@ -658,13 +686,13 @@ async function generateChapters() {
   const chapterCount = finalReturnData.firstReq.chapters;
 
   // run a loop for each chapter available
-  async function countTokens (req, responseObj) {
+  async function countTokens(req, responseObj) {
     let tokens;
     const mainChatHistory = await mainChatSession.getHistory()
     if (req === "total" && mainChatHistory.length > 0) {
       tokens = await model.countTokens({
-      generateContentRequest: { contents: mainChatHistory },
-    });
+        generateContentRequest: { contents: mainChatHistory },
+      });
     } else if (responseObj) {
       tokens = responseObj.response.usageMetadata
     }
@@ -772,7 +800,7 @@ async function generateChapters() {
 
             try {
               const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
-              console.log("TOKEN COUNT FOR Current Chapter Text___: "+ currentChapterTextTokenCount.totalTokens);
+              console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far, only use it as context, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch.
               `));
@@ -825,7 +853,7 @@ async function generateChapters() {
               }
 
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
-              
+
 
               async function delay(ms = 6000) {
                 return await new Promise((resolve) => {
@@ -846,7 +874,7 @@ async function generateChapters() {
               chapterText = content;
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
-              
+
             }
 
             return await chapterText; // as the parsed object
@@ -1271,10 +1299,20 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     responseMimeType: "application/json",
   };
 
-  const fixerSchema = `{"fixedJson" : "The fixed JSON"}`;
+  const fixerSchema = `
+  {
+    "issue" : "The Issue",
+    "fixedJson" : "The fixed JSON"
+  }`; // the issue property will not be extracted. I just included i so that the model will extract the issue, and then know exactly what to work on before attempting to fix the JSON. This should help it avoid hallucinating and not fixing anything.
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const proModel = genAI.getGenerativeModel({ model: modelSelected, systemInstruction: `Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place. Also, do note that if a json has a double quote inside a double quote, make that inner quote single. Your response schema must be in this schema ${fixerSchema}` });
+  const proModel = genAI.getGenerativeModel({
+    model: modelSelected, systemInstruction: `Outline all the problems in any json sent to you. There must be issuues with it, since no good json will ever be sent to you. 
+
+  Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
+    
+  Return your respose in this schema: ${fixerSchema}`
+  });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
 
@@ -1287,13 +1325,13 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     const fixedContentStr = firstStageJson.fixedJson;
     const fixedContent = JSON.parse(fixedContentStr);
     console.log("This is the fixedContent: ", fixedContent);
-    return fixedContent; 
+    return fixedContent;
 
   } catch (error) {
     if (retries < 5) {
       console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
 
-      const delayMs = modelDelay.pro; 
+      const delayMs = modelDelay.pro;
       console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); //Informative log
       await new Promise(resolve => setTimeout(resolve, delayMs)); // Wait before retrying
 
