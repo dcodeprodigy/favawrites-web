@@ -335,6 +335,14 @@ function deepCopyObj(obj) { // maintains functions when copying.
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
 
 
+let mainChatSession, model;
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+async function setUpModel (userInputData) {
+  model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+
+  mainChatSession = model.startChat({ safetySettings, generationConfig });
+}
+
 
 app.post("/generate_book", async (req, res) => {
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
@@ -352,34 +360,31 @@ app.post("/generate_book", async (req, res) => {
       ? userInputData.model
       : "gemini-1.5-flash-001";
 
+    await setUpModel(userInputData); // This way, mainChatSession and model is accessible globally, as well as everything about them being reset on each new request
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
-    const tokenCountWithNoInstructions = await model.countTokens();
-    console.log(`This is token count with only the SYSTEM_INSTRUCTIONS_COUNT_: ${tokenCountWithNoInstructions}`);
+    
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
-
-    const mainChatSession = model.startChat({ safetySettings, generationConfig });
+    data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
 
-    console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${await model.countTokens(tocPrompt)}`);
+    console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
 
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents." });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
-    console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata}`)
+    console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`)
 
     if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
       return; // Stop further processing and return the 503 error already sent.
     }
 
-    finalReturnData["firstReq"] = parseJson(tocRes);; // Push to final object as a json string
+    finalReturnData["firstReq"] = parseJson(tocRes); // Push to final object as a json string
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
 
-    data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
+    
 
 
 
@@ -396,7 +401,7 @@ app.post("/generate_book", async (req, res) => {
     2. If there is plot, append it when generating the subchapter or chapter
 
     */
-    await generateChapters(mainChatSession, model);
+    await generateChapters();
     
 
     await compileDocx(userInputData);
@@ -460,12 +465,17 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
         const res = await func();
-        console.log(`This is the usageMetaData: ${res.response.usageMetadata}`);
-        const totalMainChatSession = await data.model.countTokens({
-          generateContentRequest: { contents: await data.mainChat.getHistory() },
+
+        console.log(`This is the usageMetaData: ${res.response.usageMetadata.totalTokenCount}`);
+        const mainChatHistory = await mainChatSession.getHistory();
+        if (mainChatHistory.length > 0) {
+          const totalMainChatSession = await model.countTokens({
+          generateContentRequest: { contents: await mainChatSession.getHistory() }
         });
         console.log("Total chat tokens on the main chat session is____ "+totalMainChatSession.totalTokens)
 
+        }
+        
         data.backOff.backOffCount = 0; // Reset backoff count on success
         data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
         resolve(res);
@@ -546,7 +556,7 @@ async function generatePlot() {
     responseMimeType: "application/json"
   };
 
-  const plotChatSession = data.model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
+  const plotChatSession = model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
   data.plots = [];
 
   for (let i = 0; i < finalReturnData.firstReq.chapters; i++) {
@@ -631,7 +641,7 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config, 
 }
 
 
-async function generateChapters(mainChatSession, model) {
+async function generateChapters() {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
   // console.log(tableOfContents);
@@ -648,15 +658,15 @@ async function generateChapters(mainChatSession, model) {
   // run a loop for each chapter available
   async function countTokens (req, responseObj) {
     let tokens;
-    if (req === "total") {
+    const mainChatHistory = await mainChatSession.getHistory()
+    if (req === "total" && mainChatHistory.length > 0) {
       tokens = await model.countTokens({
-      generateContentRequest: { contents: await mainChatSession.getHistory() },
+      generateContentRequest: { contents: mainChatHistory },
     });
-    
-    } else {
+    } else if (responseObj) {
       tokens = responseObj.response.usageMetadata
     }
-    return tokens
+    return tokens || "No Tokens Detected"
   }
 
   for (let i = 1; i <= chapterCount; i++) {
