@@ -5,7 +5,7 @@ const path = require('path');
 // const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
-const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, ChatSession } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, SchemaType, } = require('@google/generative-ai');
 const fs = require("fs");
 const {
   // Core elements
@@ -371,7 +371,7 @@ app.post("/generate_book", async (req, res) => {
     data.res = res;
 
     const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest"];
-    
+
     userInputData.model = allowedModels.includes(userInputData.model)
       ? userInputData.model
       : "gemini-1.5-flash-001";
@@ -1322,27 +1322,44 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
   const modelSelected = retries >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
   console.log(`Selected ${modelSelected}`);
 
+const fixerSchema = {
+    description: "Fixed JSON Response", // Description of the schema
+    type: "OBJECT", // The top-level type is OBJECT
+    properties: {
+      issue: {
+        type: "STRING",
+        description: "Description of the issue",
+        nullable: true,
+      },
+      fixedJson: {
+        type: "STRING",
+        description: "The corrected JSON output as a string",
+        nullable: false, 
+      },
+    },
+    required: ["issue", "fixedJson"], // Required properties
+  }
+
   const generationConfig = {
     temperature: 0.4,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
+    responseSchema: fixerSchema,
+
   };
 
-  const fixerSchema = `
-  {
-    "issue" : "The Issue",
-    "fixedJson" : "The fixed JSON"
-  }`; // the issue property will not be extracted. I just included i so that the model will extract the issue, and then know exactly what to work on before attempting to fix the JSON. This should help it avoid hallucinating and not fixing anything.
+  
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const proModel = genAI.getGenerativeModel({
-    model: modelSelected, systemInstruction: `Outline all the problems in any json sent to you. There must be issuues with it, since no good json will ever be sent to you. 
+    model: modelSelected, 
+    systemInstruction: `Outline all the problems in any json sent to you. There must be issues with it, since no good json will ever be sent to you. 
 
-  Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
+Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-  Return your respose in this schema: ${fixerSchema}`
+Return your respose in this schema: ${fixerSchema}`
   });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
@@ -1354,25 +1371,26 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContentStr = firstStageJson.fixedJson;
-    const fixedContent = JSON.parse(fixedContentStr);
-    console.log("This is the fixedContent: ", fixedContent); // next, if fixedContent is not i the form of 'content':'text', retry, since that means model returned bad output. for example, see example it gave this morning: 
-  
+    const fixedContent = JSON.parse(fixedContentStr); // Parse the stringified JSON
+    console.log("This is the fixedContent: ", fixedContent);
+
     return fixedContent;
 
   } catch (error) {
-    if (retries < 5) {
+    if (error.message.includes("Resource has been exhausted")) {
+      // change the model back to gemini flash
+      return fixJsonWithPro(fixMsg, retries = 0);
+    } else if (retries < 5) {
       console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
 
       const delayMs = modelDelay.pro;
-      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); //Informative log
-      await new Promise(resolve => setTimeout(resolve, delayMs)); // Wait before retrying
+      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); 
+      await new Promise(resolve => setTimeout(resolve, delayMs));
 
       return fixJsonWithPro(fixMsg, retries + 1); // Recursive retry
     } else {
-      // Handle failure after multiple retries and delays.
       console.error("Failed to fix JSON after multiple retries:", error);
-
-      throw error; // Re-throw for external handling
+      throw error; 
     }
   }
 }
