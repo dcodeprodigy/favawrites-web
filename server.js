@@ -1654,7 +1654,7 @@ function initializeDocx() {
 
 async function compileDocx(userInputData) {
   Packer.toBuffer(data.docx).then((buffer) => {
-    fs.writeFileSync(`docs/${userInputData.title}.docx`, buffer);
+    fs.writeFileSync(`/tmp/${userInputData.title}.docx`, buffer);
     console.log(`Document created successfully`);
   });
 }
