@@ -341,10 +341,20 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-async function setUpModel(userInputData) {
-  model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+async function setUpNewChatSession(userInputData) {
+    // Be careful calling this function, as it overrides the entire thing in mainChatSession
+    if (!model) {
+      model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+    }
+    
+     mainChatSession = model.startChat({ safetySettings, generationConfig }); // start a new chat. 
+    
 
-  mainChatSession = model.startChat({ safetySettings, generationConfig });
+    model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+
+    mainChatSession = model.startChat({ safetySettings, generationConfig }); // starts a new chat
+  
+  
 }
 
 
@@ -357,14 +367,16 @@ app.post("/generate_book", async (req, res) => {
 
   try {
     const userInputData = req.body;
+    data.userInputData = userInputData;
     data.res = res;
 
     const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest"];
+    
     userInputData.model = allowedModels.includes(userInputData.model)
       ? userInputData.model
       : "gemini-1.5-flash-001";
 
-    await setUpModel(userInputData); // This way, mainChatSession and model is accessible globally, as well as everything about them being reset on each new request
+    await setUpNewChatSession(userInputData); // This way, mainChatSession and model is accessible globally, as well as everything about them being reset on each new request
 
 
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
@@ -469,42 +481,42 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
 
-        if (data.pauseRequests === true) {
-          // It means model may soon get overwhelmed. Pause execution for set time of 10 minutes
-          await new Promise(resolve => { setTimeout(resolve, 600000) });
-          data.pauseRequests = false; // reset pause flag
-          data.pauseThreshold = 0; // reset threshold to 0
-        };
+        // if (data.pauseRequests === true) {
+        //   // It means model may soon get overwhelmed. Pause execution for set time of 10 minutes
+        //   await new Promise(resolve => { setTimeout(resolve, 600000) });
+        //   data.pauseRequests = false; // reset pause flag
+        //   data.pauseThreshold = 0; // reset threshold to 0
+        // };
 
         let mainChatHistory = await mainChatSession.getHistory();
-        let previousMainChatSession = {totalTokens : 0} // set a tokens property the avoid issue of undefined when mainChatHistory.length is 0
-        if (mainChatHistory.length > 0) { // get current token count before calling a new request
-          previousMainChatSession = await model.countTokens({
-            generateContentRequest: { contents: await mainChatSession.getHistory() }
-          });
+        // let previousMainChatSession = {totalTokens : 0} // set a tokens property the avoid issue of undefined when mainChatHistory.length is 0
+        // if (mainChatHistory.length > 0) { // get current token count before calling a new request
+        //   previousMainChatSession = await model.countTokens({
+        //     generateContentRequest: { contents: await mainChatSession.getHistory() }
+        //   });
 
-        }
+        // }
 
         const res = await func();
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         console.log(`THIS IS THE USAGEMETADATA___ ${res.response.usageMetadata.totalTokenCount}`);
 
-        mainChatHistory = await mainChatSession.getHistory(); // get history after previous request
-        if (mainChatHistory.length > 0) {
-          const totalMainChatSession = await model.countTokens({
-            generateContentRequest: { contents: await mainChatSession.getHistory() }
-          });
+        // mainChatHistory = await mainChatSession.getHistory(); // get history after previous request
+        // if (mainChatHistory.length > 0) {
+        //   const totalMainChatSession = await model.countTokens({
+        //     generateContentRequest: { contents: await mainChatSession.getHistory() }
+        //   });
 
-          if (data.pauseThreshold > 150000) {
-            data.pauseRequests = true; // set true, so that we ca pause the next execution to API for a set time. This should allow our rate limit get healthy again before retrying.
-          } else if (data.pauseThreshold <= 150000) { // continuously ADD this as long as it is below 150k tokens
-            data.pauseThreshold += totalMainChatSession.totalTokens - previousMainChatSession.totalTokens;
-          }
+        //   if (data.pauseThreshold > 150000) {
+        //     data.pauseRequests = true; // set true, so that we ca pause the next execution to API for a set time. This should allow our rate limit get healthy again before retrying.
+        //   } else if (data.pauseThreshold <= 150000) { // continuously ADD this as long as it is below 150k tokens
+        //     data.pauseThreshold += totalMainChatSession.totalTokens - previousMainChatSession.totalTokens;
+        //   }
 
-          console.log("TOTAL CHATTOKENS on the main chat session is____ " + totalMainChatSession.totalTokens)
+        //   console.log("TOTAL CHATTOKENS on the main chat session is____ " + totalMainChatSession.totalTokens)
 
-        }
+        // }
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
         data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
@@ -520,18 +532,26 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       console.warn(error);
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
-        if (data.backOff.backOffCount < data.backOff.maxRetries) {
-          data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 5 * 60 * 1000 : null; // add 5 minutes for each backoff retry
-          data.backOff.backOffCount++;
-          console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
+        
+        // create a new chatSession by overriding the main chatSession
+        await setUpNewChatSession(data.userInputData) // true means the function to return the output
 
-          return await sendMessageWithRetry(func, data.backOff.backOffDuration); // Retry with backoff duration
-        } else {
-          console.error(`Back-Off failed after ${data.backOff.backOffCount} attempts`);
-          data.res.status(503).send(`Back-Off failed after ${data.backOff.backOffCount} attempts`); // Send 503 error
+        // wait for 5 minute for API rate limit to cool down, then continue
+        await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
+        return await sendMessageWithRetry( func ); // retry. No need adding '() =>', since the initial func parameter already has that
 
-          return { status: 503 }; // Return a flag indicating the 503 error
-        }
+        // if (data.backOff.backOffCount < data.backOff.maxRetries) {
+        //   data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 2 * 60 * 1000 : null; // add 5 minutes for each backoff retry
+        //   data.backOff.backOffCount++;
+        //   console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
+
+        //   return await sendMessageWithRetry(func, data.backOff.backOffDuration); // Retry with backoff duration
+        // } else {
+        //   console.error(`Back-Off failed after ${data.backOff.backOffCount} attempts`);
+        //   data.res.status(503).send(`Back-Off failed after ${data.backOff.backOffCount} attempts`); // Send 503 error
+
+        //   return { status: 503 }; // Return a flag indicating the 503 error
+        // }
       } else { // Re-throw other errors to be caught by the outer try-catch block
         throw error;
       }
@@ -886,29 +906,40 @@ async function generateChapters() {
         await getDocxCode();
         async function getDocxCode() {
           let docxJsRes;
+          let docxJs;
+          let modelRes
 
-          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
+          async function getDocxJs() {
+            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
 
-          let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
           console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
           // console.log("this is model res: " + modelRes)
 
-          let docxJs;
+          
           try { // parse the purported array
             docxJs = await JSON.parse(modelRes);
             console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
-
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
             docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
           }
+          }
+          await getDocxJs();
+          while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
+            await getDocxJs();
+          }
+
+
+          
 
           // extract textRun object
           const sessionArr = [];
           // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
           // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
           console.log("DocxJs is an array?: " + Array.isArray(docxJs));
+          
           docxJs.forEach(item => {
             sessionArr.push(item);
           });
@@ -1324,7 +1355,8 @@ async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad 
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContentStr = firstStageJson.fixedJson;
     const fixedContent = JSON.parse(fixedContentStr);
-    console.log("This is the fixedContent: ", fixedContent);
+    console.log("This is the fixedContent: ", fixedContent); // next, if fixedContent is not i the form of 'content':'text', retry, since that means model returned bad output. for example, see example it gave this morning: 
+  
     return fixedContent;
 
   } catch (error) {
