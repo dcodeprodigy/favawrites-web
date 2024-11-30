@@ -9,7 +9,7 @@ app.use(downloadInApp);
 require('dotenv').config();
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, SchemaType, } = require('@google/generative-ai');
 const fs = require("fs");
-const {
+const { 
   // Core elements
   Document,
   Packer,
