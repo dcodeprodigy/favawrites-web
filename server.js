@@ -328,14 +328,9 @@ async function setUpNewChatSession(userInputData) {
     if (!model) {
       model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
     }
-    
-     mainChatSession = model.startChat({ safetySettings, generationConfig }); // start a new chat. 
-    
-
     model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
 
     mainChatSession = model.startChat({ safetySettings, generationConfig }); // starts a new chat
-  
   
 }
 
