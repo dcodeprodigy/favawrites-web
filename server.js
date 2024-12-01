@@ -100,6 +100,8 @@ const generationConfig = {
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
+  presencePenalty: 1.8,
+  frequencyPenalty: 1.9
 };
 
 let data = {
@@ -583,7 +585,9 @@ async function generatePlot() {
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8100,
-    responseMimeType: "application/json"
+    responseMimeType: "application/json",
+    presencePenalty: 1.9,
+    frequencyPenalty: 1.9
   };
 
   const plotChatSession = model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
@@ -685,7 +689,7 @@ async function generateChapters() {
 
   const chapterCount = finalReturnData.firstReq.chapters;
 
-  // run a loop for each chapter available
+  
   async function countTokens(req, responseObj) {
     let tokens;
     const mainChatHistory = await mainChatSession.getHistory()
@@ -699,11 +703,11 @@ async function generateChapters() {
     return tokens || "No Tokens Detected"
   }
 
-  for (let i = 1; i <= chapterCount; i++) {
+  for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
     let tokens = await countTokens("total");
     console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
 
-    currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
+    // currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
     // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
     let promptNo;
     let writingPatternRes;
@@ -802,7 +806,7 @@ async function generateChapters() {
               const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
               console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far, only use it as context, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}
+              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}
               `));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
