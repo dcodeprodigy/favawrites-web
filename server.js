@@ -251,14 +251,14 @@ const schema = {
             items: {
                 type: "OBJECT",
                 properties: {
-                    [`ch-${Number}`]: {
+                    [`ch-1`]: {
                         type: "STRING",
-                        description: "Chapter title. For the property names with ch-Number it means => Where 'Number' indicates the actual current chapter, and would ebd up being something like ch-1 or ch-2 or ch-3...",
+                        description: "Chapter title.",
                         nullable: false
                     },
-                    [`sch-${Number}`]: {
+                    [`sch-1`]: {
                         type: "ARRAY",
-                        description: "List of subchapter titles. For the property names with sch-Number it means => Where 'Number' indicates the actual current chapter, and would end up being something like sch-1 or sch-2 or sch-3...",
+                        description: "List of subchapter titles",
                         nullable: false,
                         items: {
                             type: "STRING"
@@ -270,7 +270,7 @@ const schema = {
                         nullable: false
                     }
                 },
-                required: [`ch-${Number}`, `sch-${Number}`, "sch-no"]
+                required: [`ch-1`, `sch-1`, "sch-no"]
             }
         },
         chapters: {
@@ -434,7 +434,7 @@ app.post("/generate_book", async (req, res) => {
   frequencyPenalty: 1.9,
   
 };
-    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified." });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig: tocConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
@@ -619,7 +619,7 @@ function getTocPrompt(inputData) {
   return `Generate a comprehensive table of contents for a book titled ${inputData.title.trim()}. ${checkForSubtitle(inputData)}.
   In your response, if this book is a novel or one that you think deserves a plot, respond with "true" as a boolean and if it does not, respond with "false" as a boolean.
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
-  If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc the user wants. DO NOT TRY TO COMPRESS IT TO BE SMALLER THAN WHAT THE USER PUTS; ON NO ACCOUNT. Also, if the TOC there has something like Part I or Part II, then remove the Part I or Part II or Part III, and just return your JSON as in the format below:
+  If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc the user wants. DO NOT TRY TO COMPRESS IT TO BE SMALLER THAN WHAT THE USER PUTS; ON NO ACCOUNT. Also, if the TOC there has something like Part I or Part II, then remove the Part I or Part II or Part III, and just return your JSON as in the format specified. just so you know, your final JSON schema returned should look something like this:
     
   ${schema.toc}`
 }
@@ -1410,7 +1410,7 @@ const fixerSchema = {
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-Return your respose in this schema: ${fixerSchema}`
+just so you know your response schema is ${fixerSchema}`
   });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
