@@ -251,14 +251,14 @@ const schema = {
             items: {
                 type: "OBJECT",
                 properties: {
-                    [`ch-n. n is the chapter number in which you are currently trying to generate its nested children`]: {
+                    [`ch-n`]: {
                         type: "STRING",
                         description: "Chapter title.",
                         nullable: false
                     },
-                    [`sch-n. n is the chapter number in which you are currently trying to generate its nested children`]: {
+                    [`sch-n`]: {
                         type: "ARRAY",
-                        description: "List of subchapter titles",
+                        description: "List of subchapter titles. In the property name, n is the chapter number in which you are currently trying to generate its nested children",
                         nullable: false,
                         items: {
                             type: "STRING"
@@ -266,7 +266,7 @@ const schema = {
                     },
                     "sch-no": {
                         type: "NUMBER",
-                        description: "Number of subchapters in the chapter",
+                        description: "Number of subchapters in the chapter. In the property name, n is the chapter number in which you are currently trying to generate its number of subchapters",
                         nullable: false
                     }
                 },
