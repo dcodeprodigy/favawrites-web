@@ -251,14 +251,14 @@ const schema = {
             items: {
                 type: "OBJECT",
                 properties: {
-                    [`ch-n`]: {
+                    "^ch-[0-9]+$": {
                         type: "STRING",
-                        description: "Chapter title.",
+                        description: "Chapter title. Must match the pattern 'ch-' followed by one or more digits",
                         nullable: false
                     },
-                    [`sch-n`]: {
+                    "^sch-[0-9]+$": {
                         type: "ARRAY",
-                        description: "List of subchapter titles. In the property name, n is the chapter number in which you are currently trying to generate its nested children",
+                        description: "List of subchapter titles. Must match the pattern 'sch-' followed by one or more digits, corresponding to the chapter number",
                         nullable: false,
                         items: {
                             type: "STRING"
@@ -266,11 +266,26 @@ const schema = {
                     },
                     "sch-no": {
                         type: "NUMBER",
-                        description: "Number of subchapters in the chapter. In the property name, n is the chapter number in which you are currently trying to generate its number of subchapters",
+                        description: "Number of subchapters in the chapter",
                         nullable: false
                     }
                 },
-                required: [`ch-n`, `sch-n`, "sch-no"]
+                required: ["sch-no"],
+                additionalProperties: {
+                    oneOf: [
+                        { 
+                            pattern: "^ch-[0-9]+$",
+                            type: "STRING"
+                        },
+                        {
+                            pattern: "^sch-[0-9]+$",
+                            type: "ARRAY",
+                            items: {
+                                type: "STRING"
+                            }
+                        }
+                    ]
+                }
             }
         },
         chapters: {
