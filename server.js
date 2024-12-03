@@ -438,19 +438,8 @@ app.post("/generate_book", async (req, res) => {
 
     console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
 
-    const tocConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 40,
-  maxOutputTokens: 8192,
-  responseMimeType: "application/json",
-  responseSchema: schema.tocSchema,
-  presencePenalty: 1.8,
-  frequencyPenalty: 1.9,
-  
-};
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
-    const tocChatSession = proModel.startChat({ safetySettings, generationConfig: tocConfig });
+    const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
     console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`)
