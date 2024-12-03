@@ -226,7 +226,7 @@ const schema = {
     properties: {
         title: {
             type: "STRING",
-            description: "The title of the book",
+            description: "The title of the book as in the description or as suggested by you",
             nullable: false
         },
         subtitle: {
@@ -253,12 +253,12 @@ const schema = {
                 properties: {
                     [`ch-${Number}`]: {
                         type: "STRING",
-                        description: "Chapter title",
+                        description: "Chapter title. For the property names with ch-Number it means => Where 'Number' indicates the actual current chapter, and would ebd up being something like ch-1 or ch-2 or ch-3...",
                         nullable: false
                     },
                     [`sch-${Number}`]: {
                         type: "ARRAY",
-                        description: "List of subchapter titles",
+                        description: "List of subchapter titles. For the property names with sch-Number it means => Where 'Number' indicates the actual current chapter, and would end up being something like sch-1 or sch-2 or sch-3...",
                         nullable: false,
                         items: {
                             type: "STRING"
