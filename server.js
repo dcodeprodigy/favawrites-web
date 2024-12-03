@@ -220,6 +220,67 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
 }
 
 const schema = {
+  tocSchema : {
+    description: "Table of Contents (TOC) Schema",
+    type: "OBJECT",
+    properties: {
+        title: {
+            type: "STRING",
+            description: "The title of the book",
+            nullable: false
+        },
+        subtitle: {
+            type: "STRING",
+            description: "The subtitle of the book",
+            nullable: true
+        },
+        plot: {
+            type: "BOOLEAN",
+            description: "Indicates if the book has a plot",
+            nullable: false
+        },
+        subchapter: {
+            type: "BOOLEAN",
+            description: "Indicates if the book has subchapters",
+            nullable: false
+        },
+        toc: {
+            type: "ARRAY",
+            description: "Array of chapters with their details",
+            nullable: false,
+            items: {
+                type: "OBJECT",
+                properties: {
+                    [`ch-${Number}`]: {
+                        type: "STRING",
+                        description: "Chapter title",
+                        nullable: false
+                    },
+                    [`sch-${Number}`]: {
+                        type: "ARRAY",
+                        description: "List of subchapter titles",
+                        nullable: false,
+                        items: {
+                            type: "STRING"
+                        }
+                    },
+                    "sch-no": {
+                        type: "NUMBER",
+                        description: "Number of subchapters in the chapter",
+                        nullable: false
+                    }
+                },
+                required: [`ch-${Number}`, `sch-${Number}`, "sch-no"]
+            }
+        },
+        chapters: {
+            type: "NUMBER",
+            description: "Total number of chapters in the TOC",
+            nullable: false
+        }
+    },
+    required: ["title", "subtitle", "plot", "subchapter", "toc", "chapters"]
+  },
   toc: `{
     "title": "The Title of the book I told you, exactly as i did",
     "subtitle" : "The Subtitle",
@@ -362,8 +423,19 @@ app.post("/generate_book", async (req, res) => {
 
     console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
 
+    const tocConfig = {
+  temperature: 1,
+  topP: 0.95,
+  topK: 40,
+  maxOutputTokens: 8192,
+  responseMimeType: "application/json",
+  responseSchema: schema.tocSchema,
+  presencePenalty: 1.8,
+  frequencyPenalty: 1.9,
+  
+};
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified." });
-    const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
+    const tocChatSession = proModel.startChat({ safetySettings, generationConfig: tocConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
     console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`)
