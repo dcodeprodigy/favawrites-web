@@ -362,7 +362,7 @@ app.post("/generate_book", async (req, res) => {
 
     console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
 
-    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents." });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating useful and varied table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified." });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
@@ -547,9 +547,9 @@ function getTocPrompt(inputData) {
   return `Generate a comprehensive table of contents for a book titled ${inputData.title.trim()}. ${checkForSubtitle(inputData)}.
   In your response, if this book is a novel or one that you think deserves a plot, respond with "true" as a boolean and if it does not, respond with "false" as a boolean.
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
-  If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc!
+  If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc the user wants. DO NOT TRY TO COMPRESS IT TO BE SMALLER THAN WHAT THE USER PUTS; ON NO ACCOUNT. Also, if the TOC there has something like Part I or Part II, then remove the Part I or Part II or Part III, and just return your JSON as in the format below:
     
-  Finally, Return your response in this schema: ${schema.toc}`
+  ${schema.toc}`
 }
 
 function checkForSubtitle(userInput) {
@@ -557,7 +557,7 @@ function checkForSubtitle(userInput) {
   if (subtitle !== "") {
     return `Add this subtitle to your response: ${subtitle}`
   } else {
-    return `In your response, include a suitable subtitle that will cause anyone who sees this in an amazon kdp book listing to want to click on it. Use simple grammar and vocabulary. Make sure the subtitle follows the amazon kdp rules for subtitles as specified here : \n\n ${data.kdp_titles_subtitle_rules}.`
+    return `Check the Description which I shall provide below. If it includes a subtitle, use that as the subtitle ehich you shall return. Otherwise, I want you to Include a suitable subtitle that will tap into a potential reader's mind abd emotions, causing them to want to buy this book. Make sure the subtitle follows the amazon kdp rules for subtitles as specified here : \n\n ${data.kdp_titles_subtitle_rules}.`
   }
 }
 
