@@ -1416,7 +1416,7 @@ const fixerSchema = {
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-just so you know your response schema is ${fixerSchema}`
+just so you know your response schema is ${fixerSchema}. If the json given to you has single quotes or unterminated quotes, you know that's your job to make it double quotes if required or make it terminated right? these are just one of the many things you could do to fix a BAD JSON`
   });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
