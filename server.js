@@ -964,7 +964,7 @@ async function generateChapters() {
         async function getDocxCode() {
           let docxJsRes;
           let docxJs;
-          let modelRes
+          let modelRes;
 
           async function getDocxJs() {
             docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
@@ -980,13 +980,18 @@ async function generateChapters() {
             console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
-            docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
-          }
+	    if (error.message.includes("Expected double-quoted property name in JSON")) { // retry getDocxJs
+               const retry = await getDocxJs();
+	       return retry
+	    } else {
+	       docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
+	    }
+	  }
           }
           await getDocxJs();
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
             await getDocxJs();
-          }
+          } // This may cause recursive issues so fix this soon
 
 
           
