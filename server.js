@@ -877,12 +877,14 @@ async function generateChapters() {
               const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
               console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}
+              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
+	      Also, this is the table of contents (toc) we are working with, just so you don't forget=> "${finalReturnData.firstReq.toc}"
               `));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
               chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
+	     i === < 1 ? console.log(`${finalReturnData.firstReq.toc}`) : null;
               // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
 
               // currentChapterText.concat(getSubChapterCont.content); // Save to context
@@ -919,7 +921,7 @@ async function generateChapters() {
               console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
 
               currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
-              console.log("\n \nTODO: CHECK THIS currentChapterText: " + currentChapterText);
+              // console.log("\n \nTODO: CHECK THIS currentChapterText: " + currentChapterText);
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
