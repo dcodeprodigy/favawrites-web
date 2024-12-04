@@ -1001,7 +1001,7 @@ async function generateChapters() {
             sessionArr.push(item);
           });
 
-          console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
+          console.log("Session Arr is now: " + Array.isArray(sessionArr) + JSON.stringify(sessionArr));
 
           for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
             const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
