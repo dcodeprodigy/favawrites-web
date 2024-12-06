@@ -1428,6 +1428,7 @@ just so you know your response schema is ${fixerSchema}. If the json given to yo
 
   // confirm if this operation was successful
   try {
+	  console.log(errMsg)
     errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
     const fixedRes = await jsonFixer.sendMessage(`${fixMsg} ${errMsg != 'undefined' ? `\n\n\n Just as a hint on what is wrong with this JSON here : ${errMsg}` : null}`); // Attempt to send message
 
