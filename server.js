@@ -1379,7 +1379,7 @@ You shall return an array json using this schema below as the template for this 
 }
 
 
-async function fixJsonWithPro(fixMsg, retries = 0) { // function for fixing bad json with gemini pro model
+async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
   const modelSelected = retries >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
   console.log(`Selected ${modelSelected}`);
@@ -1403,7 +1403,7 @@ const fixerSchema = {
   }
 
   const generationConfig = {
-    temperature: 0.4,
+    temperature: 0.6,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
@@ -1428,7 +1428,8 @@ just so you know your response schema is ${fixerSchema}. If the json given to yo
 
   // confirm if this operation was successful
   try {
-    const fixedRes = await jsonFixer.sendMessage(fixMsg); // Attempt to send message
+    errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} ${errMsg != 'undefined' ? `\n\n\n Just as a hint on what is wrong with this JSON here : ${errMsg}` : null}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
@@ -1449,7 +1450,7 @@ just so you know your response schema is ${fixerSchema}. If the json given to yo
       console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); 
       await new Promise(resolve => setTimeout(resolve, delayMs));
 
-      return fixJsonWithPro(fixMsg, retries + 1); // Recursive retry
+      return fixJsonWithPro(fixMsg, retries + 1, error.message); // Recursive retry
     } else {
       console.error("Failed to fix JSON after multiple retries:", error);
       throw error; 
