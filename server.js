@@ -1421,7 +1421,7 @@ const fixerSchema = {
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-just so you know your response schema is ${fixerSchema}. If the json given to you has single quotes or unterminated quotes, you know that's your job to make it double quotes if required or make it terminated right? these are just one of the many things you could do to fix a BAD JSON`
+just so you know your response schema is ${JSON.stringify(fixerSchema)}.`
   });
 
   const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
@@ -1430,11 +1430,14 @@ just so you know your response schema is ${fixerSchema}. If the json given to yo
   try {
 	  console.log(errMsg)
     errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
-    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} ${errMsg != 'undefined' ? `\n\n\n Just as a hint on what is wrong with this JSON here : ${errMsg}` : null}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} ${errMsg != 'undefined' ? `\n\n\n Just as a hint on what is wrong with this JSON here : ${errMsg}` : null} \n If this contains unterminated JSON, fix it whatever way to make it valid. It doesn't matter if you have to edit a small part of the JSON, as long as overall structure isn't affected.`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContentStr = firstStageJson.fixedJson;
+    console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixerContentStr)
+    console.log('The first JSON parsing passed the test');
+	  
     const fixedContent = JSON.parse(fixedContentStr); // Parse the stringified JSON
     console.log("This is the fixedContent: ", fixedContent);
 
@@ -1450,6 +1453,7 @@ just so you know your response schema is ${fixerSchema}. If the json given to yo
       const delayMs = modelDelay.pro;
       console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); 
       await new Promise(resolve => setTimeout(resolve, delayMs));
+      console.log(`This is error.message ${error.message}`);
 
       return fixJsonWithPro(fixMsg, retries + 1, error.message); // Recursive retry
     } else {
