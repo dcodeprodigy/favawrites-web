@@ -1435,7 +1435,7 @@ just so you know your response schema is ${JSON.stringify(fixerSchema)}.`
     data.proModelErrors = 0; // Reset error count on success
     const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
     const fixedContentStr = firstStageJson.fixedJson;
-    console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixerContentStr)
+    console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixedContentStr)
     console.log('The first JSON parsing passed the test');
 	  
     const fixedContent = JSON.parse(fixedContentStr); // Parse the stringified JSON
