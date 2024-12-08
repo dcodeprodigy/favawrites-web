@@ -1234,22 +1234,33 @@ async function generateChapters() {
 
       await getDocxCode();
 
-      async function getDocxCode() {
+      async function getDocxCode(retry) {
         let docxJsRes;
+        console.log("We have gotten to the getDocxCode() function");
 
-        docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide: ${docxJsGuide()}.`));
+        docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide here, strictly: ${docxJsGuide()}.
+        ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : null}
+        `));
 
         let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-        // console.log("this is model res: " + modelRes)
+        console.log("this is modelRes as text...: " + modelRes)
 
         let docxJs;
         try { // parse the purported array
           docxJs = JSON.parse(modelRes);
-          console.log("type of the docxJS is now: " + Array.isArray(docxJs) + " " + docxJs);
+          console.log("Type of the docxJS is now: " + Array.isArray(docxJs) + " " + docxJs);
 
         } catch (error) {
           console.error("We got bad json from model. Fixing... : " + error);
-          docxJs = await fixJsonWithPro(modelRes);
+          
+          if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")){
+            
+            // retry sending the message the initial request to generate the Docx JS, as the model didn't follow my initial instruction
+            return await getDocxCode(true);
+          } else {
+            docxJs = await fixJsonWithPro(modelRes);
+          }
+          
         }
 
         // extract textRun object
