@@ -100,8 +100,8 @@ const generationConfig = {
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
-  presencePenalty: 1.8,
-  frequencyPenalty: 1.9
+  presencePenalty: 1.5,
+  frequencyPenalty: 1.2
 };
 
 let data = {
@@ -981,6 +981,7 @@ async function generateChapters() {
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
 	    if (error.message.includes("Expected double-quoted property name in JSON")) { // retry getDocxJs
+	    console.log("sending the getDocxJs Req again...");
                const retry = await getDocxJs();
 	       return retry
 	    } else {
@@ -1256,6 +1257,7 @@ async function generateChapters() {
           if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")){
             
             // retry sending the message the initial request to generate the Docx JS, as the model didn't follow my initial instruction
+            console.log("retrying getDocxCode with an arg of true");
             return await getDocxCode(true);
           } else {
             docxJs = await fixJsonWithPro(modelRes);
