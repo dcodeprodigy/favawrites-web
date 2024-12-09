@@ -961,13 +961,15 @@ async function generateChapters() {
 
         } // end of each promptMe number
         await getDocxCode();
-        async function getDocxCode() {
+        async function getDocxCode(retry) {
           let docxJsRes;
           let docxJs;
           let modelRes;
 
           async function getDocxJs() {
-            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.`));
+            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.
+            ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
+            `));
 
           modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
@@ -980,10 +982,10 @@ async function generateChapters() {
             console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
           } catch (error) {
             console.error("We got bad json from model. Fixing... : " + error);
-	    if (error.message.includes("Expected double-quoted property name in JSON")) { // retry getDocxJs
-	    console.log("sending the getDocxJs Req again...");
-               const retry = await getDocxJs();
-	       return retry
+	    if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
+	    console.log("sending the getDocxCode Req again with true arg...");
+               return await getDocxCode(true);
+	     
 	    } else {
 	       docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
 	    }
@@ -1240,7 +1242,7 @@ async function generateChapters() {
         console.log("We have gotten to the getDocxCode() function");
 
         docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this prompt number ${i + 1} batch, following this guide here, strictly: ${docxJsGuide()}.
-        ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : null}
+        ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
         `));
 
         let modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
