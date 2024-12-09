@@ -99,9 +99,9 @@ const generationConfig = {
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
-  responseMimeType: "application/json",
-  presencePenalty: 1.5,
-  frequencyPenalty: 1.2
+  responseMimeType: "application/json"
+  // presencePenalty: 1.5,
+//  frequencyPenalty: 1.2
 };
 
 let data = {
