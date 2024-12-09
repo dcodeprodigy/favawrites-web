@@ -974,7 +974,7 @@ async function generateChapters() {
           modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
           console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
-          // console.log("this is model res: " + modelRes)
+          console.log("this is the modelRes: " + modelRes);
 
           
           try { // parse the purported array
