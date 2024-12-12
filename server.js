@@ -417,9 +417,10 @@ async function setSecondaryChatSession(){
 
 – It's important for you to note that You are editing, not Paraphrasing. There's a huge difference between the two. Your Job is not to change the style of writing or words everywhere. Your job is to edit, just how a traditional book editor would; just correcting things that the writer asks for or that they found wrong with the work.
 
-– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text.
+– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text. 
 
-– Next, I shall Prompt you to remove those Redundancy. You shall then return the entire text I fed you in the non-redundant form.
+– Next, I shall Prompt you to remove those Redundancy. Here, You shall also edit to use more active voice, remove certain words and replace them, etc (as will be specified by user when asking to remove redundancy). 
+  You shall then return the entire text I fed you in the non-redundant form.
 
 – Next, for the text which you just returned, I shall Prompt you to identify all AI looking phrases, paragraphs, words and sentences, as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
 
@@ -978,13 +979,18 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
          return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
         )
           } else if (callNo == 2) {
-            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}. \n
+            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}. You are also going to : \n
+            1. Use more active voice
+            2. Enhance the flow between Paragraphs to be smooth
+            3. Instead of Individuals, use something like You, Your, Our – where necessary.
+            4. Add a touch of enthusiasm and Personal feel to the text where necessary.
+            \n
             Your response schema should be: ["a 1 index array containing the entire write-up in non-redundant form"]
             `;
             return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
         )
           } else if (callNo == 3){
-            const refineMsg3 = `Now, Identify all AI looking phrases, paragraphs, words and sentences here: \n ${prevResponse.response.candidates[0].content.parts[0].text}, in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
+            const refineMsg3 = `Now, Identify all AI looking phrases, paragraphs, words and sentences here: \n ${prevResponse.response.candidates[0].content.parts[0].text}, in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', 'By',  etc.
             Your response schema should be like this : ['an array of AI sentences, paragraphs or phrases"]. YOU ARE ONLY RETURNING THE AI LOOKING THINGS YOU FOUND HERE!
             `
             
@@ -1133,7 +1139,7 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
 
 
 
-          console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+          // TODO : Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
 
         } // end of docxCode function
@@ -1391,7 +1397,7 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
 
 
 
-        console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+       // TODO Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
 
       } // end of docxCode function
