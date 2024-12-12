@@ -1442,20 +1442,21 @@ function docxJsGuide(subChapter) {
 - Anything after '##' is the heading 1/Chapter title.
 - Do not make quotes a heading.
 - Always set the heading1 to 36 (represents 18px), heading2 to 32 (represents 16px), heading3 to 30  (represents 15px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
-- New chapters shall begin in new pages. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed. For example, making something bold or italics. Incorporate and breakdown large chunks of text into paragraphs as needed. I do not want the final book to be a huge chunky mess of text okay?
+- New chapters shall begin in new pages, with the title of that chapter being a heading1. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed. For example, making something bold or italics. Incorporate and breakdown large chunks of text into paragraphs as needed. I do not want the final book to be a huge chunky mess of text okay?
 
-  The below is is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. (That's an edited version which I have edited to prevent it from looking AI abd Redundant. That's what we are now working with.) Then you shall generate the docx.js template, using the guide that I shall specify.
+  The below is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. (That's an edited version which I have edited to prevent it from looking AI and Redundant. That's what we are now working with.) Then you shall generate the docx.js template, using the guide that I shall specify.
 
 You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
 
-	- When starting a new sub-chapter, just write the heading for that subchapter(for e.g, '1.1 Subchapter name') and ignore the chapter name. There is absolutely no need adding to chapter name for each new subchapter.
-  - When you are just beginning the chapter, it is absolutely important to add the chapter title as heading1
+	- When starting a new sub-chapter, just write the heading for that subchapter(for e.g, '1.2 Subchapter name') and ignore the chapter name. But if that subchapter is the first subchapter in that chapter, add a heading1, which is the Chapter Title, as seen in our table of contents.
+  - When you are just beginning every new chapter, it is absolutely important to add the chapter title as heading1.
 
   - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was something like - ('...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring...') - The bracketed here means I am just giving you instructions. Do not go including that in the book.
 
   - Also, for each prompt I am giving you on each subchapter, You are not returning the same write up. That just leads to redundancy.
-  Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book`
+  Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book.
+  - Remember, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get). For other subchapters like 1.2 or 1.3(could be 2.2...2.n too-you get)...1.n(where n is not 1), don't add a heading1 of chapter name before them please`
 }
 
 
