@@ -399,6 +399,7 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 async function setUpNewChatSession(userInputData) {
     // Be careful calling this function, as it overrides the entire thing in mainChatSession
     if (!model) {
@@ -408,6 +409,31 @@ async function setUpNewChatSession(userInputData) {
 
     mainChatSession = model.startChat({ safetySettings, generationConfig }); // starts a new chat
   
+}
+
+async function setSecondaryChatSession(){
+  const secondarySysInst = `
+  I am automating the process of writing a book. You are the secondary model. In this chat, I shall be feeding you with subchapters or entire chapters from the process. Here is your job when I feed you:
+
+– It's important for you to note that You are editing, not Paraphrasing. There's a huge difference between the two. Your Job is not to change the style of writing or words everywhere. Your job is to edit, just how a traditional book editor would; just correcting things that the writer asks for or that they found wrong with the work.
+
+– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text.
+
+– Next, I shall Prompt you to remove those Redundancy. You shall then return the entire text I fed you in the non-redundant form.
+
+– Next, for the text which you just returned, I shall Prompt you to identify all AI looking phrases, paragraphs, words and sentences, as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
+
+- Lastly, You shall a be prompted to remove them and replace with non-ai sentences or phrases or words and also reduce the over use of metaphors in the text.
+  `
+  const secondaryModel = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: secondarySysInst,
+    
+  });
+  
+  const secondaryChatSession = secondaryModel.startChat(safetySettings, generationConfig);
+  
+  return secondaryChatSession;
 }
 
 
@@ -473,8 +499,8 @@ app.post("/generate_book", async (req, res) => {
     await generateChapters();
 
 
-    await compileDocx(userInputData);
-    finalReturnData.file = `/docs/${userInputData.title}.docx`;
+    const formattedStr = await compileDocx(userInputData);
+    finalReturnData.file = `/docs/${formattedStr}.docx`;
     finalReturnData.docxCode = data.docx;
 
     try {
@@ -526,7 +552,7 @@ function errorAppendMessage() {
   }
 }
 
-async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
+async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
   try {
     const randomDelay = Math.random() * 1000;
     delayMs += randomDelay;
@@ -534,42 +560,14 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
 
-        // if (data.pauseRequests === true) {
-        //   // It means model may soon get overwhelmed. Pause execution for set time of 10 minutes
-        //   await new Promise(resolve => { setTimeout(resolve, 600000) });
-        //   data.pauseRequests = false; // reset pause flag
-        //   data.pauseThreshold = 0; // reset threshold to 0
-        // };
-
         let mainChatHistory = await mainChatSession.getHistory();
-        // let previousMainChatSession = {totalTokens : 0} // set a tokens property the avoid issue of undefined when mainChatHistory.length is 0
-        // if (mainChatHistory.length > 0) { // get current token count before calling a new request
-        //   previousMainChatSession = await model.countTokens({
-        //     generateContentRequest: { contents: await mainChatSession.getHistory() }
-        //   });
-
-        // }
 
         const res = await func();
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
-        console.log(`THIS IS THE USAGEMETADATA___ ${res.response.usageMetadata.totalTokenCount}`);
+        
+        console.log(`THIS IS THE USAGEMETADATA${flag === "secModel" ? " FOR SECONDARY MODEL" : null}___ ${res.response.usageMetadata.totalTokenCount}`);
 
-        // mainChatHistory = await mainChatSession.getHistory(); // get history after previous request
-        // if (mainChatHistory.length > 0) {
-        //   const totalMainChatSession = await model.countTokens({
-        //     generateContentRequest: { contents: await mainChatSession.getHistory() }
-        //   });
-
-        //   if (data.pauseThreshold > 150000) {
-        //     data.pauseRequests = true; // set true, so that we ca pause the next execution to API for a set time. This should allow our rate limit get healthy again before retrying.
-        //   } else if (data.pauseThreshold <= 150000) { // continuously ADD this as long as it is below 150k tokens
-        //     data.pauseThreshold += totalMainChatSession.totalTokens - previousMainChatSession.totalTokens;
-        //   }
-
-        //   console.log("TOTAL CHATTOKENS on the main chat session is____ " + totalMainChatSession.totalTokens)
-
-        // }
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
         data.backOff.backOffDuration = backOffDuration; // reset back off duration to 2 minutes once there is success
@@ -587,24 +585,19 @@ async function sendMessageWithRetry(func, delayMs = modelDelay.flash) {
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         
         // create a new chatSession by overriding the main chatSession
-        await setUpNewChatSession(data.userInputData) // true means the function to return the output
+        // Bit first check the flag Param to see if to create a new mainChatSession or secondaryChatSession
+        if (flag === "secModel") {
+          data.secondaryChatSession = await setSecondaryChatSession();
+          
+        } else {
+          await setUpNewChatSession(data.userInputData) // true means the function to return the output
+        }
+        
 
         // wait for 5 minute for API rate limit to cool down, then continue
         await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
         return await sendMessageWithRetry( func ); // retry. No need adding '() =>', since the initial func parameter already has that
 
-        // if (data.backOff.backOffCount < data.backOff.maxRetries) {
-        //   data.backOff.backOffCount >= 1 ? data.backOff.backOffDuration += 2 * 60 * 1000 : null; // add 5 minutes for each backoff retry
-        //   data.backOff.backOffCount++;
-        //   console.warn(`Retry attempt ${data.backOff.backOffCount} after backoff`);
-
-        //   return await sendMessageWithRetry(func, data.backOff.backOffDuration); // Retry with backoff duration
-        // } else {
-        //   console.error(`Back-Off failed after ${data.backOff.backOffCount} attempts`);
-        //   data.res.status(503).send(`Back-Off failed after ${data.backOff.backOffCount} attempts`); // Send 503 error
-
-        //   return { status: 503 }; // Return a flag indicating the 503 error
-        // }
       } else { // Re-throw other errors to be caught by the outer try-catch block
         throw error;
       }
@@ -657,8 +650,8 @@ async function generatePlot() {
     topK: 40,
     maxOutputTokens: 8100,
     responseMimeType: "application/json",
-    presencePenalty: 1.9,
-    frequencyPenalty: 1.9
+  //  presencePenalty: 1.9,
+   // frequencyPenalty: 1.9
   };
 
   const plotChatSession = model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
@@ -867,6 +860,9 @@ async function generateChapters() {
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
 
         let genChapterResult = "";
+        let currentSubChapter = ""; /* Save the subchapter here, then ask secondary model to retouch after that subchapter generation is complete. 
+        
+          Next, Pass that retouched text for docx code generation */
 
         for (let i = 0; i < promptNo.promptMe; i++) { // this loop is for each subchapter
           let errorCount = 0;
@@ -875,10 +871,12 @@ async function generateChapters() {
 
             try {
               const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
+              
               console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
+              
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
-	      Also, this is the table of contents (toc) we are working with, just so you don't forget=> "${JSON.stringify(finalReturnData.firstReq.toc)}"
+	      Also, this is the table of contents (toc) we are working with, just so you don't forget what we are currently working with => "${JSON.stringify(finalReturnData.firstReq.toc)}"
               `));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
@@ -916,12 +914,15 @@ async function generateChapters() {
 
 
             try {
-              // JSON.parse(chapterText);
+              
               let parsedChapterText = JSON.parse(chapterText);
               console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
-
+              
+              currentSubChapter = currentSubChapter.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
+              
+              
               currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
-              // console.log("\n \nTODO: CHECK THIS currentChapterText: " + currentChapterText);
+              // console.log("\n \n TODO: CHECK THIS currentChapterText: " + currentChapterText);
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -960,6 +961,64 @@ async function generateChapters() {
 
 
         } // end of each promptMe number
+        
+        
+        
+        async function refineSubChapter (callNo, prevResponse, nonRedundantTxt) {
+          
+          if (callNo == 1) {
+            const refineMsg1 = `Hey there! For this Subchapter, let's begin now shall we? 
+          Firstly, return a response in this array JSON schema;
+          [
+'sentence 1', 'sentence 2', 'sentence 3', 'sentence 4'...'sentence n'
+].
+What is your Job here? Identify all redundant sentences in the text below : \n ${currentSubChapter}
+          `;
+          
+         return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
+        )
+          } else if (callNo == 2) {
+            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}. \n
+            Your response schema should be: ["a 1 index array containing the entire write-up in non-redundant form"]
+            `;
+            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
+        )
+          } else if (callNo == 3){
+            const refineMsg3 = `Now, Identify all AI looking phrases, paragraphs, words and sentences here: \n ${prevResponse.response.candidates[0].content.parts[0].text}, in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
+            Your response schema should be like this : ['an array of AI sentences, paragraphs or phrases"]. YOU ARE ONLY RETURNING THE AI LOOKING THINGS YOU FOUND HERE!
+            `
+            
+            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg3), "secModel"
+        )
+          } else {
+            const refineMsg4 = `Now, remove those AI looking sentences, as you have identified here: ${prevResponse.response.candidates[0].content.parts[0].text}, from this text : ${nonRedundantTxt.response.candidates[0].content.parts[0].text}, return your response in this schema: ["A 1 Index array containing the actual raw text writeup you just cleaned of its AI characteristics. Use '\n' to include line breaks without breaking this array structure."]`;
+            
+            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg4), "secModel"
+        )
+          }
+          };
+          
+        
+        data.secondaryChatSession ? null : data.secondaryChatSession = await setSecondaryChatSession();
+        
+          // call
+          let response1 = await refineSubChapter(1);
+          let response2 = await refineSubChapter(2, response1);
+          let response3 = await refineSubChapter(3, response2);
+          let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy.
+          // response4 is returned as a one index array
+          try {
+            
+            const parsedRes = JSON.parse(response4.response.candidates[0].content.parts[0].text);
+            currentSubChapter = parsedRes[0];
+            
+          } catch (e) {
+            console.log(`Error Parsing Response4's JSON`);
+            currentSubChapter = response4.response.candidates[0].content.parts[0].text
+          }
+          
+        
+        
         await getDocxCode();
         async function getDocxCode(retry) {
           let docxJsRes;
@@ -967,7 +1026,7 @@ async function generateChapters() {
           let modelRes;
 
           async function getDocxJs() {
-            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentChapterText)}.
+            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentSubChapter)}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
@@ -1379,7 +1438,7 @@ function docxJsGuide(subChapter) {
 - Always set the heading1 to 36 (represents 18px), heading2 to 32 (represents 16px), heading3 to 30  (represents 15px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
 - New chapters shall begin in new pages. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed. For example, making something bold or italics. Incorporate and breakdown large chunks of text into paragraphs as needed. I do not want the final book to be a huge chunky mess of text okay?
 
-  The below is is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. Then you shall generate the docx.js template, using the guide that I shall specify.
+  The below is is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. (That's an edited version which I have edited to prevent it from looking AI abd Redundant. That's what we are now working with.) Then you shall generate the docx.js template, using the guide that I shall specify.
 
 You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
@@ -1737,9 +1796,26 @@ function initializeDocx() {
 
 async function compileDocx(userInputData) {
   Packer.toBuffer(data.docx).then((buffer) => {
-    fs.writeFileSync(`/tmp/${userInputData.title}.docx`, buffer);
+    const formattedStr = getFormattedBookTitle(userInputData.title)
+    fs.writeFileSync(`/tmp/${formattedStr}.docx`, buffer);
     console.log(`Document created successfully`);
+    return formattedStr;
   });
+};
+
+function getFormattedBookTitle(title){
+  let formattedStr = "";
+  const lowercaseStr = title.toLowerCase();
+  const newStrArr = lowercaseStr.split(" ");
+  
+  for (let i = 0; i < newStrArr.length; i++){
+    if (i + 1 === newStrArr.length) {
+      formattedStr += `${newStrArr[i]}`
+    } else {
+      formattedStr += `${newStrArr[i]}-`
+    }
+  }
+  return formattedStr.trim();
 }
 
 const PORT = process.env.PORT
