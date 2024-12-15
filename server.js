@@ -377,6 +377,7 @@ const schema = {
 
 const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
+// let runningCreation = false; // Is book creation currently ongoing?
 
 
 
@@ -400,14 +401,16 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function setUpNewChatSession(userInputData) {
+async function setUpNewChatSession(userInputData, prevHistory) {
     // Be careful calling this function, as it overrides the entire thing in mainChatSession
     if (!model) {
       model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
     }
-    model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
 
-    mainChatSession = model.startChat({ safetySettings, generationConfig }); // starts a new chat
+    mainChatSession = model.startChat({
+      history: prevHistory,
+      safetySettings, 
+      generationConfig }); // starts a new chat
   
 }
 
@@ -439,6 +442,7 @@ async function setSecondaryChatSession(){
 
 
 app.post("/generate_book", async (req, res) => {
+  
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
   reqNumber++; //Increament the number of requests being handled
@@ -554,20 +558,21 @@ function errorAppendMessage() {
 }
 
 async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
+  let mainChatHistory;
   try {
     const randomDelay = Math.random() * 1000;
     delayMs += randomDelay;
     console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
       try {
-
-        let mainChatHistory = await mainChatSession.getHistory();
-
+        // Save the History
+        mainChatHistory = await mainChatSession.getHistory();
+        
         const res = await func();
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         
-        console.log(`THIS IS THE USAGEMETADATA${flag === "secModel" ? " FOR SECONDARY MODEL" : null}___ ${res.response.usageMetadata.totalTokenCount}`);
+        console.log(`THIS IS THE USAGEMETADATA${flag === "secModel" ? " FOR SECONDARY MODEL" : ""}___ ${res.response.usageMetadata.totalTokenCount}`);
 
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
@@ -586,12 +591,12 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         
         // create a new chatSession by overriding the main chatSession
-        // Bit first check the flag Param to see if to create a new mainChatSession or secondaryChatSession
+        // But first check the flag Param to see if to create a new mainChatSession or secondaryChatSession
         if (flag === "secModel") {
           data.secondaryChatSession = await setSecondaryChatSession();
           
         } else {
-          await setUpNewChatSession(data.userInputData) // true means the function to return the output
+          await setUpNewChatSession(data.userInputData, mainChatHistory) // true means the function to return the output
         }
         
 
