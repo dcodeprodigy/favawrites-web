@@ -564,6 +564,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
     delayMs += randomDelay;
     console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
+      
       try {
         // Save the History
         mainChatHistory = await mainChatSession.getHistory();
@@ -572,7 +573,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         
-        console.log(`THIS IS THE USAGEMETADATA${flag === "secModel" ? " FOR SECONDARY MODEL" : ""}___ ${res.response.usageMetadata.totalTokenCount}`);
+        console.log(`THIS IS THE USAGEMETADATA$___ : ${res.response.usageMetadata.totalTokenCount}`);
 
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
@@ -603,12 +604,12 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
         ## But first check the flag Param to see if to create a new mainChatSession or secondaryChatSession.
         */
         
-        if (flag === "secModel") {
+       /* if (flag === "secModel") {
           data.secondaryChatSession = await setSecondaryChatSession();
           
-        } else {
+        } else */ 
           await setUpNewChatSession(data.userInputData /*, data.historyArchive[-1] /*Gets the last pushed history context*/) // true means the function to return the output
-        }
+        
         
 
         // wait for 5 minute for API rate limit to cool down, then continue
@@ -1018,16 +1019,16 @@ in accordance to as have been pointed out by people regarding how they tend to k
           };
           
         
-        data.secondaryChatSession = await setSecondaryChatSession(); // Set a new SecondaryChatSession. This makes sure model output is quality, and that it keeps remembering the system Instructions as generation progresses.
+      /*  data.secondaryChatSession = await setSecondaryChatSession(); // Set a new SecondaryChatSession. This makes sure model output is quality, and that it keeps remembering the system Instructions as generation progresses. 
         
           // call
            let response1 = await refineSubChapter(1); // Identify AI Sentences
           let response2 = await refineSubChapter(2, response1); // Removes all AI Phrases
         /*  let response3 = await refineSubChapter(3, response2);
           let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy. */
-          // response2 is supposedly returned as a one indexed array;
+          // response2 is supposedly returned as a one indexed array; */
           
-          try {
+        /*  try {
             console.log("This is the FINAL NON-AI FORM ___ : ", response2.response.candidates[0].content.parts[0].text);
             const parsedRes = JSON.parse(response2.response.candidates[0].content.parts[0].text);
             currentSubChapter = parsedRes[0];
@@ -1035,7 +1036,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
           } catch (e) {
             console.log(`Error Parsing Response2's JSON`);
             currentSubChapter = response2.response.candidates[0].content.parts[0].text;
-          }
+          } */
           
         
         
