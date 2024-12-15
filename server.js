@@ -109,6 +109,7 @@ let data = {
   pauseThreshold : 0,
   totalRequestsMade: 0,
   prevMainChatSessionTokens : 0,
+  current_chapter: 1,
   kdp_titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -140,10 +141,11 @@ let data = {
     Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex, transformative, profound, or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
-
+    
+    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null }
     `
   },
-  current_chapter: 1,
+  
   proModelErrors: 0,
   communicateWithApiError: 0,
   sampleChapter: function () {
@@ -401,14 +403,14 @@ let originalDataObj = deepCopyObj(data); // this should only copy once, until se
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function setUpNewChatSession(userInputData, prevHistory) {
+async function setUpNewChatSession(userInputData) {
     // Be careful calling this function, as it overrides the entire thing in mainChatSession
     if (!model) {
       model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
+      console.log("Current Chapter is ___ : Chapter-" + data.current_chapter)
     }
 
     mainChatSession = model.startChat({
-      history: prevHistory,
       safetySettings, 
       generationConfig }); // starts a new chat
   
@@ -420,17 +422,12 @@ async function setSecondaryChatSession(){
 
 – It's important for you to note that You are editing, not Paraphrasing. There's a huge difference between the two. Your Job is not to change the style of writing or words everywhere. Your job is to edit, just how a traditional book editor would; just correcting things that the writer asks for or that they found wrong with the work.
 
-– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text. Only the Redundant ones please.
+– For the text which shall be provided,  I shall Prompt you to identify all AI looking phrases, as have been pointed out by people regarding how they tend to know AI written works.
 
-– Next, I shall Prompt you to remove those Redundancy.
-  You shall then return the entire text I fed you in the non-redundant form.
-
-– Next, for the text which you just returned, I shall Prompt you to identify all AI looking phrases, paragraphs, words and sentences, as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
-
-- Lastly, You shall a be prompted to remove them and replace with non-ai sentences or phrases or words and also reduce the over use of metaphors in the text.
+- Lastly, You shall be prompted to remove them and replace with non-ai phrases.
 
 ## FINAL MANDATE
-Below is the initial instructions from the user; Try toir absolute best to keep to that writing scheme.
+Below is the initial instructions from the user from Primary Model; Try your absolute best to keep to that writing scheme.
   `
   const secondaryModel = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
@@ -461,7 +458,7 @@ app.post("/generate_book", async (req, res) => {
 
     userInputData.model = allowedModels.includes(userInputData.model)
       ? userInputData.model
-      : "gemini-1.5-flash-001";
+      : "gemini-1.5-flash-002";
 
     await setUpNewChatSession(userInputData); // This way, mainChatSession and model is accessible globally, as well as everything about them being reset on each new request
 
@@ -593,12 +590,12 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         
-        if (error.message.includes("Resource has been exhausted") && flag !== "secModel") {
+       /* if (error.message.includes("Resource has been exhausted") && flag !== "secModel") {
           
           // Archive ChatHistory at point before resource exhausted error
           data.historyArchive ? data.historyArchive.push(mainChatHistory) : data.historyArchive = [mainChatHistory];
           
-        }
+        } */
         
         /* 
         ## Create a new chatSession by overriding the main chatSession
@@ -610,7 +607,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
           data.secondaryChatSession = await setSecondaryChatSession();
           
         } else {
-          await setUpNewChatSession(data.userInputData, data.historyArchive[-1] /*Gets the last pushed history context*/) // true means the function to return the output
+          await setUpNewChatSession(data.userInputData /*, data.historyArchive[-1] /*Gets the last pushed history context*/) // true means the function to return the output
         }
         
 
@@ -990,16 +987,18 @@ async function generateChapters() {
             const refineMsg1 = `Hey there! For this Subchapter, let's begin now shall we? 
           Firstly, return a response in this array JSON schema;
           [
-'sentence 1', 'sentence 2', 'sentence 3', 'sentence 4'...'sentence n'
+'phrase 1', 'phrase 2', 'phrase 3', 'phrase 4'...'phrase n'
 ].
-What is your Job here? Identify all redundant sentences in the text below : \n ${currentSubChapter}
+What is your Job here? Identify all AI Phrases in the text below : \n ${currentSubChapter},
+
+in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'Imagine...', 'In conclusion...', 'incorporating', 'By...', 'Consider...', "Let's consider...",  etc.
           `;
           
          return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
         )
           } else if (callNo == 2) {
-            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}.
-            Your response schema shall be: ["a 1 index array containing the entire write-up in non-redundant form"]
+            const refineMsg2 = `Now, remove those such AI Phrases as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the AI Phrases you identified from the text here: \n ${currentSubChapter}.
+            Your response schema shall be: ["a 1 index array containing the entire write-up in non-AI Phrases form"]
             `;
             return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
         )
@@ -1022,19 +1021,20 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
         data.secondaryChatSession = await setSecondaryChatSession(); // Set a new SecondaryChatSession. This makes sure model output is quality, and that it keeps remembering the system Instructions as generation progresses.
         
           // call
-          let response1 = await refineSubChapter(1);
-          let response2 = await refineSubChapter(2, response1);
-          let response3 = await refineSubChapter(3, response2);
-          let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy.
-          // response4 is returned as a one index array
+           let response1 = await refineSubChapter(1); // Identify AI Sentences
+          let response2 = await refineSubChapter(2, response1); // Removes all AI Phrases
+        /*  let response3 = await refineSubChapter(3, response2);
+          let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy. */
+          // response2 is supposedly returned as a one indexed array;
+          
           try {
-            console.log("This is the FINAL NON-REDUNDANT FORM ___ : ", response4.response.candidates[0].content.parts[0].text);
-            const parsedRes = JSON.parse(response4.response.candidates[0].content.parts[0].text);
+            console.log("This is the FINAL NON-AI FORM ___ : ", response2.response.candidates[0].content.parts[0].text);
+            const parsedRes = JSON.parse(response2.response.candidates[0].content.parts[0].text);
             currentSubChapter = parsedRes[0];
             
           } catch (e) {
-            console.log(`Error Parsing Response4's JSON`);
-            currentSubChapter = response4.response.candidates[0].content.parts[0].text
+            console.log(`Error Parsing Response2's JSON`);
+            currentSubChapter = response2.response.candidates[0].content.parts[0].text;
           }
           
         
