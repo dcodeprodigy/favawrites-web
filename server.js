@@ -593,6 +593,13 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         
+        if (error.message.includes("Resource has been exhausted") && flag !== "secModel") {
+          
+          // Archive ChatHistory at point before resource exhausted error
+          data.historyArchive ? data.historyArchive.push(mainChatHistory) : data.historyArchive = [mainChatHistory];
+          
+        }
+        
         /* 
         ## Create a new chatSession by overriding the main chatSession
         
@@ -603,7 +610,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
           data.secondaryChatSession = await setSecondaryChatSession();
           
         } else {
-          await setUpNewChatSession(data.userInputData, mainChatHistory) // true means the function to return the output
+          await setUpNewChatSession(data.userInputData, data.historyArchive[-1] /*Gets the last pushed history context*/) // true means the function to return the output
         }
         
 
