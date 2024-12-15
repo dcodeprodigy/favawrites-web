@@ -416,18 +416,21 @@ async function setUpNewChatSession(userInputData, prevHistory) {
 
 async function setSecondaryChatSession(){
   const secondarySysInst = `
-  I am automating the process of writing a book. You are the secondary model. In this chat, I shall be feeding you with subchapters or entire chapters from the process. Here is your job when I feed you:
+  I am automating the process of writing a book. You are the secondary model. In this chat, I shall be feeding you with subchapters Here is your job when I feed you:
 
 – It's important for you to note that You are editing, not Paraphrasing. There's a huge difference between the two. Your Job is not to change the style of writing or words everywhere. Your job is to edit, just how a traditional book editor would; just correcting things that the writer asks for or that they found wrong with the work.
 
-– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text. 
+– You shall return a response as in the schema to be specified subsequently, Identifying redundant sentences or paragraphs, by including the redundant part in the JSON — As many redundant as seen in the sent text. Only the Redundant ones please.
 
-– Next, I shall Prompt you to remove those Redundancy. Here, You shall also edit to use more active voice, remove certain words and replace them, etc (as will be specified by user when asking to remove redundancy). 
+– Next, I shall Prompt you to remove those Redundancy.
   You shall then return the entire text I fed you in the non-redundant form.
 
 – Next, for the text which you just returned, I shall Prompt you to identify all AI looking phrases, paragraphs, words and sentences, as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', etc.
 
 - Lastly, You shall a be prompted to remove them and replace with non-ai sentences or phrases or words and also reduce the over use of metaphors in the text.
+
+## FINAL MANDATE
+Below is the initial instructions from the user; Try toir absolute best to keep to that writing scheme.
   `
   const secondaryModel = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
@@ -590,8 +593,12 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
         
-        // create a new chatSession by overriding the main chatSession
-        // But first check the flag Param to see if to create a new mainChatSession or secondaryChatSession
+        /* 
+        ## Create a new chatSession by overriding the main chatSession
+        
+        ## But first check the flag Param to see if to create a new mainChatSession or secondaryChatSession.
+        */
+        
         if (flag === "secModel") {
           data.secondaryChatSession = await setSecondaryChatSession();
           
@@ -984,13 +991,8 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
          return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
         )
           } else if (callNo == 2) {
-            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}. You are also going to : \n
-            1. Use more active voice
-            2. Enhance the flow between Paragraphs to be smooth
-            3. Instead of Individuals, use something like You, Your, Our – where necessary.
-            4. Add a touch of enthusiasm and Personal feel to the text where necessary.
-            \n
-            Your response schema should be: ["a 1 index array containing the entire write-up in non-redundant form"]
+            const refineMsg2 = `Now, remove those such redundancy as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the redundancy from the text here: \n ${currentSubChapter}.
+            Your response schema shall be: ["a 1 index array containing the entire write-up in non-redundant form"]
             `;
             return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
         )
@@ -1010,7 +1012,7 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
           };
           
         
-        data.secondaryChatSession ? null : data.secondaryChatSession = await setSecondaryChatSession();
+        data.secondaryChatSession = await setSecondaryChatSession(); // Set a new SecondaryChatSession. This makes sure model output is quality, and that it keeps remembering the system Instructions as generation progresses.
         
           // call
           let response1 = await refineSubChapter(1);
@@ -1019,7 +1021,7 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
           let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy.
           // response4 is returned as a one index array
           try {
-            
+            console.log("This is Response4___ : ", response4.response.candidates[0].content.parts[0].text);
             const parsedRes = JSON.parse(response4.response.candidates[0].content.parts[0].text);
             currentSubChapter = parsedRes[0];
             
