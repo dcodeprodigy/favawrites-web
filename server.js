@@ -1028,7 +1028,7 @@ What is your Job here? Identify all redundant sentences in the text below : \n $
           let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy.
           // response4 is returned as a one index array
           try {
-            console.log("This is Response4___ : ", response4.response.candidates[0].content.parts[0].text);
+            console.log("This is the FINAL NON-REDUNDANT FORM ___ : ", response4.response.candidates[0].content.parts[0].text);
             const parsedRes = JSON.parse(response4.response.candidates[0].content.parts[0].text);
             currentSubChapter = parsedRes[0];
             
