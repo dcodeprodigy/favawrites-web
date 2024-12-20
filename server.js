@@ -99,9 +99,9 @@ const generationConfig = {
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
-  responseMimeType: "application/json"
+  responseMimeType: "application/json",
   // presencePenalty: 1.5,
-//  frequencyPenalty: 1.2
+  frequencyPenalty: 0.8
 };
 
 let data = {
@@ -454,7 +454,7 @@ app.post("/generate_book", async (req, res) => {
     data.userInputData = userInputData;
     data.res = res;
 
-    const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest"];
+    const allowedModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-flash-latest", "gemini-2.0-flash-exp"];
 
     userInputData.model = allowedModels.includes(userInputData.model)
       ? userInputData.model
@@ -573,7 +573,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         
-        console.log(`THIS IS THE USAGEMETADATA$___ : ${res.response.usageMetadata.totalTokenCount}`);
+        console.log(`THIS IS THE USAGEMETADATA___ : ${res.response.usageMetadata.totalTokenCount}`);
 
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
@@ -800,6 +800,7 @@ async function generateChapters() {
     if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
       let currentChapSubch = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
       console.table(currentChapSubch);
+      
       for (const [index, item] of currentChapSubch.entries()) {
        // currentChapterText = ""; // reset from the last subchapter generation
 
@@ -895,6 +896,18 @@ async function generateChapters() {
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
 	      Also, this is the table of contents (toc) we are working with, just so you don't forget what we are currently working with => "${JSON.stringify(finalReturnData.firstReq.toc)}"
+	      
+	      Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works.
+	      
+	      Also, remember the amount of times you said i should prompt you and NEVER try to Conclude when we are not at the last time for prompting you for a particular Subchapter. The only time you're concluding anything for a Subchapter is at the last time of promoting for the Subchapter. With that, Never you include the following phrases in a conclusion – Phrases beginning with :
+	      1. "By incorporating"
+	      2. Anything beginning with the word "By" should never be in your conclusion
+	      3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi colons ";" and dash "–". This will help mimic human written works
+	      4. When writing, whether in conclusion or not, strictly avoid writing like this – "This is not just about<inserts phrase>; It's about<Inserts phrase>" This ensures that you are not giving out AI written works. instead you can try something like – "This is about<inserts phrase> rather than<inserts phrase>"
+	      5. Whether in your conclusion or not, STRICTLY AVOID the use of the word "Remember". For example, stop writing things like "Remember, this isn't just about<phrase>; it's about<phrase>". I don't want to see such AT ALL as ut reeks of AI generated content.
+	      6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
+	      7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
+	      8. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
               `));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
