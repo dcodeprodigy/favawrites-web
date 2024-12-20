@@ -36,6 +36,7 @@ const htmlComponents = {
             <option value="gemini-1.5-flash-001" selected="">Gemini-1.5-flash-001</option>
             <option value="gemini-1.5-flash-002">Gemini-1.5-flash-002</option>
             <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+            <option value="gemini-2.0-flash-exp">Gemini-2.0-Flash-Exp</option>
         </select>
 
         <label for="bookTone">Book Tone</label>
