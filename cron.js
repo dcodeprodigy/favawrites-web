@@ -8,7 +8,7 @@ const job = new cron.CronJob("*/14 * * * *", function () {
         if (res.statusCode >= 200 && res.statusCode < 300) { // Checks for success status codes (2xx range)
             
         } else {
-            console.error(`Failed to ping server with status code ${res.statusCode}`);
+            console.error(`Failed to ping server (${backendUrl}) – Status Code ${res.statusCode}`);
         }
     })
         .on("error", (err) => {
