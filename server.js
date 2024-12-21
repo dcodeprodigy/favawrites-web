@@ -1491,7 +1491,7 @@ You shall return an array json using this schema below as the template for this 
 
 async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
-  const modelSelected = retries >= 1 ? "gemini-1.5-pro" : "gemini-1.5-flash";
+  const modelSelected = retries >= 1 ? "gemini-2.0-flash-thinking-exp-1219" : "gemini-1.5-pro"; // Gemini 1.5 Pro Npw the Base for Fixing Bad JSON
   console.log(`Selected ${modelSelected}`);
 
 const fixerSchema = {
@@ -1513,7 +1513,7 @@ const fixerSchema = {
   }
 
   const generationConfig = {
-    temperature: 0.6,
+    temperature: 0.7,
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
@@ -1557,7 +1557,7 @@ just so you know your response schema is ${JSON.stringify(fixerSchema)}.`
     if (error.message.includes("Resource has been exhausted")) {
       // change the model back to gemini flash
       return fixJsonWithPro(fixMsg, retries = 0);
-    } else if (retries < 5) {
+    } else if (retries < 8) {
       console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
 
       const delayMs = modelDelay.pro;
