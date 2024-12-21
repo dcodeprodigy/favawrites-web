@@ -1,7 +1,7 @@
 const cron = require("cron");
 const https = require("https");
 
-const backendUrl = "https://favawrites.onrender.com"; 
+const backendUrl = "https://favawrites-alt.onrender.com"; // TODO : Edit this URL to reflect the active site we're running on
 
 const job = new cron.CronJob("*/14 * * * *", function () {
     https.get(backendUrl, (res) => {
