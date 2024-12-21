@@ -914,7 +914,7 @@ async function generateChapters() {
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
               chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
-	     i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
+	   //  i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
               // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
 
               // currentChapterText.concat(getSubChapterCont.content); // Save to context
