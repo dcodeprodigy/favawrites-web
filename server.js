@@ -95,13 +95,13 @@ const modelDelay = {
 }
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.9,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
  // presencePenalty: 0.3,
-  frequencyPenalty: 0.2
+//  frequencyPenalty: 0.2
 };
 
 let data = {
