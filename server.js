@@ -404,6 +404,7 @@ let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 async function setUpNewChatSession(userInputData) {
+    console.log("SPIN-UP: Creating a New Model Chat Session...");
     // Be careful calling this function, as it overrides the entire thing in mainChatSession
     if (!model) {
       model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
