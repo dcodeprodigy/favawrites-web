@@ -101,7 +101,7 @@ const generationConfig = {
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
  // presencePenalty: 0.3,
-  frequencyPenalty: 0.4
+  frequencyPenalty: 0.2
 };
 
 let data = {
