@@ -1563,6 +1563,8 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   const modelSelected = "gemini-2.0-flash-thinking-exp-1219";
   
   console.log(`Selected ${modelSelected}`);
+  
+  console.log("Json to be fixed is ___" , fixMsg)
 
 const fixerSchema = {
     description: "Fixed JSON Response", // Description of the schema
@@ -1619,9 +1621,9 @@ Just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't t
   try {
 	  console.log("Initial Error Identified is : " + errMsg);
 	  
-    errMsg !== 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
+    errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
     
-    const fixedRes = await jsonFixer.sendMessage(`This us the JSON You are to fix: \n \n ${fixMsg}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`This is the JSON You are to fix: \n \n ${fixMsg}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
     
