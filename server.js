@@ -1623,11 +1623,11 @@ Just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't t
 	  
     errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
     
-    const fixedRes = await jsonFixer.sendMessage(`This is the JSON You are to fix: \n \n ${fixMsg}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
     
-    let firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text); // get the text/plain response. This is because Experimental Models don't output JSON.
+    let firstStageJson = fixedRes.response.candidates[0].content.parts[0].text; // get the text/plain response. This is because Experimental Models don't output JSON.
     
     console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);  
     
