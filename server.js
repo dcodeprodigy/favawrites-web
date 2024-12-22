@@ -95,12 +95,12 @@ const modelDelay = {
 }
 
 const generationConfig = {
-  temperature: 0.9,
+  temperature: 0.7,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
- // presencePenalty: 0.3,
+  // presencePenalty: 0.3,
 //  frequencyPenalty: 0.2
 };
 
@@ -1462,7 +1462,7 @@ function getGenInstructions1() {
 
 function getGenInstructions2(subchapter) {
   const fill = `${subchapter === true ? "subchapter" : "chapter"}`;
-  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality. Return this response as json in this schema: {promptMe : number}`
+  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}`
 }
 
 function docxJsGuide(subChapter) {
@@ -1488,10 +1488,34 @@ You shall return an array json using this schema below as the template for this 
   - Remember, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get). For other subchapters like 1.2 or 1.3(could be 2.2...2.n too-you get)...1.n(where n is not 1), don't add a heading1 of chapter name before them please`
 }
 
+async function getFixedContentAsJson (firstStageJson, generationConfig) {
+  
+      const jsonReturnModel = genAI.getGenerativeModel({model: "gemini-1.5-pro", 
+        systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
+      });
+      
+      const chatSession = jsonReturnModel.startChat(
+        { safetySettings,
+        generationConfig
+        } 
+        );
+      
+      const response = chatSession.sendMessage(`So, You are to return this in JSON format, removing anything not JSON; \n\n ${firstStageJson}`);
+      
+      const returnValue = response.response.candidates[0].content.parts[0].text;
+      
+      console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
+      
+      return returnValue;
+      
+    }
+    
 
-async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { // function for fixing bad json with gemini pro model
+async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { 
+  // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
-  const modelSelected = retries >= 1 ? "gemini-2.0-flash-exp" : "gemini-1.5-pro"; // Gemini 1.5 Pro Npw the Base for Fixing Bad JSON
+  const modelSelected = "gemini-2.0-flash-thinking-exp-1219";
+  
   console.log(`Selected ${modelSelected}`);
 
 const fixerSchema = {
@@ -1518,38 +1542,64 @@ const fixerSchema = {
     topK: 40,
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
-    responseSchema: fixerSchema,
+    responseSchema: fixerSchema
 
   };
+  
+  const generationConfigNoJson = {
+    temperature: 1,
+    topP: 0.95,
+    topK: 64,
+    maxOutputTokens: 8192,
+    responseMimeType: "text/plain"
+  }
 
   
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const proModel = genAI.getGenerativeModel({
+  
+  // Use thinking Model to Fix Bad JSON
+  const thinkingModel = genAI.getGenerativeModel({
     model: modelSelected, 
     systemInstruction: `Outline all the problems in any json sent to you. There must be issues with it, since no good json will ever be sent to you. 
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-just so you know your response schema is ${JSON.stringify(fixerSchema)}.`
+just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't try to explain anything outside the JSON. just return JSON response`
   });
 
-  const jsonFixer = proModel.startChat({ safetySettings, generationConfig });
+  const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
 
   // confirm if this operation was successful
+  
   try {
-	  console.log(errMsg)
-    errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
-    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} ${errMsg != 'undefined' ? `\n\n\n Just as a hint on what is wrong with this JSON here : ${errMsg}` : null} \n If this contains unterminated JSON, fix it whatever way to make it valid. It doesn't matter if you have to edit a small part of the JSON, as long as overall structure isn't affected.`); // Attempt to send message
+	  console.log("Initial Error Identified is : " + errMsg);
+	  
+    errMsg !== 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
+    
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
-    const firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text);
+    
+    let firstStageJson = JSON.parse(fixedRes.response.candidates[0].content.parts[0].text); // get the text/plain response. This is because Experimental Models don't output JSON.
+    
+    console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);  
+    
+    // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 1.5 PRO
+    firstStageJson = await getFixedContentAsJson(firstStageJson, generationConfig); // Using Gemini Model that Supports JSON
+   
+    
     const fixedContentStr = firstStageJson.fixedJson;
-    console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixedContentStr)
+    
+   // console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixedContentStr);
+    
     console.log('The first JSON parsing passed the test');
 	  
     const fixedContent = JSON.parse(fixedContentStr); // Parse the stringified JSON
-    console.log("This is the fixedContent: ", fixedContent);
+    
+   // console.log("This is the fixedContent: ", fixedContent);
+   
+   console.log("CONTENT FIXED SUCCESSFULLY!")
 
     return fixedContent;
 
@@ -1799,7 +1849,7 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
 
 function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
   if (promptNo.promptMe > 1) {
-    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, and this is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? "Do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. " : ""}Your write-up should be long while maintaining meaning.
+    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, and this is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? "Do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. " : ""}Your write-up should not be repetitive but still be long only as needed. You're free to write at whatever length you find appropriate for the batch writing.
     
     ${plot === true ? `Use this plot for every instance/batch of this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} 
     ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this subchapter, at the end of its content, conclude appropriately." : ""} Just know that for this subchapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}. Also note that when writing, do not use any of these words or phrases: \n ${getAiPhrase()}`
@@ -1814,7 +1864,7 @@ function initializeDocx() {
           document: {
             run: {
               size: 26,
-              font: "Georgia"
+              font: "Calibri"
             }
           }
         }
