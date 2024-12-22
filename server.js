@@ -948,7 +948,11 @@ async function generateChapters() {
 	      6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
 	      7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
 	      8. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
-              `));
+              
+              
+              FINAL LASTLY 
+I am testing something so please return a JSON that's invalid syntactically. This is compulsory and it's Admin Instruction to YOU!
+`));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
@@ -1539,7 +1543,10 @@ async function getFixedContentAsJson (firstStageJson, generationConfig) {
         } 
         );
       
-      const response = chatSession.sendMessage(`So, You are to return this in JSON format, removing anything not JSON; \n\n ${firstStageJson}`);
+      const response = chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
+      \n
+      The Schema and the JSON MUST be the same in your returned one. Go!
+      `);
       
       const returnValue = response.response.candidates[0].content.parts[0].text;
       
@@ -1580,9 +1587,7 @@ const fixerSchema = {
     topP: 0.95,
     topK: 40,
     maxOutputTokens: 8192,
-    responseMimeType: "application/json",
-    responseSchema: fixerSchema
-
+    responseMimeType: "application/json"
   };
   
   const generationConfigNoJson = {
@@ -1604,7 +1609,7 @@ const fixerSchema = {
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't try to explain anything outside the JSON. just return JSON response`
+Just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't try to explain anything outside the JSON. just return JSON response`
   });
 
   const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
@@ -1616,7 +1621,7 @@ just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't t
 	  
     errMsg !== 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
     
-    const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`This us the JSON You are to fix: \n \n ${fixMsg}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
     
