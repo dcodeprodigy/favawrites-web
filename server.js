@@ -467,8 +467,13 @@ app.post("/generate_book", async (req, res) => {
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
-
-    console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
+      
+      try {
+        console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
+      } catch (e) {
+        console.error("An Error Occurred while Counting TOKENS => ", e);
+      }
+    
 
     const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
@@ -776,14 +781,20 @@ async function generateChapters() {
   async function countTokens(req, responseObj) {
     let tokens;
     const mainChatHistory = await mainChatSession.getHistory()
-    if (req === "total" && mainChatHistory.length > 0) {
-      tokens = await model.countTokens({
+    if (req === "total") {
+      
+      try {
+        tokens = await model.countTokens({
         generateContentRequest: { contents: mainChatHistory },
       });
+      } catch (e) {
+        console.error("Error Counting Tokens at countTokens func, with 'total' param: ", e);
+      }
+      
     } else if (responseObj) {
       tokens = responseObj.response.usageMetadata
     }
-    return tokens || "No Tokens Detected"
+    return tokens
   }
 
   for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
@@ -814,7 +825,7 @@ async function generateChapters() {
           console.log("Error while getting prompt number: " + error);
         }
 
-        console.log(`usageMetadata for promptNo: ${await countTokens(promptNo)}`);
+        console.log(`usageMetadata for promptNo: ${await countTokens(undefined, promptNo)}`);
 
         try {
           let attemptPromptNoParse = JSON.parse(promptNo.response.candidates[0].content.parts[0].text.trim());
