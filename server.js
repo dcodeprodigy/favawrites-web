@@ -821,8 +821,8 @@ async function generateChapters() {
 
 
   for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
-    let tokens = await countTokens("total");
-    console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
+  //  let tokens = await countTokens("total"); // TODO: This give errors. it's probably not important
+   // console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
 
     // currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
     // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
