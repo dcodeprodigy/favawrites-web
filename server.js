@@ -1491,7 +1491,7 @@ You shall return an array json using this schema below as the template for this 
 
 async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
-  const modelSelected = retries >= 1 ? "gemini-2.0-flash-thinking-exp-1219" : "gemini-1.5-pro"; // Gemini 1.5 Pro Npw the Base for Fixing Bad JSON
+  const modelSelected = retries >= 1 ? "gemini-2.0-flash-exp" : "gemini-1.5-pro"; // Gemini 1.5 Pro Npw the Base for Fixing Bad JSON
   console.log(`Selected ${modelSelected}`);
 
 const fixerSchema = {
