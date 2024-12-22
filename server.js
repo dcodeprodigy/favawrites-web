@@ -780,22 +780,45 @@ async function generateChapters() {
   
   async function countTokens(req, responseObj) {
     let tokens;
-    const mainChatHistory = await mainChatSession.getHistory()
-    if (req === "total") {
+    let mainChatHistory;
+    let getHistoryErr = true; // assume there's going to be an error
+    
+    while (getHistoryErr === true) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       try {
+      mainChatHistory = await mainChatSession.getHistory();
+      getHistoryErr = false; // No error. Therefore, change to false
+    } catch (e) {
+      console.log("Error Getting History: ", e);
+    }
+    }
+    
+    
+    
+    if (req === "total") {
+      let countTokensErr = true;
+      
+      while (countTokensErr === true) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        try {
         tokens = await model.countTokens({
         generateContentRequest: { contents: mainChatHistory },
       });
+      countTokensErr = false;
       } catch (e) {
         console.error("Error Counting Tokens at countTokens func, with 'total' param: ", e);
       }
+      }
+      
       
     } else if (responseObj) {
       tokens = responseObj.response.usageMetadata
     }
-    return tokens
+    return tokens;
   }
+
 
   for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
     let tokens = await countTokens("total");
@@ -864,7 +887,7 @@ async function generateChapters() {
 
         console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
 
-        console.log(`usageMetadata for writingPattern: ${await countTokens(writingPatternRes)}`);
+        console.log(`usageMetadata for writingPattern: ${await countTokens(undefined, writingPatternRes)}`);
 
 
         try {
@@ -901,9 +924,14 @@ async function generateChapters() {
             let chapterText;
 
             try {
-              const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
+              try {
+                const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
               
               console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
+              } catch (e) {
+                console.error("Count Tokens Error___ ", e)
+              }
+              
               
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
