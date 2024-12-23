@@ -1535,7 +1535,7 @@ You shall return an array json using this schema below as the template for this 
 
 async function getFixedContentAsJson (firstStageJson, generationConfig) {
   
-      const jsonReturnModel = genAI.getGenerativeModel({model: "gemini-1.5-pro", 
+      const jsonReturnModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp", 
         systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
       });
       
