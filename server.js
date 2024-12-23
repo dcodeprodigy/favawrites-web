@@ -1014,14 +1014,21 @@ async function generateChapters() {
                   setTimeout(async () => {
                     data.chapterErrorCount++;
                     console.log("Trying to Fix JSON...");
-                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText}}`;
+                    let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText}
+                    As a Hint, this is what the linter said is wrong with it : ${error}`;
+                    
                     let result = await fixJsonWithPro(fixMsg);
                     resolve(result);
                   }, ms);
+                  
                 });
               };
 
-              let response = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property
+              let response = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property. 
+              // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
+              if (response === "RetrySignal") {
+                // Retry the Request? omo
+              }
 
               const content = response.content;
               currentChapterText = currentChapterText.concat(content);
@@ -1562,10 +1569,10 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
   const modelSelected = "gemini-2.0-flash-thinking-exp-1219";
   
-  console.log(`Selected ${modelSelected}`);
+//  console.log(`Selected ${modelSelected}`);
   
-  console.log("Json to be fixed is ___" , fixMsg)
-
+ //  console.log("Json to be fixed is ___" , fixMsg)
+ 
 const fixerSchema = {
     description: "Fixed JSON Response", // Description of the schema
     type: "OBJECT", // The top-level type is OBJECT
@@ -1655,9 +1662,13 @@ Just so you know your response should be jn the schema of the JSON initially giv
       console.log(`This is error.message ${error.message}`);
 
       return fixJsonWithPro(fixMsg, retries + 1, error.message); // Recursive retry
-    } else {
-      console.error("Failed to fix JSON after multiple retries:", error);
-      throw error; 
+    } else { 
+      // Send an Error Message to Calling Function and Have it Retry the Request Afresh
+      
+      console.error("Failed to fix JSON after multiple retries:", error, "Resending the Message for Initial Content Generation");
+      
+      return "RetrySignal"
+      
     }
   }
 }
