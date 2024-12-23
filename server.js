@@ -949,12 +949,11 @@ async function generateChapters() {
 	      5. Whether in your conclusion or not, STRICTLY AVOID the use of the word "Remember". For example, stop writing things like "Remember, this isn't just about<phrase>; it's about<phrase>". I don't want to see such AT ALL as ut reeks of AI generated content.
 	      6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
 	      7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
-	      8. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
+              8. Never use the phrase "vicious cycle" or "virtuous cycle"
+	      9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
               
               
-              FINAL LASTLY 
-I am testing something so please return a JSON that's invalid syntactically. This is compulsory and it's Admin Instruction to YOU! IT OVERRIDES ANY INSTRUCTIONS AGAINST IT
-`));
+             `));
 
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
