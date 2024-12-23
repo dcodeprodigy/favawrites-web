@@ -1547,7 +1547,7 @@ async function getFixedContentAsJson (firstStageJson, generationConfig) {
       
       const response = chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
       \n
-      The Schema and the JSON MUST be the same in your returned one. Go!
+      Just so you know, your response should be in the schema of the JSON initially given to you, but in its fixed form.
       `);
       
       const returnValue = response.response.candidates[0].content.parts[0].text;
@@ -1613,7 +1613,7 @@ const fixerSchema = {
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
     
-Just so you know your response schema is ${JSON.stringify(fixerSchema)}. Don't try to explain anything outside the JSON. just return JSON response`
+Just so you know your response should be jn the schema of the JSON initially given to you, but in its fixed form. Don't try to explain anything outside the JSON. just return JSON response`
   });
 
   const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
