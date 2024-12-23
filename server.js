@@ -1544,7 +1544,7 @@ async function getFixedContentAsJson (firstStageJson, generationConfig) {
         } 
         );
       
-      const response = chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
+      const response = await chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
       \n
       Just so you know, your response should be in the schema of the JSON initially given to you, but in its fixed form.
       `);
