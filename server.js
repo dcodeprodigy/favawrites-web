@@ -477,7 +477,7 @@ app.post("/generate_book", async (req, res) => {
       }
     
 
-    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
@@ -1527,7 +1527,7 @@ You shall return an array json using this schema below as the template for this 
   - When you are just beginning every new chapter, it is absolutely important to add the chapter title as heading1.
 
   - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was something like - ('...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring...') - The bracketed here means I am just giving you instructions. Do not go including that in the book.
-
+g
   - Also, for each prompt I am giving you on each subchapter, You are not returning the same write up. That just leads to redundancy.
   Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book.
   - Remember, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get). For other subchapters like 1.2 or 1.3(could be 2.2...2.n too-you get)...1.n(where n is not 1), don't add a heading1 of chapter name before them please`
@@ -1538,7 +1538,6 @@ async function getFixedContentAsJson (firstStageJson, generationConfig) {
       const jsonReturnModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp", 
         systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
       });
-      
       const chatSession = jsonReturnModel.startChat(
         { safetySettings,
         generationConfig
