@@ -1634,15 +1634,8 @@ Just so you know your response should be jn the schema of the JSON initially giv
     
     // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 1.5 PRO
     firstStageJson = await getFixedContentAsJson(firstStageJson, generationConfig); // Using Gemini Model that Supports JSON
-   
-    
-    const fixedContentStr = firstStageJson.fixedJson;
-    
-   // console.log("In case of an unterminated error, inspect this firstStageJson.fixedJson: ", fixedContentStr);
-    
-    console.log('The first JSON parsing passed the test');
-	  
-    const fixedContent = JSON.parse(fixedContentStr); // Parse the stringified JSON
+
+    const fixedContent = firstStageJson; // Parse the stringified JSON
     
    // console.log("This is the fixedContent: ", fixedContent);
    
