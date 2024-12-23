@@ -1549,7 +1549,7 @@ async function getFixedContentAsJson (firstStageJson, generationConfig) {
       Just so you know, your response should be in the schema of the JSON initially given to you, but in its fixed form.
       `);
       
-      const returnValue = response.response.candidates[0].content.parts[0].text;
+      const returnValue = JSON.parse(response.response.candidates[0].content.parts[0].text);
       
       console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
       
