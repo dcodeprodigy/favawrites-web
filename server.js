@@ -410,8 +410,10 @@ async function setUpNewChatSession(userInputData) {
     // Be careful calling this function, as it overrides the entire thing in mainChatSession
     if (!model) {
       model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
-      console.log("Current Chapter is ___ : Chapter-" + data.current_chapter)
+      
     }
+
+    console.log("Current Chapter is ___ : Chapter-" + data.current_chapter)
 
     mainChatSession = model.startChat({
       safetySettings, 
@@ -1481,6 +1483,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
 
 
       } // end of docxCode function
+    console.log(`Just Ended Chapter ${data.current_chapter}`
 
     } // end of each chapter
 
