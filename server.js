@@ -1483,7 +1483,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
 
 
       } // end of docxCode function
-    console.log(`Just Ended Chapter ${data.current_chapter}`
+    
 
     } // end of each chapter
 
@@ -1493,7 +1493,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
 
 
-    console.log(`Done with chapter ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
+    console.log(`DONE WITH CHAPTER ___: ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
 
     if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
       console.log("Data.docx shall be created");
