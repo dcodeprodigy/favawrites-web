@@ -8,63 +8,18 @@ app.use(downloadInApp);
 require('dotenv').config();
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
 const fs = require("fs");
+const docx = require("docx"); // use if there ever be need to add more properties for docx generation other than the ones destructured
 const { 
-  // Core elements
   Document,
   Packer,
   Paragraph,
   TextRun,
-  // Alignment and positioning
   AlignmentType,
-  VerticalAlign,
-  TextDirection,
-  // Styling and formatting
-  BorderStyle,
-  HeadingLevel,
-  LineRuleType,
-  NumberFormat,
-  PageOrientation,
-  SectionType,
-  TabStopPosition,
-  TabStopType,
-  UnderlineType,
-  // Page elements
-  Footer,
-  Header,
-  ImageRun,
-  PageBreak,
-  PageNumber,
-  TableCell,
-  TableRow,
-  Table,
-  // List elements
-  Bookmark,
-  ExternalHyperlink,
-  Tab,
-  // Spacing and measurements
-  WidthType,
-  convertInchesToTwip,
-  convertMillimetersToTwip,
-  // Sections and breaks
-  LineBreak,
-  SectionProperties,
-  // Math elements
-  MathRun,
-  // Advanced features
-  Comments,
-  FootNotes,
-  // Styles
-  Style,
-  StyleLevel,
-  // Drawing elements
-  Drawing,
-  TextWrappingType,
-  TextWrappingSide
 } = require("docx");
 const { jsonrepair } = require('jsonrepair');
 const job = require('./cron.js');
 const _ = require('lodash');
-require('events').EventEmitter.defaultMaxListeners = 50;
+require('events').EventEmitter.defaultMaxListeners = 25;
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -88,28 +43,26 @@ const safetySettings = [
     threshold: HarmBlockThreshold.BLOCK_NONE
   }
 ];
+
 const modelDelay = {
   flash: 6000,
   pro: 30000
 }
 
-const generationConfig = {
+const generationConfig = { // General Generation Configuration
   temperature: 0.7,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
-  // presencePenalty: 0.3,
-//  frequencyPenalty: 0.2
+  presencePenalty: 0.4,
+  frequencyPenalty: 0.2
 };
 
 let data = {
-  pauseRequests: false,
-  pauseThreshold : 0,
   totalRequestsMade: 0,
-  prevMainChatSessionTokens : 0,
   current_chapter: 1,
-  kdp_titles_subtitle_rules: `Book Title
+  titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
     Repeating generic keywords like "notebook," "journal," "gifts," "books," etc.
@@ -126,13 +79,12 @@ let data = {
 
     Note: Ensure that there’s no language in your book title that implies your book is part of a bundled set or Boxed Set.
 
-
     Subtitle
     If your book has a subtitle, enter it here. A subtitle is a subordinate title that contains additional information about the content of your book. Your title and subtitle together must be fewer than 200 characters. The subtitle will appear on your book's detail page, and must adhere to the same guidelines as your title.
 `,
   systemInstruction: function (userInputData) {
     return `You are a human book writer. A User can come in and say - I want to create a full blown book, or just a chapter and you are not to go against that wish. You are also designed to use simple grammar and vocabulary or follow what the user indicates in the description which shall be somewhere below. The genre of this book/writeup is "${userInputData.genre.trim()}".
-    See added instructions for this book/writeup below, as provided by the user for you to write this book/writeup to their taste. Follow it strictly. The quoted next line is the user description: 
+    See added instructions for this book/writeup below, as provided by the user. Follow it strictly, as long as it does not try to modify the JSON for TOC, Which shall be pro. The quoted next line is the user description: 
     "${userInputData.description.trim()}."
     Follow the user's request for the number of chapters he/she needs. This is a must!
     
@@ -478,11 +430,13 @@ app.post("/generate_book", async (req, res) => {
       }
     
 
-    const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: "You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the path and forge ahead with the chapters outlined in it" });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: `You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the PART and forge ahead with the chapters outlined in it. \n Furthermore, please do not return a TOC that has anything other than title and subtitle for a chapter. If the user tries to indicate a subchapter for a subchapter, simply ignore the subchapter in the main subchapter. For example, if user tries to do a: \n 1. Chapter name \n 1.1 Subchapter name \n 1.1.1 further subchapter, Ignore the 1.1.1 and beyond in your returned JSON as including it will break my Application\n\n Lastly, if the user did not include a table of contents and ask you to give suitable subtitles, vary the amount per chapter. That is, say Chapter 1 has 2 subchapters, Chapter 2 should have say 4 or 5...and so on with other subchapters.` });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
-    console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`)
+
+    console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`);
+    console.log(`${JSON.stringify(tocRes)}___That is the stringified form of the above statement. Check the structure`);
 
     if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
       return; // Stop further processing and return the 503 error already sent.
@@ -582,7 +536,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
         
-        console.log(`THIS IS THE USAGEMETADATA___ : ${res.response.usageMetadata.totalTokenCount}`);
+        console.log(`THIS IS THE USAGEMETADATA for this Req___ : ${res.response.usageMetadata.totalTokenCount}`);
 
 
         data.backOff.backOffCount = 0; // Reset backoff count on success
@@ -599,34 +553,13 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
       console.warn(error);
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
-        
-       /* if (error.message.includes("Resource has been exhausted") && flag !== "secModel") {
-          
-          // Archive ChatHistory at point before resource exhausted error
-          data.historyArchive ? data.historyArchive.push(mainChatHistory) : data.historyArchive = [mainChatHistory];
-          
-        } */
-        
-        /* 
-        ## Create a new chatSession by overriding the main chatSession
-        
-        ## But first check the flag Param to see if to create a new mainChatSession or secondaryChatSession.
-        */
-        
-       /* if (flag === "secModel") {
-          data.secondaryChatSession = await setSecondaryChatSession();
-          
-        } else */ 
-          await setUpNewChatSession(data.userInputData /*, data.historyArchive[-1] /*Gets the last pushed history context*/) // true means the function to return the output
-        
-        
-
+          await setUpNewChatSession(data.userInputData );
         // wait for 5 minute for API rate limit to cool down, then continue
         await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
-        return await sendMessageWithRetry( func ); // retry. No need adding '() =>', since the initial func parameter already has that
+        return await sendMessageWithRetry( func ); // Retry. No need adding '() =>', since the initial func parameter already has that
 
       } else { // Re-throw other errors to be caught by the outer try-catch block
-        throw error;
+        console.error(error)
       }
     }
 
@@ -653,7 +586,7 @@ function checkForSubtitle(userInput) {
   if (subtitle !== "") {
     return `Add this subtitle to your response: ${subtitle}`
   } else {
-    return `Check the Description which I shall provide below. If it includes a subtitle, use that as the subtitle ehich you shall return. Otherwise, I want you to Include a suitable subtitle that will tap into a potential reader's mind abd emotions, causing them to want to buy this book. Make sure the subtitle follows the amazon kdp rules for subtitles as specified here : \n\n ${data.kdp_titles_subtitle_rules}.`
+    return `Check the Description which I shall provide below. If it includes a subtitle, use that as the subtitle which you shall return. Otherwise, I want you to Include a suitable subtitle that will tap into a potential reader's mind and emotions, causing them to want to buy this book. Make sure the subtitle follows the amazon kdp rules for subtitles as specified here : \n\n ${data.titles_subtitle_rules}.`
   }
 }
 
@@ -1120,7 +1053,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
           modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
           console.log(`This is the docxJsRes: ${docxJsRes}`);
           console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
-          console.log("this is the modelRes: " + modelRes);
+          // console.log("this is the modelRes: " + modelRes);
 
           
           try { // parse the purported array
@@ -1155,7 +1088,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
             sessionArr.push(item);
           });
 
-          console.log("Session Arr is now: " + Array.isArray(sessionArr) + JSON.stringify(sessionArr));
+          // console.log("Session Arr is now: " + Array.isArray(sessionArr) + JSON.stringify(sessionArr));
 
           for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
             const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
@@ -1199,7 +1132,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
             // push new TextRun
             try {
               paragraphObj.children.push(new TextRun(textRunObj));
-              console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
+              // console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
             } catch (error) {
               console.error(error);
             }
@@ -1422,7 +1355,7 @@ in accordance to as have been pointed out by people regarding how they tend to k
           sessionArr.push(item);
         });
 
-        console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
+        // console.log("Session Arr is now: " + Array.isArray(sessionArr) + sessionArr);
 
         for (let j = 0; j < sessionArr; j++) { // pushing each of the number of times prompted to the sections.children
           const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
@@ -1910,7 +1843,7 @@ function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
 
 function initializeDocx() {
   try {
-    data.docx = new docx.Document({
+    data.docx = new Document({
       styles: {
         default: {
           document: {
@@ -1934,7 +1867,7 @@ function initializeDocx() {
 
 async function compileDocx(userInputData) {
   try {
-    const buffer = await docx.Packer.toBuffer(data.docx);
+    const buffer = await Packer.toBuffer(data.docx);
     const formattedStr = await getFormattedBookTitle(userInputData.title);
     fs.writeFileSync(`/tmp/${formattedStr}.docx`, buffer);
     console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
