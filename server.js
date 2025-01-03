@@ -2,12 +2,11 @@
 const express = require('express');
 const app = express();
 const path = require('path');
-// const cors = require('cors');
 const bodyParser = require('body-parser');
 const downloadInApp = require('./downloadInApp');
 app.use(downloadInApp);
 require('dotenv').config();
-const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory, SchemaType, } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
 const fs = require("fs");
 const { 
   // Core elements
@@ -1911,7 +1910,7 @@ function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
 
 function initializeDocx() {
   try {
-    data.docx = new Document({
+    data.docx = new docx.Document({
       styles: {
         default: {
           document: {
@@ -1924,7 +1923,7 @@ function initializeDocx() {
       },
       sections: data.populatedSections
     })
-    console.log(`Initialized! This is type of data.docx: ${typeof (data.docx)}`);
+    console.log(`Initialized Document Object! 🎉`);
 
 
   } catch (error) {
@@ -1934,15 +1933,19 @@ function initializeDocx() {
 
 
 async function compileDocx(userInputData) {
-  Packer.toBuffer(data.docx).then((buffer) => {
-    const formattedStr = getFormattedBookTitle(userInputData.title)
+  try {
+    const buffer = await docx.Packer.toBuffer(data.docx);
+    const formattedStr = await getFormattedBookTitle(userInputData.title);
     fs.writeFileSync(`/tmp/${formattedStr}.docx`, buffer);
-    console.log(`Document created successfully`);
+    console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
     return formattedStr;
-  });
-};
+  } catch (error) {
+    console.error("Error While Compiling Docx File ", error);
+  }
+  
+}
 
-function getFormattedBookTitle(title){
+async function getFormattedBookTitle(title){
   let formattedStr = "";
   const lowercaseStr = title.toLowerCase();
   const newStrArr = lowercaseStr.split(" ");
