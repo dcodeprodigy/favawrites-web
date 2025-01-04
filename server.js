@@ -1444,7 +1444,7 @@ function getGenInstructions1() {
 
 function getGenInstructions2(subchapter) {
   const fill = `${subchapter === true ? "subchapter" : "chapter"}`;
-  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}`
+  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}. Please, be conservative in this number, as you already write more in one prompt sent. I hate repetition so, make sure to calculate how long this chapter needs to be before setting a promptMe value`
 }
 
 function docxJsGuide(subChapter) {
