@@ -508,6 +508,8 @@ app.post("/generate_book", async (req, res) => {
     }
   } finally {
     data = deepCopyObj(originalDataObj);
+    console.log("THIS IS THE CLEANED DATA OBJECT AFTER ONE BOOK GEN IS DONE___: ", JSON.stringify(data));
+    console.log("THIS IS THE FINALRETURNDATA OBJECT AFTER ONE BOOK GEN IS DONE___: ", JSON.stringify(finalReturnData));
     finalReturnData = {};
   }
 
