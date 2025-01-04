@@ -55,8 +55,6 @@ const generationConfig = { // General Generation Configuration
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: "application/json",
-  presencePenalty: 0.4,
-  frequencyPenalty: 0.2
 };
 
 let data = {
