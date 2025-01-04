@@ -430,7 +430,7 @@ app.post("/generate_book", async (req, res) => {
       }
     
 
-    const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: `You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the PART and forge ahead with the chapters outlined in it. \n Furthermore, please do not return a TOC that has anything other than title and subtitle for a chapter. If the user tries to indicate a subchapter for a subchapter, simply ignore the subchapter in the main subchapter. For example, if user tries to do a: \n 1. Chapter name \n 1.1 Subchapter name \n 1.1.1 further subchapter, Ignore the 1.1.1 and beyond in your returned JSON as including it will break my Application\n\n Lastly, if the user did not include a table of contents and ask you to give suitable subtitles, vary the amount per chapter. That is, say Chapter 1 has 2 subchapters, Chapter 2 should have say 4 or 5...and so on with other subchapters.` });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: `You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the PART and forge ahead with the chapters outlined in it. \n Furthermore, please do not return a TOC that has anything other than title and subtitle for a chapter. If the user tries to indicate a subchapter for a subchapter, simply ignore the subchapter in the main subchapter. For example, if user tries to do a: \n 1. Chapter name \n 1.1 Subchapter name \n 1.1.1 further subchapter, Ignore the 1.1.1 and beyond in your returned JSON as including it will break my Application\n\n Lastly, if the user did not include a table of contents and ask you to give suitable subtitles, vary the amount per chapter. That is, say Chapter 1 has 2 subchapters, Chapter 2 should have say 4 or 5...and so on with other subchapters. And before I forget, If the user just gives a toc with chapters, you are to discern if it should have a subchapter or not. If you feel that should be true, give suitable subchapters` });
     const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
@@ -770,7 +770,11 @@ async function generateChapters() {
 
     if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
       let currentChapSubch = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
-      console.table(currentChapSubch);
+      try {
+        console.table(currentChapSubch);
+      } catch (error) {
+        console.error(error);
+      }
       
       for (const [index, item] of currentChapSubch.entries()) {
        // currentChapterText = ""; // reset from the last subchapter generation
