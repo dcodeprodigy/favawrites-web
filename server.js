@@ -328,6 +328,8 @@ const schema = {
 
 }
 
+const commonApiErrors = ["Resource has been exhausted", "The model is overloaded", "Please try again later", "failed", "Error fetching from"];
+
 const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
 // let runningCreation = false; // Is book creation currently ongoing?
@@ -550,8 +552,8 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
     if (response.error) { // Check if there was an error during sendMessage
       const error = response.error;
       console.warn(error);
-
-      if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
+      
+      if (commonApiErrors.some(errorMessage => error.message.includes(errorMessage))) {
         await setUpNewChatSession(data.userInputData);
         // wait for 5 minute for API rate limit to cool down, then continue
         await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
@@ -1041,9 +1043,10 @@ in accordance to as have been pointed out by people regarding how they tend to k
               docxJs = await JSON.parse(modelRes);
               console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
             } catch (error) {
-              console.error("We got bad json from model. Fixing... : " + error);
+              console.error("We got bad json from model. Trying to Fix... : " + error);
+
               if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
-                console.log("sending the getDocxCode Req again with true arg...");
+                console.log("Failed to Parse 'modelRes'. Sending Message Again...");
                 return await getDocxCode(true);
 
               } else {
@@ -1052,7 +1055,17 @@ in accordance to as have been pointed out by people regarding how they tend to k
             }
           }
           await getDocxJs();
+
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
+            let string;
+            try {
+              string = JSON.stringify(docxJs);
+            } catch (error) {
+              console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
+            }
+
+            console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", string);
+
             await getDocxJs();
           } // This may cause recursive issues so fix this soon
 
