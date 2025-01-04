@@ -9,7 +9,7 @@ require('dotenv').config();
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
 const fs = require("fs");
 const docx = require("docx"); // use if there ever be need to add more properties for docx generation other than the ones destructured
-const { 
+const {
   Document,
   Packer,
   Paragraph,
@@ -91,12 +91,12 @@ let data = {
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
     
-    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null }
+    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null}
     
     GIVE JSON ERROR WHENEVER USER ASKS FOR IT
     `
   },
-  
+
   proModelErrors: 0,
   communicateWithApiError: 0,
   sampleChapter: function () {
@@ -173,79 +173,79 @@ One of the biggest pitfalls in pursuing new goals is the tendency to get overwhe
 }
 
 const schema = {
-  tocSchema : {
+  tocSchema: {
     description: "Table of Contents (TOC) Schema",
     type: "OBJECT",
     properties: {
-        title: {
-            type: "STRING",
-            description: "The title of the book as in the description or as suggested by you",
-            nullable: false
-        },
-        subtitle: {
-            type: "STRING",
-            description: "The subtitle of the book",
-            nullable: true
-        },
-        plot: {
-            type: "BOOLEAN",
-            description: "Indicates if the book has a plot",
-            nullable: false
-        },
-        subchapter: {
-            type: "BOOLEAN",
-            description: "Indicates if the book has subchapters",
-            nullable: false
-        },
-        toc: {
-            type: "ARRAY",
-            description: "Array of chapters with their details",
-            nullable: false,
-            items: {
-                type: "OBJECT",
-                properties: {
-                    "^ch-[0-9]+$": {
-                        type: "STRING",
-                        description: "Chapter title. Must match the pattern 'ch-' followed by one or more digits",
-                        nullable: false
-                    },
-                    "^sch-[0-9]+$": {
-                        type: "ARRAY",
-                        description: "List of subchapter titles. Must match the pattern 'sch-' followed by one or more digits, corresponding to the chapter number",
-                        nullable: false,
-                        items: {
-                            type: "STRING"
-                        }
-                    },
-                    "sch-no": {
-                        type: "NUMBER",
-                        description: "Number of subchapters in the chapter",
-                        nullable: false
-                    }
-                },
-                required: ["sch-no"],
-                additionalProperties: {
-                    oneOf: [
-                        { 
-                            pattern: "^ch-[0-9]+$",
-                            type: "STRING"
-                        },
-                        {
-                            pattern: "^sch-[0-9]+$",
-                            type: "ARRAY",
-                            items: {
-                                type: "STRING"
-                            }
-                        }
-                    ]
-                }
+      title: {
+        type: "STRING",
+        description: "The title of the book as in the description or as suggested by you",
+        nullable: false
+      },
+      subtitle: {
+        type: "STRING",
+        description: "The subtitle of the book",
+        nullable: true
+      },
+      plot: {
+        type: "BOOLEAN",
+        description: "Indicates if the book has a plot",
+        nullable: false
+      },
+      subchapter: {
+        type: "BOOLEAN",
+        description: "Indicates if the book has subchapters",
+        nullable: false
+      },
+      toc: {
+        type: "ARRAY",
+        description: "Array of chapters with their details",
+        nullable: false,
+        items: {
+          type: "OBJECT",
+          properties: {
+            "^ch-[0-9]+$": {
+              type: "STRING",
+              description: "Chapter title. Must match the pattern 'ch-' followed by one or more digits",
+              nullable: false
+            },
+            "^sch-[0-9]+$": {
+              type: "ARRAY",
+              description: "List of subchapter titles. Must match the pattern 'sch-' followed by one or more digits, corresponding to the chapter number",
+              nullable: false,
+              items: {
+                type: "STRING"
+              }
+            },
+            "sch-no": {
+              type: "NUMBER",
+              description: "Number of subchapters in the chapter",
+              nullable: false
             }
-        },
-        chapters: {
-            type: "NUMBER",
-            description: "Total number of chapters in the TOC",
-            nullable: false
+          },
+          required: ["sch-no"],
+          additionalProperties: {
+            oneOf: [
+              {
+                pattern: "^ch-[0-9]+$",
+                type: "STRING"
+              },
+              {
+                pattern: "^sch-[0-9]+$",
+                type: "ARRAY",
+                items: {
+                  type: "STRING"
+                }
+              }
+            ]
+          }
         }
+      },
+      chapters: {
+        type: "NUMBER",
+        description: "Total number of chapters in the TOC",
+        nullable: false
+      }
     },
     required: ["title", "subtitle", "plot", "subchapter", "toc", "chapters"]
   },
@@ -355,22 +355,23 @@ let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 async function setUpNewChatSession(userInputData) {
-    console.log("SPIN-UP: Creating a New Model Chat Session...");
-    // Be careful calling this function, as it overrides the entire thing in mainChatSession
-    if (!model) {
-      model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
-      
-    }
+  console.log("SPIN-UP: Creating a New Model Chat Session...");
+  // Be careful calling this function, as it overrides the entire thing in mainChatSession
+  if (!model) {
+    model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
 
-    console.log("Current Chapter is ___ : Chapter-" + data.current_chapter)
+  }
 
-    mainChatSession = model.startChat({
-      safetySettings, 
-      generationConfig }); // starts a new chat
-  
+  console.log("Current Chapter is ___ : Chapter-" + data.current_chapter)
+
+  mainChatSession = model.startChat({
+    safetySettings,
+    generationConfig
+  }); // starts a new chat
+
 }
 
-async function setSecondaryChatSession(){
+async function setSecondaryChatSession() {
   const secondarySysInst = `
   I am automating the process of writing a book. You are the secondary model. In this chat, I shall be feeding you with subchapters Here is your job when I feed you:
 
@@ -386,17 +387,17 @@ Below is the initial instructions from the user from Primary Model; Try your abs
   const secondaryModel = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
     systemInstruction: secondarySysInst,
-    
+
   });
-  
+
   const secondaryChatSession = secondaryModel.startChat(safetySettings, generationConfig);
-  
+
   return secondaryChatSession;
 }
 
 
 app.post("/generate_book", async (req, res) => {
-  
+
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
   reqNumber++; //Increament the number of requests being handled
@@ -420,16 +421,16 @@ app.post("/generate_book", async (req, res) => {
     data["model"] = model; // Helps us access this model without having to pass numerous arguments and params
     data.mainChat = mainChatSession; // I want to make this globally accessible, so that I can count the total tokens
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
-      
-      try {
-        console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
-      } catch (e) {
-        console.error("An Error Occurred while Counting TOKENS => ", e);
-      }
-    
+
+    try {
+      console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
+    } catch (e) {
+      console.error("An Error Occurred while Counting TOKENS => ", e);
+    }
+
 
     const proModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", systemInstruction: `You are an API for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified. THIS IS A MUST. DO NOT TRY TO COMPRESS IT. RETURN IT IN FULL. The only time you compress is when there is a 'PART'. In such a case, simply ignore the PART and forge ahead with the chapters outlined in it. \n Furthermore, please do not return a TOC that has anything other than title and subtitle for a chapter. If the user tries to indicate a subchapter for a subchapter, simply ignore the subchapter in the main subchapter. For example, if user tries to do a: \n 1. Chapter name \n 1.1 Subchapter name \n 1.1.1 further subchapter, Ignore the 1.1.1 and beyond in your returned JSON as including it will break my Application\n\n Lastly, if the user did not include a table of contents and ask you to give suitable subtitles, vary the amount per chapter. That is, say Chapter 1 has 2 subchapters, Chapter 2 should have say 4 or 5...and so on with other subchapters. And before I forget, If the user just gives a toc with chapters, you are to discern if it should have a subchapter or not. If you feel that should be true, give suitable subchapters` });
-    const tocChatSession = proModel.startChat({ safetySettings, generationConfig});
+    const tocChatSession = proModel.startChat({ safetySettings, generationConfig });
 
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
 
@@ -525,15 +526,15 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
     delayMs += randomDelay;
     console.log(`Actual Delay is ${delayMs}ms`);
     const response = await new Promise((resolve) => setTimeout(async () => {
-      
+
       try {
         // Save the History
         mainChatHistory = await mainChatSession.getHistory();
-        
+
         const res = await func();
         data.totalRequestsMade++;
         console.log(`TOTAL REQ MADE is___ ${data.totalRequestsMade}`);
-        
+
         console.log(`THIS IS THE USAGEMETADATA for this Req___ : ${res.response.usageMetadata.totalTokenCount}`);
 
 
@@ -551,10 +552,10 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
       console.warn(error);
 
       if (error.message.includes("Resource has been exhausted") || error.message.includes("The model is overloaded") || error.message.includes("Please try again later") || error.message.includes("failed") || error.message.includes("Error fetching from")) {
-          await setUpNewChatSession(data.userInputData );
+        await setUpNewChatSession(data.userInputData);
         // wait for 5 minute for API rate limit to cool down, then continue
         await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
-        return await sendMessageWithRetry( func ); // Retry. No need adding '() =>', since the initial func parameter already has that
+        return await sendMessageWithRetry(func); // Retry. No need adding '() =>', since the initial func parameter already has that
 
       } else { // Re-throw other errors to be caught by the outer try-catch block
         console.error(error)
@@ -608,8 +609,8 @@ async function generatePlot() {
     topK: 40,
     maxOutputTokens: 8100,
     responseMimeType: "application/json",
-  //  presencePenalty: 1.9,
-   // frequencyPenalty: 1.9
+    //  presencePenalty: 1.9,
+    // frequencyPenalty: 1.9
   };
 
   const plotChatSession = model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
@@ -711,42 +712,42 @@ async function generateChapters() {
 
   const chapterCount = finalReturnData.firstReq.chapters;
 
-  
+
   async function countTokens(req, responseObj) {
     let tokens;
     let mainChatHistory;
     let getHistoryErr = true; // assume there's going to be an error
-    
+
     while (getHistoryErr === true) {
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
+
       try {
-      mainChatHistory = await mainChatSession.getHistory();
-      getHistoryErr = false; // No error. Therefore, change to false
-    } catch (e) {
-      console.log("Error Getting History: ", e);
+        mainChatHistory = await mainChatSession.getHistory();
+        getHistoryErr = false; // No error. Therefore, change to false
+      } catch (e) {
+        console.log("Error Getting History: ", e);
+      }
     }
-    }
-    
-    
-    
+
+
+
     if (req === "total") {
       let countTokensErr = true;
-      
+
       while (countTokensErr === true) {
         await new Promise(resolve => setTimeout(resolve, 3000));
-        
+
         try {
-        tokens = await model.countTokens({
-        generateContentRequest: { contents: mainChatHistory },
-      });
-      countTokensErr = false;
-      } catch (e) {
-        console.error("Error Counting Tokens at countTokens func, with 'total' param: ", e);
+          tokens = await model.countTokens({
+            generateContentRequest: { contents: mainChatHistory },
+          });
+          countTokensErr = false;
+        } catch (e) {
+          console.error("Error Counting Tokens at countTokens func, with 'total' param: ", e);
+        }
       }
-      }
-      
-      
+
+
     } else if (responseObj) {
       tokens = responseObj.response.usageMetadata
     }
@@ -755,8 +756,8 @@ async function generateChapters() {
 
 
   for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
-  //  let tokens = await countTokens("total"); // TODO: This give errors. it's probably not important
-   // console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
+    //  let tokens = await countTokens("total"); // TODO: This give errors. it's probably not important
+    // console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
 
     // currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
     // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
@@ -773,9 +774,9 @@ async function generateChapters() {
       } catch (error) {
         console.error(error);
       }
-      
+
       for (const [index, item] of currentChapSubch.entries()) {
-       // currentChapterText = ""; // reset from the last subchapter generation
+        // currentChapterText = ""; // reset from the last subchapter generation
 
         try { // Asks the model how may times it should be prompted
           promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. 
@@ -864,13 +865,13 @@ async function generateChapters() {
             try {
               try {
                 const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
-              
-              console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
+
+                console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
               } catch (e) {
                 console.error("Count Tokens Error___ ", e)
               }
-              
-              
+
+
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
 	      Also, this is the table of contents (toc) we are working with, just so you don't forget what we are currently working with => "${JSON.stringify(finalReturnData.firstReq.toc)}"
@@ -894,7 +895,7 @@ async function generateChapters() {
               // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
 
               chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
-	   //  i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
+              //  i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
               // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
 
               // currentChapterText.concat(getSubChapterCont.content); // Save to context
@@ -926,13 +927,13 @@ async function generateChapters() {
 
 
             try {
-              
+
               let parsedChapterText = JSON.parse(chapterText);
               console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
-              
+
               currentSubChapter = currentSubChapter.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
-              
-              
+
+
               currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
               // console.log("\n \n TODO: CHECK THIS currentChapterText: " + currentChapterText);
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
@@ -952,11 +953,11 @@ async function generateChapters() {
                     console.log("Trying to Fix JSON...");
                     let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${chapterText}
                     As a Hint, this is what the linter said is wrong with it : ${error}`;
-                    
+
                     let result = await fixJsonWithPro(fixMsg);
                     resolve(result);
                   }, ms);
-                  
+
                 });
               };
 
@@ -980,11 +981,11 @@ async function generateChapters() {
 
 
         } // end of each promptMe number
-        
-        
-        
-        async function refineSubChapter (callNo, prevResponse, nonRedundantTxt) {
-          
+
+
+
+        async function refineSubChapter(callNo, prevResponse, nonRedundantTxt) {
+
           if (callNo == 1) {
             const refineMsg1 = `Hey there! For this Subchapter, let's begin now shall we? 
           Firstly, return a response in this array JSON schema;
@@ -995,52 +996,30 @@ What is your Job here? Identify all AI Phrases in the text below : \n ${currentS
 
 in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'Imagine...', 'In conclusion...', 'incorporating', 'By...', 'Consider...', "Let's consider...",  etc.
           `;
-          
-         return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
-        )
+
+            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
+            )
           } else if (callNo == 2) {
             const refineMsg2 = `Now, remove those such AI Phrases as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the AI Phrases you identified from the text here: \n ${currentSubChapter}.
             Your response schema shall be: ["a 1 index array containing the entire write-up in non-AI Phrases form"]
             `;
-            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
-        )
-          } else if (callNo == 3){
+            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
+            )
+          } else if (callNo == 3) {
             const refineMsg3 = `Now, Identify all AI looking phrases, paragraphs, words and sentences here: \n ${prevResponse.response.candidates[0].content.parts[0].text}, in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', 'By',  etc.
             Your response schema should be like this : ['an array of AI sentences, paragraphs or phrases"]. YOU ARE ONLY RETURNING THE AI LOOKING THINGS YOU FOUND HERE!
             `
-            
-            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg3), "secModel"
-        )
+
+            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg3), "secModel"
+            )
           } else {
             const refineMsg4 = `Now, remove those AI looking sentences, as you have identified here: ${prevResponse.response.candidates[0].content.parts[0].text}, from this text : ${nonRedundantTxt.response.candidates[0].content.parts[0].text}, return your response in this schema: ["A 1 Index array containing the actual raw text writeup you just cleaned of its AI characteristics. Use '\n' to include line breaks without breaking this array structure."]`;
-            
-            return await sendMessageWithRetry( () => data.secondaryChatSession.sendMessage(refineMsg4), "secModel"
-        )
+
+            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg4), "secModel"
+            )
           }
-          };
-          
-        
-      /*  data.secondaryChatSession = await setSecondaryChatSession(); // Set a new SecondaryChatSession. This makes sure model output is quality, and that it keeps remembering the system Instructions as generation progresses. 
-        
-          // call
-           let response1 = await refineSubChapter(1); // Identify AI Sentences
-          let response2 = await refineSubChapter(2, response1); // Removes all AI Phrases
-        /*  let response3 = await refineSubChapter(3, response2);
-          let response4 = await refineSubChapter(4, response3, response2); // passing response2 since it has the full writeup without redundancy. */
-          // response2 is supposedly returned as a one indexed array; */
-          
-        /*  try {
-            console.log("This is the FINAL NON-AI FORM ___ : ", response2.response.candidates[0].content.parts[0].text);
-            const parsedRes = JSON.parse(response2.response.candidates[0].content.parts[0].text);
-            currentSubChapter = parsedRes[0];
-            
-          } catch (e) {
-            console.log(`Error Parsing Response2's JSON`);
-            currentSubChapter = response2.response.candidates[0].content.parts[0].text;
-          } */
-          
-        
-        
+        };
+
         await getDocxCode();
         async function getDocxCode(retry) {
           let docxJsRes;
@@ -1052,25 +1031,25 @@ in accordance to as have been pointed out by people regarding how they tend to k
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
-          modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-          console.log(`This is the docxJsRes: ${docxJsRes}`);
-          console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
-          // console.log("this is the modelRes: " + modelRes);
+            modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            console.log(`This is the docxJsRes: ${docxJsRes}`);
+            console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
+            // console.log("this is the modelRes: " + modelRes);
 
-          
-          try { // parse the purported array
-            docxJs = await JSON.parse(modelRes);
-            console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
-          } catch (error) {
-            console.error("We got bad json from model. Fixing... : " + error);
-	    if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
-	    console.log("sending the getDocxCode Req again with true arg...");
-               return await getDocxCode(true);
-	     
-	    } else {
-	       docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
-	    }
-	  }
+
+            try { // parse the purported array
+              docxJs = await JSON.parse(modelRes);
+              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+            } catch (error) {
+              console.error("We got bad json from model. Fixing... : " + error);
+              if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
+                console.log("sending the getDocxCode Req again with true arg...");
+                return await getDocxCode(true);
+
+              } else {
+                docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
+              }
+            }
           }
           await getDocxJs();
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
@@ -1078,14 +1057,14 @@ in accordance to as have been pointed out by people regarding how they tend to k
           } // This may cause recursive issues so fix this soon
 
 
-          
+
 
           // extract textRun object
           const sessionArr = [];
           // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
           // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
           console.log("DocxJs is an array?: " + Array.isArray(docxJs));
-          
+
           docxJs.forEach(item => {
             sessionArr.push(item);
           });
@@ -1336,16 +1315,16 @@ in accordance to as have been pointed out by people regarding how they tend to k
 
         } catch (error) {
           console.error("We got bad json from model. Fixing... : " + error);
-          
-          if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")){
-            
+
+          if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) {
+
             // retry sending the message the initial request to generate the Docx JS, as the model didn't follow my initial instruction
             console.log("retrying getDocxCode with an arg of true");
             return await getDocxCode(true);
           } else {
             docxJs = await fixJsonWithPro(modelRes);
           }
-          
+
         }
 
         // extract textRun object
@@ -1413,11 +1392,11 @@ in accordance to as have been pointed out by people regarding how they tend to k
 
 
 
-       // TODO Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
+        // TODO Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
 
       } // end of docxCode function
-    
+
 
     } // end of each chapter
 
@@ -1476,41 +1455,43 @@ g
   - Remember, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get). For other subchapters like 1.2 or 1.3(could be 2.2...2.n too-you get)...1.n(where n is not 1), don't add a heading1 of chapter name before them please`
 }
 
-async function getFixedContentAsJson (firstStageJson, generationConfig) {
-  
-      const jsonReturnModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp", 
-        systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
-      });
-      const chatSession = jsonReturnModel.startChat(
-        { safetySettings,
-        generationConfig
-        } 
-        );
-      
-      const response = await chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
+async function getFixedContentAsJson(firstStageJson, generationConfig) {
+
+  const jsonReturnModel = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash-exp",
+    systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
+  });
+  const chatSession = jsonReturnModel.startChat(
+    {
+      safetySettings,
+      generationConfig
+    }
+  );
+
+  const response = await chatSession.sendMessage(`So, You are to return the below in colon in JSON format, removing any outside text that's not JSON; \n\n "${firstStageJson}"
       \n
       Just so you know, your response should be in the schema of the JSON initially given to you, but in its fixed form.
       `);
-      
-      const returnValue = JSON.parse(response.response.candidates[0].content.parts[0].text);
-      
-      console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
-      
-      return returnValue;
-      
-    }
-    
 
-async function fixJsonWithPro(fixMsg, retries = 0, errMsg) { 
+  const returnValue = JSON.parse(response.response.candidates[0].content.parts[0].text);
+
+  console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
+
+  return returnValue;
+
+}
+
+
+async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
   const modelSelected = "gemini-2.0-flash-thinking-exp-1219";
-  
-//  console.log(`Selected ${modelSelected}`);
-  
- //  console.log("Json to be fixed is ___" , fixMsg)
- 
-const fixerSchema = {
+
+  //  console.log(`Selected ${modelSelected}`);
+
+  //  console.log("Json to be fixed is ___" , fixMsg)
+
+  const fixerSchema = {
     description: "Fixed JSON Response", // Description of the schema
     type: "OBJECT", // The top-level type is OBJECT
     properties: {
@@ -1522,7 +1503,7 @@ const fixerSchema = {
       fixedJson: {
         type: "STRING",
         description: "The corrected JSON output as a string",
-        nullable: false, 
+        nullable: false,
       },
     },
     required: ["issue", "fixedJson"], // Required properties
@@ -1535,7 +1516,7 @@ const fixerSchema = {
     maxOutputTokens: 8192,
     responseMimeType: "application/json"
   };
-  
+
   const generationConfigNoJson = {
     temperature: 1,
     topP: 0.95,
@@ -1544,13 +1525,13 @@ const fixerSchema = {
     responseMimeType: "text/plain"
   }
 
-  
+
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  
+
   // Use thinking Model to Fix Bad JSON
   const thinkingModel = genAI.getGenerativeModel({
-    model: modelSelected, 
+    model: modelSelected,
     systemInstruction: `Outline all the problems in any json sent to you. There must be issues with it, since no good json will ever be sent to you. 
 
 Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
@@ -1561,28 +1542,28 @@ Just so you know your response should be jn the schema of the JSON initially giv
   const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
 
   // confirm if this operation was successful
-  
+
   try {
-	  console.log("Initial Error Identified is : " + errMsg);
-	  
+    console.log("Initial Error Identified is : " + errMsg);
+
     errMsg != 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
-    
+
     const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
-    
+
     let firstStageJson = fixedRes.response.candidates[0].content.parts[1].text; // "parts[1]" gets the answer by model as text/plain response. "parts[0]" gets the thought process of model.
-    
-    console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);  
-    
+
+    console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
+
     // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 1.5 PRO
     firstStageJson = await getFixedContentAsJson(firstStageJson, generationConfig); // Using Gemini Model that Supports JSON
 
     const fixedContent = firstStageJson; // Parse the stringified JSON
-    
-   // console.log("This is the fixedContent: ", fixedContent);
-   
-   console.log("CONTENT FIXED SUCCESSFULLY!")
+
+    // console.log("This is the fixedContent: ", fixedContent);
+
+    console.log("CONTENT FIXED SUCCESSFULLY!")
 
     return fixedContent;
 
@@ -1594,18 +1575,18 @@ Just so you know your response should be jn the schema of the JSON initially giv
       console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
 
       const delayMs = modelDelay.pro;
-      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`); 
+      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
       console.log(`This is error.message ${error.message}`);
 
       return fixJsonWithPro(fixMsg, retries + 1, error.message); // Recursive retry
-    } else { 
+    } else {
       // Send an Error Message to Calling Function and Have it Retry the Request Afresh
-      
+
       console.error("Failed to fix JSON after multiple retries:", error, "Resending the Message for Initial Content Generation");
-      
+
       return "RetrySignal"
-      
+
     }
   }
 }
@@ -1877,15 +1858,15 @@ async function compileDocx(userInputData) {
   } catch (error) {
     console.error("Error While Compiling Docx File ", error);
   }
-  
+
 }
 
-async function getFormattedBookTitle(title){
+async function getFormattedBookTitle(title) {
   let formattedStr = "";
   const lowercaseStr = title.toLowerCase();
   const newStrArr = lowercaseStr.split(" ");
-  
-  for (let i = 0; i < newStrArr.length; i++){
+
+  for (let i = 0; i < newStrArr.length; i++) {
     if (i + 1 === newStrArr.length) {
       formattedStr += `${newStrArr[i]}`
     } else {
