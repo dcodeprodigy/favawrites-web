@@ -581,7 +581,9 @@ function getTocPrompt(inputData) {
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
   If there is an outlined table of contents here '${inputData.description.trim()}', then make sure you use it as the toc the user wants. DO NOT TRY TO COMPRESS IT TO BE SMALLER THAN WHAT THE USER PUTS; ON NO ACCOUNT. Also, if the TOC there has something like Part I or Part II, then remove the Part I or Part II or Part III, and just return your JSON as in the format specified. just so you know, your final JSON schema returned should look something like this:
     
-  ${schema.toc}`
+  ${schema.toc}.
+  
+  Additionally, If there is a toc in the provided description above and the numbering in chapters has inconsistencies, say there is chapter 3 but then it skips to 5 or even 6, you are to fix that when generating the toc and make sure the numberings do not skip.`
 }
 
 function checkForSubtitle(userInput) {
