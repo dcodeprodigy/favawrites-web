@@ -642,11 +642,8 @@ async function generateChapters() {
         } catch (error) {
           promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim());
         }
-
         console.log(`The item we are writing is: '${item}'`);
-
         console.log("Prompt me " + promptNo.promptMe + " times for this subchapter");
-
 
         // Get the suitable writing style for the current subchapter
         async function sendWritingStyleReq() {
@@ -696,53 +693,45 @@ async function generateChapters() {
         }
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
-
-        let genChapterResult = ""; // NO FUNCTION, APPARENTLY
         
 
-        for (let i = 0; i < promptNo.promptMe; i++) { // this loop is for each subchapter
+        for (let i = 0; i < promptNo.promptMe; i++) { // This loop is for each subchapter
           let errorCount = 0;
-          async function genSubChapter() {
+
+          // async function genSubChapter() {
             let chapterText;
 
             try {
+
               try {
                 const entireBookTextTokenCount = await model.countTokens(entireBookText);
 
                 console.log("TOKEN COUNT FOR entireBookText___: " + entireBookTextTokenCount.totalTokens);
               } catch (e) {
-                console.error("Count Tokens Error___ ", e)
+                console.error("CountToken Error___ ", e)
               }
 
-
-              const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
-	      Also, this is the table of contents (toc) we are working with, just so you don't forget what we are currently working with => "${JSON.stringify(finalReturnData.firstReq.toc)}"
+              const getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '${data.userInputData.description}.'
 	      
-	      Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works.
-	      
-	      Also, remember the amount of times you said i should prompt you and NEVER try to Conclude when we are not at the last time for prompting you for a particular Subchapter. The only time you're concluding anything for a Subchapter is at the last time of promoting for the Subchapter. With that, Never you include the following phrases in a conclusion – Phrases beginning with :
-	      1. "By incorporating"
-	      2. Anything beginning with the word "By" should never be in your conclusion
-	      3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi colons ";" and dash "–". This will help mimic human written works
-	      4. When writing, whether in conclusion or not, strictly avoid writing like this – "This is not just about<inserts phrase>; It's about<Inserts phrase>" This ensures that you are not giving out AI written works. instead you can try something like – "This is about<inserts phrase> rather than<inserts phrase>"
-	      5. Whether in your conclusion or not, STRICTLY AVOID the use of the word "Remember". For example, stop writing things like "Remember, this isn't just about<phrase>; it's about<phrase>". I don't want to see such AT ALL as ut reeks of AI generated content.
-	      6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
-	      7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
+              Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
+              
+              Also, remember the amount of times you said i should prompt you and NEVER try to Conclude when we are not at the last time for prompting you for a particular Subchapter. The only time you're concluding anything for a Subchapter is at the last time of promoting for the Subchapter. With that, Never you include the following phrases in a conclusion – Phrases beginning with :
+              1. "By incorporating"
+              2. Anything beginning with the word "By" should never be in your conclusion
+              3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi colons ";" and dash "–". This will help mimic human written works
+              4. When writing, whether in conclusion or not, strictly avoid writing like this – "This is not just about<inserts phrase>; It's about<Inserts phrase>" This ensures that you are not giving out AI written works. instead you can try something like – "This is about<inserts phrase> rather than<inserts phrase>"
+              5. Whether in your conclusion or not, STRICTLY AVOID the use of the word "Remember". For example, stop writing things like "Remember, this isn't just about<phrase>; it's about<phrase>". I don't want to see such AT ALL as ut reeks of AI generated content.
+              6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
+              7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
               8. Never use the phrase "vicious cycle" or "virtuous cycle"
-	      9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
-              
-              
+              9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
              `));
 
-              // console.log(`Check if this matches with textRunText. If it does, modify the checkAlternateIns function: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`);
-
-              chapterText = getSubChapterCont.response.candidates[0].content.parts[0].text; // we still need to parse this to access the actual chapter content
-              //  i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
-              // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
-
-              // entireBookText.concat(getSubChapterCont.content); // Save to context
-              data.chapterText = getSubChapterCont; // saving this here so that I can access it outside this function
+              chapterText = getSubchapterContent.response.candidates[0].content.parts[0].text; 
+             
+              // entireBookText.concat(getSubchapterContent.content); // Save to context
+              data.chapterText = getSubchapterContent; // saving this here so that I can access it outside this function
 
 
             } catch (error) {
@@ -762,7 +751,6 @@ async function generateChapters() {
                 await delay();
               } else {
                 data.res.status(501).send("Network Error");
-
               }
 
 
@@ -817,10 +805,8 @@ async function generateChapters() {
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
             }
-
-            return await chapterText; // as the parsed object
-          };
-          genChapterResult = await genSubChapter();
+          // };
+          // await genSubChapter();
 
 
         } // end of each promptMe number
@@ -1052,7 +1038,7 @@ async function generateChapters() {
             chapterText = getChapterCont;
             entireBookText.concat(getChapterCont.content); // Save to context
             data.chapterText = getChapterCont
-            console.log("this is the type of data.chapterText: " + typeof (data.chapterText));
+
           } catch (error) {
             console.error("An error in mainChatSession for Chapter Gen: " + error);
             errorCount++;
@@ -1074,7 +1060,7 @@ async function generateChapters() {
           }
 
           try {
-            console.log("This is chapter text: " + data.chapterText);
+
             let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
             console.log("Json parsed");
             chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
@@ -1110,7 +1096,7 @@ async function generateChapters() {
           return chapterText; // as the parsed object
         };
 
-        genChapterResult = await genChapter();
+        await genChapter();
       } //end of each promptMe number
 
       await getDocxCode();
