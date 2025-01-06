@@ -5,24 +5,28 @@
 const data = {
     backOff: {
         backOffDuration,
-        backOffCount: 0, 
+        backOffCount: 0,
         maxRetries
     },
     error: {
         pro: 0,
     },
-    userInputData : req.body, // app.post param
-    res : res, // app.post param
+    userInputData: req.body, // app.post param
+    res: res, // app.post param
     tocChatHistory: tocChatSession,
-    plots : [ // generatePlot()
+    plots: [ // generatePlot()
 
     ],
-    populatedSections: [], // an array for final docx generation later on
+    populatedSections: [
+        {
+             properties: { pageBreakBefore: true }, 
+        }
+    ], // an array for final docx generation later on
 }
 
 const finalReturnData = {
-    firstReq: toc-object,
+    firstReq: toc - object,
     plots: { // line 291
-        
+
     },
 }

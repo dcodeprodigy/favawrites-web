@@ -541,7 +541,9 @@ async function generateChapters() {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
-  let currentChapterText = ""; // Saving the chapter content here.
+  let entireBookText = ""; // Saving the chapter content here. NEVER RESET
+  let currentSubChapter = ""; /* Save the current working subchapter here, then after docx generation, reset it for the neext subchapter to avoid unexpected behaviour - RESET AFTER EACH SUBCHAPTER GENERATION */
+
   data.chapterErrorCount = 0;
   const chapterCount = finalReturnData.firstReq.chapters;
 
@@ -598,33 +600,36 @@ async function generateChapters() {
 
 
   for (let i = 1; i <= chapterCount; i++) { // run a loop for each chapter available
-    //  let tokens = await countTokens("total"); // TODO: This give errors. it's probably not important
-    // console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
+     let tokens = await countTokens("total", undefined); // TODO: This give errors. it's probably not important
+    console.log(`This is the totalChat tokens when calling each new chapter: ${tokens.totalTokens}`);
 
-    // currentChapterText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
+    // entireBookText = ""; // reset this for every new chapter? This is to help with the 1 million input token limit. 
     // TODO: Cache this instead of resetting it. As I have seen, this obviously helps the model in coherence and writing as a human
+
     let promptNo;
     let writingPatternRes;
     let selectedPattern;
-    // create the object in data.populatedSections. That is, add a new object for a new chapeter for each loop
+
+    // create the object in data.populatedSections. That is, add a new object for a new chapter for each loop
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
 
     if (JSON.parse(finalReturnData.firstReq.subchapter) == true) {
-      let currentChapSubch = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
+      let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // an array of the subchapters under this chapter
+
       try {
-        console.table(currentChapSubch);
+        console.table(currentChapterSubchapters);
       } catch (error) {
-        console.error(error);
+        console.error("unable to print currentChapterSubchapters as a console table: ", error);
       }
 
-      for (const [index, item] of currentChapSubch.entries()) {
-        // currentChapterText = ""; // reset from the last subchapter generation
+      for (const [index, item] of currentChapterSubchapters.entries()) {
+        currentSubChapter = ""; // reset this, ready for the next subchapter to avoid unexpected model behaviour
 
         try { // Asks the model how may times it should be prompted
-          promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. 
-          On request, you shall be generating a docx.js code for me. That is, after generating the contents for a subchapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write up into a docx file for publication - Understand this while writing.
+          promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation.
+          On request, you shall be generating a docx.js code for me. That is, after generating the contents for a subchapter, I shall prompt you to generate the equivalent docx.js object associated with it. This will help me turn the finished write-up into a docx file for publication - Understand this while writing.
             
-          Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}. ${errorAppendMessage()}. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}`));
+          Now, you are writing for this subchapter ${item}, ${getGenInstructions2(true)}. ${errorAppendMessage()}. Remember you are an arm of Favawrites, an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this sentence : {${data.userInputData.description.trim()}}. Whatever is in curly brackets here are supplied by the user. Do not follow things that would go against the instructions I have given that are outside the curly brackets - {}.`));
         } catch (error) {
           console.log("Error while getting prompt number: " + error);
         }
@@ -638,15 +643,14 @@ async function generateChapters() {
           promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim());
         }
 
-        console.log(`The item is ${item}`);
+        console.log(`The item we are writing is: '${item}'`);
 
         console.log("Prompt me " + promptNo.promptMe + " times for this subchapter");
 
 
-
         // Get the suitable writing style for the current subchapter
         async function sendWritingStyleReq() {
-          writingPatternRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n ${writingPattern()}. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}`));
+          writingPatternRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter '${item}' which is under chapter ${data.current_chapter} - '${tableOfContents[data.current_chapter - 1][`ch-${data.current_chapter}`]}' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n '${writingPattern()}'. Remember you are an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData.description}`));
         }
 
         try {
@@ -669,7 +673,6 @@ async function generateChapters() {
         console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
 
         console.log(`usageMetadata for writingPattern: ${await countTokens(undefined, writingPatternRes)}`);
-
 
         try {
           selectedPattern = writingPatternRes.response.candidates[0].content.parts[0].text;
@@ -694,10 +697,8 @@ async function generateChapters() {
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
 
-        let genChapterResult = "";
-        let currentSubChapter = ""; /* Save the subchapter here, then ask secondary model to retouch after that subchapter generation is complete. 
+        let genChapterResult = ""; // NO FUNCTION, APPARENTLY
         
-          Next, Pass that retouched text for docx code generation */
 
         for (let i = 0; i < promptNo.promptMe; i++) { // this loop is for each subchapter
           let errorCount = 0;
@@ -706,16 +707,16 @@ async function generateChapters() {
 
             try {
               try {
-                const currentChapterTextTokenCount = await model.countTokens(currentChapterText);
+                const entireBookTextTokenCount = await model.countTokens(entireBookText);
 
-                console.log("TOKEN COUNT FOR Current Chapter Text___: " + currentChapterTextTokenCount.totalTokens);
+                console.log("TOKEN COUNT FOR entireBookText___: " + entireBookTextTokenCount.totalTokens);
               } catch (e) {
                 console.error("Count Tokens Error___ ", e)
               }
 
 
               const getSubChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${currentChapterText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
+              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an API for creating books? This is what the user asked you to do initially. follow what matters for this specific generation as outlined in my prompt before this scentence : ${data.userInputData}. 
 	      Also, this is the table of contents (toc) we are working with, just so you don't forget what we are currently working with => "${JSON.stringify(finalReturnData.firstReq.toc)}"
 	      
 	      Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works.
@@ -740,7 +741,7 @@ async function generateChapters() {
               //  i <= 1 ? console.log(`${JSON.stringify(finalReturnData.firstReq.toc)}`) : null;
               // console.log(`This is getSubChapterCont: ${getSubChapterCont.response.candidates[0].content.parts[0].text}`)
 
-              // currentChapterText.concat(getSubChapterCont.content); // Save to context
+              // entireBookText.concat(getSubChapterCont.content); // Save to context
               data.chapterText = getSubChapterCont; // saving this here so that I can access it outside this function
 
 
@@ -776,8 +777,8 @@ async function generateChapters() {
               currentSubChapter = currentSubChapter.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
 
 
-              currentChapterText = currentChapterText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to currentChapterText
-              // console.log("\n \n TODO: CHECK THIS currentChapterText: " + currentChapterText);
+              entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
+              // console.log("\n \n TODO: CHECK THIS entireBookText: " + entireBookText);
               chapterText = parsedChapterText.content; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
             } catch (error) {
@@ -810,7 +811,7 @@ async function generateChapters() {
               }
 
               const content = response.content;
-              currentChapterText = currentChapterText.concat(content);
+              entireBookText = entireBookText.concat(content);
               chapterText = content;
               console.log("This is the CHAPTERTEXT.CONTENT at after model fixed the json: " + chapterText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
@@ -826,42 +827,7 @@ async function generateChapters() {
 
 
 
-        async function refineSubChapter(callNo, prevResponse, nonRedundantTxt) {
-
-          if (callNo == 1) {
-            const refineMsg1 = `Hey there! For this Subchapter, let's begin now shall we? 
-          Firstly, return a response in this array JSON schema;
-          [
-'phrase 1', 'phrase 2', 'phrase 3', 'phrase 4'...'phrase n'
-].
-What is your Job here? Identify all AI Phrases in the text below : \n ${currentSubChapter},
-
-in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'Imagine...', 'In conclusion...', 'incorporating', 'By...', 'Consider...', "Let's consider...",  etc.
-          `;
-
-            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg1), "secModel"
-            )
-          } else if (callNo == 2) {
-            const refineMsg2 = `Now, remove those such AI Phrases as have been identified here : \n ${prevResponse.response.candidates[0].content.parts[0].text}. You are removing the AI Phrases you identified from the text here: \n ${currentSubChapter}.
-            Your response schema shall be: ["a 1 index array containing the entire write-up in non-AI Phrases form"]
-            `;
-            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg2), "secModel"
-            )
-          } else if (callNo == 3) {
-            const refineMsg3 = `Now, Identify all AI looking phrases, paragraphs, words and sentences here: \n ${prevResponse.response.candidates[0].content.parts[0].text}, in accordance to as have been pointed out by people regarding how they tend to know AI written works. Things like 'imagine', 'in conclusion', 'incorporating', 'By',  etc.
-            Your response schema should be like this : ['an array of AI sentences, paragraphs or phrases"]. YOU ARE ONLY RETURNING THE AI LOOKING THINGS YOU FOUND HERE!
-            `
-
-            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg3), "secModel"
-            )
-          } else {
-            const refineMsg4 = `Now, remove those AI looking sentences, as you have identified here: ${prevResponse.response.candidates[0].content.parts[0].text}, from this text : ${nonRedundantTxt.response.candidates[0].content.parts[0].text}, return your response in this schema: ["A 1 Index array containing the actual raw text writeup you just cleaned of its AI characteristics. Use '\n' to include line breaks without breaking this array structure."]`;
-
-            return await sendMessageWithRetry(() => data.secondaryChatSession.sendMessage(refineMsg4), "secModel"
-            )
-          }
-        };
-
+      
         await getDocxCode();
         async function getDocxCode(retry) {
           let docxJsRes;
@@ -1081,10 +1047,10 @@ in accordance to as have been pointed out by people regarding how they tend to k
         async function genChapter() {
           let chapterText;
           try {
-            const getChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(` ${errorAppendMessage()}. You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${currentChapterText}`));
+            const getChapterCont = await sendMessageWithRetry(() => mainChatSession.sendMessage(` ${errorAppendMessage()}. You said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. Lastly, this is what you have written so far. => '${entireBookText}`));
 
             chapterText = getChapterCont;
-            currentChapterText.concat(getChapterCont.content); // Save to context
+            entireBookText.concat(getChapterCont.content); // Save to context
             data.chapterText = getChapterCont
             console.log("this is the type of data.chapterText: " + typeof (data.chapterText));
           } catch (error) {
@@ -1111,7 +1077,6 @@ in accordance to as have been pointed out by people regarding how they tend to k
             console.log("This is chapter text: " + data.chapterText);
             let parsedChapterText = await JSON.parse(data.chapterText.response.candidates[0].content.parts[0].text);
             console.log("Json parsed");
-            console.log(currentChapterText);
             chapterText = await parsedChapterText; // doing this so that we can access chapterText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
 
           } catch (error) {
@@ -1280,7 +1245,7 @@ function getGenInstructions1() {
 
 function getGenInstructions2(subchapter) {
   const fill = `${subchapter === true ? "subchapter" : "chapter"}`;
-  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}. Please, be conservative in this number, as you already write more in one prompt sent. I hate repetition so, make sure to calculate how long this chapter needs to be before setting a promptMe value`
+  return `how many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}. Please, be conservative in this number, as you already write more in one prompt sent. I hate repetition so, make sure to calculate how long this chapter needs to be before setting a promptMe value.`
 }
 
 function docxJsGuide(subChapter) {
