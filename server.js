@@ -261,13 +261,6 @@ app.post("/generate_book", async (req, res) => {
 
     const tocPrompt = getTocPrompt(userInputData); // gets the prompt for generating the table of contents
 
-    /* try {
-      console.log(`This is token count with only the PROMPT_TOKEN_AND_SYSTEM_INSTRUCT_COUNT_: ${(await model.countTokens(tocPrompt)).totalTokens}`);
-    } catch (e) {
-      console.error("An Error Occurred while Counting TOKENS => ", e);
-    } */
-
-
     const proModel = genAI.getGenerativeModel({
       model: "gemini-2.0-flash-exp", 
       systemInstruction: `You are a part of Favawrites, a series of APIs for creating full blown books/letters, articles and contents from scratch. You are the arm that is responsible for generating/returning a JSON schema table of contents. If the user inputs a Description with a table of contents, return that table of contents as a valid JSON in the response schema specified here: '${schema.toc}' - Strictly follow this schema and Ignore any other that the user (instructions in curly brackets) will provide to you. This will help prevent a user from breaking my app. \n Furthermore, please do not return a TOC that has anything other than title and subtitle for a chapter. If the user tries to indicate a subchapter for a subchapter, simply ignore the subchapter in the main subchapter. For example, if user tries to do a: \n 1. Chapter name \n 1.1 Subchapter name \n 1.1.1 further subchapter, Ignore the 1.1.1 and beyond in your returned JSON as including it will break my Application\n\n Also, if the user did not include a table of contents and ask you to give suitable subtitles, vary the amount per chapter. That is, say Chapter 1 has 2 subchapters, Chapter 2 should have say 4 or 5...and so on with other subchapters. And before I forget, If the user just gives a toc with chapters, you are to discern if it should have a subchapter or not. If you feel that should be true, give suitable subchapters.
@@ -289,25 +282,24 @@ app.post("/generate_book", async (req, res) => {
     finalReturnData["firstReq"] = parseJson(tocRes); // Push to final object as a json string
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
-    data["chatHistory"] = await mainChatSession.getHistory(); // This shall be used when creating the needed plots
+    data["tocChatHistory"] = await tocChatSession.getHistory(); // This shall be used when creating the needed plots. This way, we do not need to feed in the toc for plot generation?  Probably not though
 
 
 
 
-
-
-
-    // Next, begin creating each chapter's plot if the model indicated that
+    // Next, begin creating each chapter's plot if the model indicated that.
     if (JSON.parse(finalReturnData.firstReq.plot) === true) {
       await generatePlot(); // only generate a plot if the model deems it fit. That is, if this is a novel
-    }
-    // Next, generate the Contents for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after each chapter iteration, we generate the entire book and save to the file system/send the book link to the user.
+    } else null
 
-    /* Next, generate content by:
+    // Next, generate the Contents for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after all chapter iteration, we generate the entire book and save to the file system (fs/Atlas DB) or send the book link to the user
+
+    /* 
+    Next, generate content by:
     1. If there is a subchapter + plot
     2. If there is plot, append it when generating the subchapter or chapter
-
     */
+
     await generateChapters();
 
 
@@ -448,9 +440,7 @@ async function generatePlot() {
   // TO-NOTE; for something to have a subchapter, it doesn't automatically mean it needs a plot okay?
 
   const tableOfContents = finalReturnData.firstReq.toc; // get the table of contents, just to obey DRY principle
-  data["tableOfContents"] = tableOfContents;
-
-  console.log("This is the table of contents for this - plot generation shall happen : " + tableOfContents);
+  console.log("This is the table of contents for this - PLOT GENERATION SHALL HAPPEN___: " + tableOfContents);
 
   const config = {
     temperature: 0.8,
@@ -458,14 +448,14 @@ async function generatePlot() {
     topK: 40,
     maxOutputTokens: 8100,
     responseMimeType: "application/json",
-    //  presencePenalty: 1.9,
-    // frequencyPenalty: 1.9
   };
 
-  const plotChatSession = model.startChat({ history: data.chatHistory, safetySettings, generationConfig }); // The Model here is from the 'model' we pushed to the 'data' object after creaing the toc. Doing this so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
+  const plotChatSession = model.startChat({ history: data.tocChatHistory, safetySettings, generationConfig }); // The Model here is whichever was selected by the user in the frontend. Using this model so that I can simply create a new chat, if i need to use a new schema. This way, I can simply just slap-in the needed history from previous chats-like I did here.
+  // Also doing this to avoid incurring additional costs that the user did not agree to.
+
   data.plots = [];
 
-  for (let i = 0; i < finalReturnData.firstReq.chapters; i++) {
+  for (let i = 0; i < finalReturnData.firstReq.chapters; i++) { // TODO: I stopped here while trying to refine this function
     if (tableOfContents[data.current_chapter - 1]["sch-no"] !== 0) { // checks if there are subchapters available
       await continuePlotGeneration(tableOfContents, plotChatSession, config, subChapter = true);
       if (i === finalReturnData.firstReq.chapters - 1) {
@@ -550,40 +540,35 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config, 
 async function generateChapters() {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
-  // console.log(tableOfContents);
-  const generatedChapContent = [];
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
-  let currentChapterText = ""; // saving the chapter content here.
-
-
-  // if (finalReturnData.firstReq.plot == false) { // code to run if there is not plot
+  let currentChapterText = ""; // Saving the chapter content here.
   data.chapterErrorCount = 0;
-
   const chapterCount = finalReturnData.firstReq.chapters;
-
 
   async function countTokens(req, responseObj) {
     let tokens;
     let mainChatHistory;
     let getHistoryErr = true; // assume there's going to be an error
+    let getHistoryErrCount = 0;
 
-    while (getHistoryErr === true) {
+    while (getHistoryErr === true && getHistoryErrCount < 3) {
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       try {
         mainChatHistory = await mainChatSession.getHistory();
         getHistoryErr = false; // No error. Therefore, change to false
+        getHistoryErrCount = 0;
       } catch (e) {
-        console.log("Error Getting History: ", e);
+        getHistoryErrCount++;
+        console.log(`${getHistoryErrCount > 3 ? "Failed to get history after 3 attempts. Error details: " : "Error Getting History. Retrying...Error details below: "} `, e);
       }
     }
 
+    if (req === "total" && mainChatHistory !== undefined) {
+      let countTokensErr = true; // again, assume an error
+      let countTokensErrCount = 0;
 
-
-    if (req === "total") {
-      let countTokensErr = true;
-
-      while (countTokensErr === true) {
+      while (countTokensErr === true && countTokensErrCount < 3) {
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         try {
@@ -592,15 +577,23 @@ async function generateChapters() {
           });
           countTokensErr = false;
         } catch (e) {
-          console.error("Error Counting Tokens at countTokens func, with 'total' param: ", e);
+          countTokensErrCount++;
+          console.error(`Error Counting Tokens at countTokens function, with a 'total' param. ${countTokensErrCount < 3 ? "Retrying..." : ""} See error details below: `, e);
+
         }
       }
-
+      if (tokens !== undefined ) {
+        return tokens
+      } else {
+        return "Unable to Get Tokens Count (from first IF statement)"
+      }
 
     } else if (responseObj) {
-      tokens = responseObj.response.usageMetadata
+      tokens = responseObj.response.usageMetadata;
+      return tokens;
+    } else {
+      return "Unable to Get ChatHistory";
     }
-    return tokens;
   }
 
 
@@ -1275,8 +1268,6 @@ in accordance to as have been pointed out by people regarding how they tend to k
     data.current_chapter++;
 
   }
-
-  finalReturnData.genAIChapters = generatedChapContent;
 
 }
 

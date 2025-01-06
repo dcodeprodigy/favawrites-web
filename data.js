@@ -13,4 +13,16 @@ const data = {
     },
     userInputData : req.body, // app.post param
     res : res, // app.post param
+    tocChatHistory: tocChatSession,
+    plots : [ // generatePlot()
+
+    ],
+    populatedSections: [], // an array for final docx generation later on
+}
+
+const finalReturnData = {
+    firstReq: toc-object,
+    plots: { // line 291
+        
+    },
 }
