@@ -725,6 +725,7 @@ async function generateChapters() {
               }
               await delay();
             } else {
+              console.log("Returning response to user prematurely");
               data.res.status(501).send("Network Error");
             }
 
@@ -742,6 +743,7 @@ async function generateChapters() {
             iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
           } catch (error) {
             if (data.chapterErrorCount > 4) {
+              console.log("Returning response to user prematurely");
               return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             }
             console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
