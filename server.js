@@ -392,7 +392,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
         console.error("UNABLE TO RETRY func() request. See error details: ", error);
       }
     } else {
-       return response; // Return the successful response
+      return response; // Return the successful response
     }
   } catch (error) { // Catch and re-throw errors to be handled in the /generate_book route
     console.log("Error in func() try block wrapper: ", error);
@@ -670,7 +670,7 @@ async function generateChapters() {
           }
 
         } else {
-          selectedPattern = "You just choose one suitable one with example writeup"
+          selectedPattern = "You just use a suitable writing pattern."
         }
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
@@ -705,11 +705,9 @@ async function generateChapters() {
               9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
              `));
 
+            console.log("This is getSubchapter.response...text: ", getSubchapterContent.response.candidates[0].content.parts[0].text);
+
             iterationText = getSubchapterContent.response.candidates[0].content.parts[0].text;
-
-            // entireBookText.concat(getSubchapterContent.content); // Save to context
-
-            // data.chapterText = getSubchapterContent; // saving this here so that I can access it outside this function
 
           } catch (error) {
             console.error("An error in mainChatSession: " + error);
@@ -733,52 +731,42 @@ async function generateChapters() {
 
           }
 
-
           try {
-
             let parsedChapterText = JSON.parse(iterationText);
             console.log("JSON PARSED!__", "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
 
             currentSubChapter = currentSubChapter.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
 
-
             entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
             // console.log("\n \n TODO: CHECK THIS entireBookText: " + entireBookText);
             iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
-
           } catch (error) {
             if (data.chapterErrorCount > 4) {
               return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             }
-
             console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
-
-            async function delay(ms = 6000) {
-              return await new Promise((resolve) => {
-                setTimeout(async () => {
-                  data.chapterErrorCount++;
-                  console.log("Trying to Fix JSON...");
-                  let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
+            const response = await new Promise(resolve => setTimeout(async () => {
+              data.chapterErrorCount++;
+              console.log("Trying to Fix JSON...");
+              let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
                     As a Hint, this is what the linter said is wrong with it : ${error}`;
 
-                  let result = await fixJsonWithPro(fixMsg);
-                  resolve(result);
-                }, ms);
+              const result = await fixJsonWithPro(fixMsg);
+              resolve(result);
+            }, modelDelay.flash));
 
-              });
-            };
-
-            let response = await delay(); // There is probably no need running JSON.parse here, since fixJsonWithPro will return an object, with "content" as the property. 
+            
             // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
             if (response === "RetrySignal") {
               // Retry the Request? omo
             }
-
+            console.log(typeof(response));
+            console.log("INSPECT__: Response from fixModel: ",JSON.stringify(response)); // inspect
             const content = response.content;
             entireBookText = entireBookText.concat(content);
             iterationText = content;
-            console.log("This is the ITERATIONTEXT.CONTENT at after model fixed the json: " + iterationText);
+            console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
             data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
           }
@@ -1047,7 +1035,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
 
   // confirm if this operation was successful
 
-  try { 
+  try {
     errMsg !== undefined ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
 
     const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
@@ -1058,36 +1046,29 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
 
     console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
 
-    // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 1.5 PRO
+    // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 2.0 FLASH
     firstStageJson = await getFixedContentAsJson(firstStageJson, generationConfig); // Using Gemini Model that Supports JSON
 
     const fixedContent = firstStageJson; // Parse the stringified JSON
-
-    // console.log("This is the fixedContent: ", fixedContent);
-
-    console.log("CONTENT FIXED SUCCESSFULLY!")
-
+    console.log("CONTENT FIXED SUCCESSFULLY!");
     return fixedContent;
 
   } catch (error) {
     if (error.message.includes("Resource has been exhausted")) {
       // change the model back to gemini flash
       return fixJsonWithPro(fixMsg, retries = 0);
-    } else if (retries < 2) { // no need retrying for more than 2 times as retries do not really fix Google's gemini internal API error with the same chat
+    } else if (retries < 2) {
       console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
-
       const delayMs = modelDelay.pro;
       console.log(`Waiting ${delayMs / 1000} seconds before retrying...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
       console.log(`This is error.message ${error.message}`);
-
       return fixJsonWithPro(fixMsg, retries + 1, error.message);
     } else {
       // Send an Error Message to Calling Function and Have it Retry the Request Afresh
-
       console.error("Failed to fix JSON after multiple retries:", error, "Resending the Message for Initial Content Generation");
 
-      return "RetrySignal"
+      return "RetrySignal";;
 
     }
   }
