@@ -739,13 +739,15 @@ async function generateChapters() {
             currentSubChapter = currentSubChapter.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
 
             entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
-            // console.log("\n \n TODO: CHECK THIS entireBookText: " + entireBookText);
-            iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
+            // console.log("\n \n TODO: CHECK THIS__ entireBookText: " + entireBookText);
+
+
+            // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
           } catch (error) {
             if (data.chapterErrorCount > 4) {
               console.log("Returning response to user prematurely");
               return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
-            }
+            } else {
             console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
             const response = await new Promise(resolve => setTimeout(async () => {
@@ -764,14 +766,19 @@ async function generateChapters() {
               // Retry the Request? omo
             }
             console.log(typeof(response));
-            console.log("INSPECT__: Response from fixModel: ",JSON.stringify(response)); // inspect
+            console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // inspect
+
             const content = response.content;
+
             entireBookText = entireBookText.concat(content);
+
             iterationText = content;
+
             console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
+
             data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
-          }
+          }}
 
 
         } // end of each promptMe number
@@ -819,10 +826,10 @@ async function generateChapters() {
               console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
             }
 
-            console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", string);
+            console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
 
             await getDocxJs();
-          } // This may cause recursive issues so fix this soon
+          } // This may get recursive so, fix it soon.
 
 
 
