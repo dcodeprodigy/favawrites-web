@@ -1050,7 +1050,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   try {
     console.log("Initial Error Identified is : " + errMsg); 
 
-    errMsg !== 'undefined' ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
+    errMsg !== undefined ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
 
     const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
 
