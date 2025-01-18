@@ -343,9 +343,8 @@ app.post("/generate_book", async (req, res) => {
 function errorAppendMessage() {
   if (data.error.pro > 0) {
     data.error.pro = 0; // reset it to zero, with the assumption that the model will behave. If it still spits another error, the fixErrorWithPro will increment this and then we warn model about errors again.
-    return `Your last json response included an error. Once again, Your next response must contain no JSON error. Error in JSON are in the form: Missing commas, Extra, commas (trailing commas), Incorrect use of quotes (single quotes, missing quotes),Unmatched brackets [] or braces {}, Incorrect nesting of arrays/objects, Unexpected characters, Invalid number formats (leading zeros, multiple decimal points, Infinity, NaN), Incorrect boolean values (True, False, 1, 0), Missing values (omitting a value after a key-colon), Incorrect character encoding (not UTF-8, UTF-16, or UTF-32), Presence of Byte Order Mark (BOM), Comments, Circular references. Avoid getting into such errors.`
-
-  }
+    return `Your last json response included an error. Once again, Your next response must contain no JSON error. Error in JSON could be in the form of the following but not limited to: Missing commas, Extra commas (trailing commas), Incorrect use of quotes (single quotes, missing quotes), Unmatched brackets [] or braces {}, Incorrect nesting of arrays/objects, Unexpected characters, Invalid number formats (leading zeros, multiple decimal points, Infinity, NaN), Incorrect boolean values (True, False, 1, 0), Missing values (omitting a value after a key-colon), Incorrect character encoding (not UTF-8, UTF-16, or UTF-32), Presence of Byte Order Mark (BOM), Comments, Circular references, Unterminated string in 'x' line. Avoid getting into such errors.`
+  } else return "";
 }
 
 async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
@@ -385,7 +384,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
       if (commonApiErrors.some(errorMessage => error.message.includes(errorMessage))) {
         await setUpNewChatSession(data.userInputData);
         // wait for 5 minute for API rate limit to cool down, then continue
-        await new Promise(resolve => setTimeout(resolve), 5 * 60 * 1000);
+        await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000));
         return await sendMessageWithRetry(func); // Retry. No need adding '() =>', since the initial func parameter already has that
 
       } else { // Re-throw other errors to be caught by the outer try-catch block
@@ -647,8 +646,8 @@ async function generateChapters() {
                 resolve(result);
               }, ms);
             });
-          };
-        };
+          }
+        }
 
         console.log(writingPatternRes.response.candidates[0].content.parts[0].text);
         console.log(`usageMetadata for writingPattern: ${await countTokens(undefined, writingPatternRes)}`);
@@ -677,20 +676,14 @@ async function generateChapters() {
         for (let i = 0; i < promptNo.promptMe; i++) { // This loop is for each subchapter
           let errorCount = 0;
           let iterationText; // text generated for that particular for loop index
-
-          try {
+          let getSubchapterContent;
+          async function genBatchTxt() {
 
             try {
-              const entireBookTextTokenCount = await model.countTokens(entireBookText);
-
-              console.log("TOKEN COUNT FOR entireBookText___: " + entireBookTextTokenCount.totalTokens);
-            } catch (e) {
-              console.error("CountToken Error___ ", e)
-            }
-
-            const getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "That is it for that docxJs. Now, let us continue the generation for writing for that subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: {"content" : "text"}. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+              getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: 
+            '{"content" : "text"}'. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '${data.userInputData.description}.'
-	      
+        
               Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
               
               Also, remember the amount of times you said i should prompt you and NEVER try to Conclude when we are not at the last time for prompting you for a particular Subchapter. The only time you're concluding anything for a Subchapter is at the last time of promoting for the Subchapter. With that, Never you include the following phrases in a conclusion – Phrases beginning with :
@@ -703,34 +696,43 @@ async function generateChapters() {
               7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
               8. Never use the phrase "vicious cycle" or "virtuous cycle"
               9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
-             `));
+              `));
+              console.log("This is getSubchapter.response...text: ", getSubchapterContent.response.candidates[0].content.parts[0].text);
 
-            console.log("This is getSubchapter.response...text: ", getSubchapterContent.response.candidates[0].content.parts[0].text);
-
-            iterationText = getSubchapterContent.response.candidates[0].content.parts[0].text;
-
-          } catch (error) {
-            console.error("An error in mainChatSession: " + error);
-            errorCount++;
-            if (errorCount <= 4) {
-              // run a delay before retrying
-              async function delay(ms = modelDelay.flash) {
-                return await new Promise(async resolve => {
-                  setTimeout(async () => {
-                    let res = await genSubChapter();
-                    resolve(res);
-                  }, ms)
-
-                })
-              }
-              await delay();
-            } else {
-              console.log("Returning response to user prematurely");
-              data.res.status(501).send("Network Error");
+              iterationText = getSubchapterContent.response.candidates[0].content.parts[0].text;
+              return { success: true };
+            } catch (error) {
+              data.error.pro++;
+              return { success: false, error: error };
             }
 
-
           }
+
+          try {
+            const entireBookTextTokenCount = await model.countTokens(entireBookText);
+            console.log("TOKEN COUNT FOR entireBookText___: " + entireBookTextTokenCount.totalTokens);
+          } catch (e) {
+            console.error("CountToken Error___ ", e)
+          }
+
+          const response = await genBatchTxt();
+          if (response.error) {
+            let response; let errorStatus = true; errorCount = 1;
+            while (errorStatus === true && errorCount < 4) {
+              console.error("An error occured in 'genSubChapter' function. RETRYING: " + response.error);
+              await new Promise(resolve => setTimeout(resolve, 6000));
+              response = await genBatchTxt();
+              if (response.success = true) {
+                errorStatus = false;
+              } else {
+                errorCount++;
+              }
+            }
+            if (errorCount === 4) {
+              throw new Error(response.error);
+            }
+          }
+
 
           try {
             let parsedChapterText = JSON.parse(iterationText);
@@ -748,37 +750,38 @@ async function generateChapters() {
               console.log("Returning response to user prematurely");
               return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             } else {
-            console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
+              console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
 
-            const response = await new Promise(resolve => setTimeout(async () => {
-              data.chapterErrorCount++;
-              console.log("Trying to Fix JSON...");
-              let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
+              const response = await new Promise(resolve => setTimeout(async () => {
+                data.chapterErrorCount++;
+                console.log("Trying to Fix JSON...");
+                let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
                     As a Hint, this is what the linter said is wrong with it : ${error}`;
 
-              const result = await fixJsonWithPro(fixMsg);
-              resolve(result);
-            }, modelDelay.flash));
+                const result = await fixJsonWithPro(fixMsg);
+                resolve(result);
+              }, modelDelay.flash));
 
-            
-            // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
-            if (response === "RetrySignal") {
-              // Retry the Request? omo
+
+              // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
+              if (response === "RetrySignal") {
+                // Retry the Request? omo
+              }
+              console.log(typeof (response));
+              console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // inspect
+
+              const content = response.content;
+
+              entireBookText = entireBookText.concat(content);
+
+              iterationText = content;
+
+              console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
+
+              data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
+
             }
-            console.log(typeof(response));
-            console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // inspect
-
-            const content = response.content;
-
-            entireBookText = entireBookText.concat(content);
-
-            iterationText = content;
-
-            console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
-
-            data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
-
-          }}
+          }
 
 
         } // end of each promptMe number
@@ -1309,11 +1312,14 @@ async function genPlotMsg(plotChatSession, plotPrompt, sendMsgError, sendPlotMsg
 
 function checkAlternateInstruction(promptNo, i, selectedPattern, plot) {
   if (promptNo.promptMe > 1) {
-    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, and this is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? "Do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. " : ""}Your write-up should not be repetitive but still be long only as needed. You're free to write at whatever length you find appropriate for the batch writing.
+    return `Since I am to prompt you ${promptNo.promptMe} times for this subchapter, and this is my number ${i + 1} prompt on this subchapter of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? "Do not end this current batch as if you are done with it and moving to the next subchapter and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this subchapter. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. " : ""} Your write-up should not be repetitive but still be long only as needed. You're free to write at whatever length you find appropriate for the batch writing.
     
-    ${plot === true ? `Use this plot for every instance/batch of this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} 
-    ${promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this subchapter, at the end of its content, conclude appropriately." : ""} Just know that for this subchapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}. Also note that when writing, do not use any of these words or phrases: \n ${getAiPhrase()}`
-  } else if (promptNo.promptMe === 1) return `Since I am prompting you for this subchapter only once, just end this like you would normally. ${plot === true ? `Use this plot for this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} Just know that for this subchapter, you must use this pattern of writing: ${selectedPattern.pattern}. \n ${getAiPhrase()}`
+    ${/* Conditional Adding of Plot Generated */ plot === true ? `Use this plot for every instance/batch of this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}. ` : ""}
+
+    ${/* Getting appropriate conclusions */ promptNo.promptMe === i + 1 ? "Since this is the last batch of prompting under this subchapter, at the end of its content, conclude appropriately. " : ""} Just know that for this subchapter and this batch, you must use this writing pattern : ${selectedPattern.pattern}. Also, note that when writing, do not use any of these words or phrases: \n ${getAiPhrase()}`;
+  } else if (promptNo.promptMe === 1) return `Since I am prompting you for this subchapter only once, just end this like you would normally. 
+  
+  ${/* Conditional Adding of Plot Generated */ plot === true ? `Use this plot for this subchapter to guide your writing of the subchapter - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}` : ""} Just know that for this subchapter, you must use this pattern of writing: ${selectedPattern.pattern}. \n ${getAiPhrase()}`
 }
 
 function initializeDocx() {
