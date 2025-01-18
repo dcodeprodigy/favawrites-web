@@ -594,7 +594,7 @@ async function generateChapters() {
     // create the object in data.populatedSections. That is, add a new object for a new chapter for each loop
 
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
-    if (JSON.parse(finalReturnData.firstReq.toc[i].sch - no) !== 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
+    if (JSON.parse(finalReturnData.firstReq.toc[i].sch-no) !== 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
       let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
       console.table(currentChapterSubchapters);
       for (const [index, item] of currentChapterSubchapters.entries()) {
