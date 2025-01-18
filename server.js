@@ -600,9 +600,8 @@ async function generateChapters() {
     let writingPatternRes, selectedPattern;
     // create the object in data.populatedSections. That is, add a new object for a new chapter for each loop
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
-    if (JSON.parse(tableOfContents[i]["sch-no"]) > 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
+    if (JSON.parse(tableOfContents[i - 1]["sch-no"]) > 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
       let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
-      console.log("INFRINGING")
       console.table(currentChapterSubchapters);
       for (const [index, item] of currentChapterSubchapters.entries()) {
         currentWriteup = ""; // reset this, ready for the next subchapter to avoid unexpected model behaviour
@@ -907,7 +906,7 @@ async function generateChapters() {
       4. Compile Docx
       */
       currentWriteup = "";
-      let chapter = finalReturnData.firstReq.toc[i][`ch-[${i}]`];
+      let chapter = finalReturnData.firstReq.toc[i - 1][`ch-[${i}]`];
       try { // Asks the model how may times it should be prompted for this single chapter
         promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. This time around, this new chapter does not have any subchapters to be written on.
 
