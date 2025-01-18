@@ -406,7 +406,14 @@ function getTocPrompt(inputData) {
   Also in your response, if you think this book deserves a subchapter in the titles, then respond with "true" to the "subchapter" property. Else, go with false.
   If there is an outlined table of contents here {${inputData.description.trim()}}, then make sure you use it as the toc the user wants. DO NOT TRY TO COMPRESS IT TO BE SMALLER THAN WHAT THE USER PUTS; ON NO ACCOUNT. Also, if the TOC there has something like Part I or Part II, then remove the Part I or Part II or Part III, and just return your JSON as in the format specified. Just so you know, your final JSON schema returned should look something like this:
   ${schema.toc}.
-  
+  Use discernment to group the chapters. For rample, if user includes 'Introduction' into the description they will provide, adjust the numbering of the chapters to fit the Introduction. for e.g., if it has ;
+  Introduction
+  Chapter 1: Name of chapter
+
+  Then yu want to generate a toc that will fit Introduction or any othr unnamed stuff the user provides, e.g., for this it becomes;
+  ch-1 : Introduction
+  ch-2 : Name of chapter
+
   Additionally, If there is a toc in the provided description above and the numbering in chapters has inconsistencies, say there is chapter 3 but then it skips to 5 or even 6, you are to fix that when generating the toc and make sure the numberings do not skip. Lastly, fix any inconsistencies that  may be in the toc from the description above and make it adhere to the JSON schema that I have provided above. It must adhere strictly to it.
   `
 }
@@ -592,10 +599,10 @@ async function generateChapters() {
     let promptNo; // saves the number of times to be prompted for each subchapter in a chapter
     let writingPatternRes, selectedPattern;
     // create the object in data.populatedSections. That is, add a new object for a new chapter for each loop
-
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
-    if (JSON.parse(finalReturnData.firstReq.toc[i].sch-no) !== 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
+    if (JSON.parse(tableOfContents[i]["sch-no"]) > 0) { // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
       let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
+      console.log("INFRINGING")
       console.table(currentChapterSubchapters);
       for (const [index, item] of currentChapterSubchapters.entries()) {
         currentWriteup = ""; // reset this, ready for the next subchapter to avoid unexpected model behaviour
@@ -900,7 +907,7 @@ async function generateChapters() {
       4. Compile Docx
       */
       currentWriteup = "";
-      let chapter = finalReturnData.firstReq.toc[i].ch - [i];
+      let chapter = finalReturnData.firstReq.toc[i][`ch-[${i}]`];
       try { // Asks the model how may times it should be prompted for this single chapter
         promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. This time around, this new chapter does not have any subchapters to be written on.
 
@@ -1173,14 +1180,13 @@ async function generateChapters() {
 
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
 
-    console.log(`DONE WITH CHAPTER ___: ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
+    console.log(`DONE WITH CHAPTER ${data.current_chapter}___: ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
 
     if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
       console.log("Getting ready to Initialize 'data.docx'");
       initializeDocx();
     }
     data.current_chapter++;
-
   }
 
 }
