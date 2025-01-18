@@ -743,7 +743,6 @@ async function generateChapters() {
             entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
             // console.log("\n \n TODO: CHECK THIS__ entireBookText: " + entireBookText);
 
-
             // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
           } catch (error) {
             if (data.chapterErrorCount > 4) {
@@ -758,26 +757,21 @@ async function generateChapters() {
                 let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
                     As a Hint, this is what the linter said is wrong with it : ${error}`;
 
-                const result = await fixJsonWithPro(fixMsg);
-                resolve(result);
+                const response = await fixJsonWithPro(fixMsg);
+                resolve(response);
               }, modelDelay.flash));
 
-
               // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
-              if (response === "RetrySignal") {
-                // Retry the Request? omo
-              }
-              console.log(typeof (response));
-              console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // inspect
+              // if (response === "RetrySignal") { // This should probably not be here
+              //  // Retry the Request? omo
+              // }
+
+              console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
 
               const content = response.content;
-
-              entireBookText = entireBookText.concat(content);
-
+              entireBookText = entireBookText.concat(`\n\n${content}`);
               iterationText = content;
-
               console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
-
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
             }
@@ -789,10 +783,7 @@ async function generateChapters() {
 
         await getDocxCode();
         async function getDocxCode(retry) {
-          let docxJsRes;
-          let docxJs;
-          let modelRes;
-
+          let docxJsRes, docxJs, modelRes;
           async function getDocxJs() {
             docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentSubChapter)}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
@@ -801,26 +792,23 @@ async function generateChapters() {
             modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
             console.log(`This is the docxJsRes: ${docxJsRes}`);
             console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
-            // console.log("this is the modelRes: " + modelRes);
-
 
             try { // parse the purported array
               docxJs = await JSON.parse(modelRes);
               console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
             } catch (error) {
               console.error("We got bad json from model. Trying to Fix... : " + error);
-
               if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
                 console.log("Failed to Parse 'modelRes'. Sending Message Again...");
-                return await getDocxCode(true);
-
+                console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
+                return await getDocxJs(true);
               } else {
                 docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
               }
             }
           }
-          await getDocxJs();
 
+          await getDocxJs();
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
             let string;
             try {
@@ -833,9 +821,6 @@ async function generateChapters() {
 
             await getDocxJs();
           } // This may get recursive so, fix it soon.
-
-
-
 
           // extract textRun object
           const sessionArr = [];
@@ -886,8 +871,6 @@ async function generateChapters() {
               }
             }
 
-
-
             // push new TextRun
             try {
               paragraphObj.children.push(new TextRun(textRunObj));
@@ -916,8 +899,6 @@ async function generateChapters() {
 
 
         } // end of docxCode function
-
-
       }; // end of each subchapter
     } else { // no subchapters
       /* TODO
@@ -934,8 +915,6 @@ async function generateChapters() {
 
 
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
-
-
     console.log(`DONE WITH CHAPTER ___: ${data.current_chapter}. ${data.current_chapter >= tableOfContents.length ? "Getting ready to create docx file" : `Moving to the next - Chapter ${data.current_chapter + 1}`}`);
 
     if (data.current_chapter === tableOfContents.length) { // initialize docx.js when we get to the last chapter
@@ -1046,7 +1025,6 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
 
   // confirm if this operation was successful
-
   try {
     errMsg !== undefined ? console.log(`Error Message from Previous Function : ${errMsg}`) : null;
 
@@ -1079,9 +1057,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
     } else {
       // Send an Error Message to Calling Function and Have it Retry the Request Afresh
       console.error("Failed to fix JSON after multiple retries:", error, "Resending the Message for Initial Content Generation");
-
-      return "RetrySignal";;
-
+      // return "RetrySignal";
     }
   }
 }
