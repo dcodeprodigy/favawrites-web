@@ -208,6 +208,7 @@ function deepCopyObj(obj) { // maintains functions when copying.
   });
 };
 
+
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
 
 
@@ -294,19 +295,14 @@ app.post("/generate_book", async (req, res) => {
     */
 
     await generateChapters();
-
-
     const formattedStr = await compileDocx(userInputData);
-    finalReturnData.file = `/docs/${formattedStr}.docx`;
+    // finalReturnData.file = `/docs/${formattedStr}.docx`;
 
     try {
       res.status(200).send(finalReturnData);
-
     } catch (error) {
       console.error(error);
     }
-
-
   } catch (error) {
     console.error(error);
 
@@ -868,7 +864,6 @@ async function generateChapters() {
                   console.warn("Unknown alignment: ", paragraphObj.alignment);
                   // default to start
                   paragraphObj.alignment = AlignmentType.LEFT;
-
                   break;
               }
             }
@@ -882,7 +877,6 @@ async function generateChapters() {
             }
 
             // use conditionals to create children or push to it when already created
-
             const childrenProp = data.populatedSections[data.current_chapter - 1];
             if (childrenProp.children) { // if it already exists, push subsequent data
               childrenProp.children.push(new Paragraph(paragraphObj));
@@ -890,8 +884,6 @@ async function generateChapters() {
               childrenProp["children"] = [new Paragraph(paragraphObj)];
               console.log("Initialized children in sections");
             }
-
-
           } // end of pushing for one subchapter batch
 
           // TODO : Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
@@ -1033,7 +1025,6 @@ async function generateChapters() {
           entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
           // console.log("\n \n TODO: CHECK THIS__ entireBookText: " + entireBookText);
 
-          // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
         } catch (error) {
           if (data.chapterErrorCount > 4) {
             console.log("Returning response to user prematurely");
@@ -1068,113 +1059,113 @@ async function generateChapters() {
       } // end of each promptMe number
 
       await getDocxCode();
-        async function getDocxCode(retry) {
-          let docxJsRes, docxJs, modelRes;
-          async function getDocxJs() {
-            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup)}.
+      async function getDocxCode(retry) {
+        let docxJsRes, docxJs, modelRes;
+        async function getDocxJs() {
+          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup)}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
-            modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
-            console.log(`This is the docxJsRes: ${docxJsRes}`);
-            console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
+          modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          console.log(`This is the docxJsRes: ${docxJsRes}`);
+          console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
 
-            try { // parse the purported array
-              docxJs = await JSON.parse(modelRes);
-              console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
-            } catch (error) {
-              console.error("We got bad json from model. Trying to Fix... : " + error);
-              if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
-                console.log("Failed to Parse 'modelRes'. Sending Message Again...");
-                console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
-                return await getDocxJs(true);
-              } else {
-                docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
-              }
+          try { // parse the purported array
+            docxJs = await JSON.parse(modelRes);
+            console.log("type of the docxJS is now: " + typeof (docxJs) + " " + docxJs);
+          } catch (error) {
+            console.error("We got bad json from model. Trying to Fix... : " + error);
+            if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
+              console.log("Failed to Parse 'modelRes'. Sending Message Again...");
+              console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
+              return await getDocxJs(true);
+            } else {
+              docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
+            }
+          }
+        }
+
+        await getDocxJs();
+        while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
+          let string;
+          try {
+            string = JSON.stringify(docxJs);
+          } catch (error) {
+            console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
+          }
+
+          console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
+
+          await getDocxJs();
+        } // This may get recursive so, fix it soon.
+
+        // extract textRun object
+        const sessionArr = [];
+
+        console.log("DocxJs is an array?: " + Array.isArray(docxJs));
+
+        docxJs.forEach(item => {
+          sessionArr.push(item);
+        });
+
+        for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
+          const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
+          const paragraphObj = sessionArr[j].paragraph;
+          // parse alignment as needed
+          if (paragraphObj.alignment) {
+            switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
+              case "center":
+                paragraphObj.alignment = AlignmentType.CENTER;
+                break;
+              case "end":
+              case "right": // "end" is equivalent to "right"
+                paragraphObj.alignment = AlignmentType.RIGHT;
+                break;
+              case "start":
+              case "left": // "start" is equivalent to "left"
+                paragraphObj.alignment = AlignmentType.LEFT;
+                break;
+              case "justified":
+                paragraphObj.alignment = AlignmentType.JUSTIFIED;
+                break;
+              case "both":
+                paragraphObj.alignment = AlignmentType.BOTH;
+                break;
+              case "distribute":
+                paragraphObj.alignment = AlignmentType.DISTRIBUTE;
+                break;
+              case "mediumKashida":
+                paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
+              default:
+                console.warn("Unknown alignment: ", paragraphObj.alignment);
+                // default to start
+                paragraphObj.alignment = AlignmentType.LEFT;
+
+                break;
             }
           }
 
-          await getDocxJs();
-          while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
-            let string;
-            try {
-              string = JSON.stringify(docxJs);
-            } catch (error) {
-              console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
-            }
+          // push new TextRun
+          try {
+            paragraphObj.children.push(new TextRun(textRunObj));
+            // console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
+          } catch (error) {
+            console.error(error);
+          }
 
-            console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
+          // use conditionals to create children or push to it when already created
+          const childrenProp = data.populatedSections[data.current_chapter - 1];
+          if (childrenProp.children) { // if it already exists, push subsequent data
+            childrenProp.children.push(new Paragraph(paragraphObj));
+          } else {
+            childrenProp["children"] = [new Paragraph(paragraphObj)];
+            console.log("Initialized children in sections");
+          }
+        } // end of pushing for one subchapter batch
 
-            await getDocxJs();
-          } // This may get recursive so, fix it soon.
+        // TODO : Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
 
-          // extract textRun object
-          const sessionArr = [];
-
-          console.log("DocxJs is an array?: " + Array.isArray(docxJs));
-
-          docxJs.forEach(item => {
-            sessionArr.push(item);
-          });
-
-          for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
-            const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
-            const paragraphObj = sessionArr[j].paragraph;
-            // parse alignment as needed
-            if (paragraphObj.alignment) {
-              switch (paragraphObj.alignment.toLowerCase()) { // Handle case-insensitivity
-                case "center":
-                  paragraphObj.alignment = AlignmentType.CENTER;
-                  break;
-                case "end":
-                case "right": // "end" is equivalent to "right"
-                  paragraphObj.alignment = AlignmentType.RIGHT;
-                  break;
-                case "start":
-                case "left": // "start" is equivalent to "left"
-                  paragraphObj.alignment = AlignmentType.LEFT;
-                  break;
-                case "justified":
-                  paragraphObj.alignment = AlignmentType.JUSTIFIED;
-                  break;
-                case "both":
-                  paragraphObj.alignment = AlignmentType.BOTH;
-                  break;
-                case "distribute":
-                  paragraphObj.alignment = AlignmentType.DISTRIBUTE;
-                  break;
-                case "mediumKashida":
-                  paragraphObj.alignment = AlignmentType.MEDIUM_KASHIDA;
-                default:
-                  console.warn("Unknown alignment: ", paragraphObj.alignment);
-                  // default to start
-                  paragraphObj.alignment = AlignmentType.LEFT;
-
-                  break;
-              }
-            }
-
-            // push new TextRun
-            try {
-              paragraphObj.children.push(new TextRun(textRunObj));
-              // console.log(`This is textRunObj(an object) text: \n \n ${textRunObj.text}`)
-            } catch (error) {
-              console.error(error);
-            }
-
-            // use conditionals to create children or push to it when already created
-            const childrenProp = data.populatedSections[data.current_chapter - 1];
-            if (childrenProp.children) { // if it already exists, push subsequent data
-              childrenProp.children.push(new Paragraph(paragraphObj));
-            } else {
-              childrenProp["children"] = [new Paragraph(paragraphObj)];
-              console.log("Initialized children in sections");
-            }
-          } // end of pushing for one subchapter batch
-
-          // TODO : Activate later if needed console.log("this is the type of the pushed supposed obj: " + typeof (data.populatedSections[data.current_chapter - 1]), data.populatedSections[data.current_chapter - 1])
-
-        } // end of docxCode function
+      } // end of docxCode function
     } // end of each chapter
 
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
@@ -1590,7 +1581,7 @@ function initializeDocx() {
 async function compileDocx(userInputData) {
   try {
     const buffer = await Packer.toBuffer(data.docx);
-    const formattedStr = await getFormattedBookTitle(userInputData.title);
+    const formattedStr = await getFormattedTitle(userInputData.title);
     fs.writeFileSync(`/tmp/${formattedStr}.docx`, buffer);
     console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
     return formattedStr;
@@ -1599,7 +1590,7 @@ async function compileDocx(userInputData) {
   }
 }
 
-async function getFormattedBookTitle(title) {
+async function getFormattedTitle(title) {
   let formattedStr = "";
   const lowercaseStr = title.toLowerCase();
   const newStrArr = lowercaseStr.split(" ");
