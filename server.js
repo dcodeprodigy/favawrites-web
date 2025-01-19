@@ -5,10 +5,11 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const downloadInApp = require('./downloadInApp');
 app.use(downloadInApp);
-require('dotenv').config();
+require('dotenv').config(); 
+const tempDir = process.env.TEMP_DIR;
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
 const fs = require("fs");
-const docx = require("docx"); // use if there ever be need to add more properties for docx generation other than the ones destructured
+const docx = require("docx"); // This will be used if there ever be need to add more properties for docx generation other than the ones destructured
 const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
 const { jsonrepair } = require('jsonrepair');
 const job = require('./cron.js');
@@ -1570,8 +1571,6 @@ function initializeDocx() {
       sections: data.populatedSections
     })
     console.log(`Initialized Document Object! 🎉`);
-
-
   } catch (error) {
     console.error("weird error while initializing docx code: " + error)
   }
@@ -1580,9 +1579,10 @@ function initializeDocx() {
 
 async function compileDocx(userInputData) {
   try {
+
     const buffer = await Packer.toBuffer(data.docx);
     const formattedStr = await getFormattedTitle(userInputData.title);
-    fs.writeFileSync(`/tmp/${formattedStr}.docx`, buffer);
+    fs.writeFileSync(`${tempDir}/${formattedStr}.docx`, buffer);
     console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
     return formattedStr;
   } catch (error) {
