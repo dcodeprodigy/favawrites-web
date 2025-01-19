@@ -688,7 +688,7 @@ async function generateChapters() {
               getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this subchapter. Remember you" : "You"} said I should prompt you a: ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: 
             '{"content" : "text"}'. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
               This is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '{${data.userInputData.description}}'
-        
+
               If you are supposed to give strategies for this chapter, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
               
               Stop trying to conclude everything when I am prompting you. Only conclude when  With that, Never you include the following phrases in a conclusion – Phrases beginning with :
@@ -1230,7 +1230,6 @@ You shall return an array json using this schema below as the template for this 
 }
 
 async function getFixedContentAsJson(firstStageJson, generationConfig) {
-
   const jsonReturnModel = genAI.getGenerativeModel({
     model: "gemini-2.0-flash-exp",
     systemInstruction: "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!"
