@@ -387,7 +387,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
       if (commonApiErrors.some(errorMessage => error.message.includes(errorMessage))) {
         await setUpNewChatSession(data.userInputData);
         // wait for 5 minute for API rate limit to cool down, then continue
-        await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000));
+        await new Promise(resolve => setTimeout(resolve, 6 * 1000));
         return await sendMessageWithRetry(func); // Retry. No need adding '() =>', since the initial func parameter already has that
 
       } else { // Re-throw other errors to be caught by the outer try-catch block
@@ -607,6 +607,7 @@ async function generateChapters() {
       let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
       console.table(currentChapterSubchapters);
       for (const [index, item] of currentChapterSubchapters.entries()) {
+
         currentWriteup = ""; // reset this, ready for the next subchapter to avoid unexpected model behaviour
 
         try { // Asks the model how may times it should be prompted
