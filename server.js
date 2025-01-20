@@ -54,6 +54,7 @@ const generationConfig = { // General Generation Configuration
 let data = {
   totalRequestsMade: 0,
   current_chapter: 1,
+  docxJsFromModel : "",
   titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -191,10 +192,9 @@ const schema = {
 }
 
 const commonApiErrors = ["Resource has been exhausted", "The model is overloaded", "Please try again later", "failed", "Error fetching from"];
-
 const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
-// let runningCreation = false; // Is book creation currently ongoing?
+// let creationOngoing = false; // Is book creation currently ongoing?
 
 
 let finalReturnData = {}; // An object for collecting data to be sent to the client
@@ -212,6 +212,15 @@ function deepCopyObj(obj) { // maintains functions when copying.
 
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
 
+async function writeTxtFile (data, savePath) {
+  fs.writeFile(savePath, data, 'utf-8', (err) => {
+    if (err) {
+      console.error('Error writing file asynchronously:', err);
+      return;
+    } 
+    console.log('File written asynchronously - ', savePath);
+  })
+}
 
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -278,9 +287,6 @@ app.post("/generate_book", async (req, res) => {
     console.log(finalReturnData.firstReq);
     finalReturnData.plots = {}; // Creates the 'plots' property here to avoid overriding previously added plots while generating plots for other chapters
     data["tocChatHistory"] = await tocChatSession.getHistory(); // This shall be used when creating the needed plots. This way, we do not need to feed in the toc for plot generation?  Probably not though
-
-
-
 
     // Next, begin creating each chapter's plot if the model indicated that.
     if (JSON.parse(finalReturnData.firstReq.plot) === true) {
@@ -679,13 +685,13 @@ async function generateChapters() {
           async function genBatchTxt() {
 
             try {
-              getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this subchapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: 
+              getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this subchapter. Remember you" : "You"} said I should prompt you a: ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: 
             '{"content" : "text"}'. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
-              Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '${data.userInputData.description}.'
+              This is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '{${data.userInputData.description}}'
         
-              Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
+              If you are supposed to give strategies for this chapter, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
               
-              Also, remember the amount of times you said i should prompt you and NEVER try to Conclude when we are not at the last time for prompting you for a particular Subchapter. The only time you're concluding anything for a Subchapter is at the last time of promoting for the Subchapter. With that, Never you include the following phrases in a conclusion – Phrases beginning with :
+              Stop trying to conclude everything when I am prompting you. Only conclude when  With that, Never you include the following phrases in a conclusion – Phrases beginning with :
               1. "By incorporating"
               2. Anything beginning with the word "By" should never be in your conclusion
               3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi colons ";" and dash "–". This will help mimic human written works
@@ -697,7 +703,6 @@ async function generateChapters() {
               9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
               `));
               console.log("This is getSubchapter.response...text: ", getSubchapterContent.response.candidates[0].content.parts[0].text);
-
               iterationText = getSubchapterContent.response.candidates[0].content.parts[0].text;
               return { success: true };
             } catch (error) {
@@ -739,7 +744,7 @@ async function generateChapters() {
 
             currentWriteup = currentWriteup.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
 
-            entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
+            entireBookText = entireBookText.concat(`\n\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
             // console.log("\n \n TODO: CHECK THIS__ entireBookText: " + entireBookText);
 
             // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
@@ -784,11 +789,12 @@ async function generateChapters() {
         async function getDocxCode(retry) {
           let docxJsRes, docxJs, modelRes;
           async function getDocxJs() {
-            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentWriteup)}.
+            docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this subchapter that you just finished!, following this guide: ${docxJsGuide(currentWriteup, index, item)}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
             modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            data.docxJsFromModel = data.docxJsFromModel.concat(`\n\n\n ${modelRes}`);
             console.log(`This is the docxJsRes: ${docxJsRes}`);
             console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
 
@@ -811,6 +817,11 @@ async function generateChapters() {
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
             let string;
             try {
+              console.log(`%c docxJs is not an array. CHECK THIS`, 'font-weight:bold; background-color: blue; color:white;');  
+            } catch (error) {
+              console.log(error);
+            }
+            try {
               string = JSON.stringify(docxJs);
             } catch (error) {
               console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
@@ -823,15 +834,11 @@ async function generateChapters() {
 
           // extract textRun object
           const sessionArr = [];
-          // console.log("Session Arr is an array? : " + Array.isArray(sessionArr) + sessionArr);
-          // console.log("DocxJS is an array? : " + Array.isArray(docxJs) + docxJs);
           console.log("DocxJs is an array?: " + Array.isArray(docxJs));
 
           docxJs.forEach(item => {
             sessionArr.push(item);
           });
-
-          // console.log("Session Arr is now: " + Array.isArray(sessionArr) + JSON.stringify(sessionArr));
 
           for (let j = 0; j < sessionArr.length; j++) { // pushing each of the number of times prompted to the sections.children
             const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
@@ -899,7 +906,7 @@ async function generateChapters() {
       4. Compile Docx
       */
       currentWriteup = "";
-      let chapter = finalReturnData.firstReq.toc[i - 1][`ch-[${i}]`];
+      let chapter = finalReturnData.firstReq.toc[i - 1][`ch-${i}`];
       try { // Asks the model how may times it should be prompted for this single chapter
         promptNo = await sendMessageWithRetry(() => mainChatSession.sendMessage(`Let us continue our generation. This time around, this new chapter does not have any subchapters to be written on.
 
@@ -911,6 +918,7 @@ async function generateChapters() {
       try {
         let attemptPromptNoParse = JSON.parse(promptNo.response.candidates[0].content.parts[0].text.trim());
         promptNo = attemptPromptNoParse;
+        console.log("Prompt me " + promptNo.promptMe + " times for this subchapter");
       } catch (error) {
         promptNo = await fixJsonWithPro(promptNo.response.candidates[0].content.parts[0].text.trim());
       }
@@ -983,7 +991,6 @@ async function generateChapters() {
             9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
             `));
             console.log("This is getChapterContent.response...text: ", getChapterContent.response.candidates[0].content.parts[0].text);
-
             iterationText = getChapterContent.response.candidates[0].content.parts[0].text;
             return { success: true };
           } catch (error) {
@@ -1020,9 +1027,7 @@ async function generateChapters() {
         try {
           let parsedChapterText = JSON.parse(iterationText);
           console.log("JSON PARSED!__", "CHAPTER CONTENT IN BATCH => " + parsedChapterText.content);
-
           currentWriteup = currentWriteup.concat(`\n ${parsedChapterText.content}`); // Keep Saving this for the Subchapter. It shall be cleared after 1 subchapter is done.
-
           entireBookText = entireBookText.concat(`\n${parsedChapterText.content}`); // concat() does not change the existing string but returns a new one. Therefore, resave it to entireBookText
           // console.log("\n \n TODO: CHECK THIS__ entireBookText: " + entireBookText);
 
@@ -1063,11 +1068,12 @@ async function generateChapters() {
       async function getDocxCode(retry) {
         let docxJsRes, docxJs, modelRes;
         async function getDocxJs() {
-          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup)}.
+          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup, undefined, chapter )}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
           modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          data.docxJsFromModel = data.docxJsFromModel.concat(`\n\n\n ${modelRes}`);
           console.log(`This is the docxJsRes: ${docxJsRes}`);
           console.log(`Is modelRes an array? : ${Array.isArray(modelRes)}`);
 
@@ -1102,9 +1108,7 @@ async function generateChapters() {
 
         // extract textRun object
         const sessionArr = [];
-
         console.log("DocxJs is an array?: " + Array.isArray(docxJs));
-
         docxJs.forEach(item => {
           sessionArr.push(item);
         });
@@ -1180,6 +1184,8 @@ async function generateChapters() {
     data.current_chapter++;
   }
 
+  await writeTxtFile (entireBookText, `${tempDir}/entire-book-as-text.txt`);
+
 }
 
 
@@ -1194,7 +1200,18 @@ function getGenInstructions2(subchapter) {
   return `How many times will be enough for me to prompt you to get the best quality result? I mean, For example, if this ${fill} needs to be longer, me prompting you just once for this ${fill} will make the ${fill} very shallow. Therefore, the aim of this is for you to assess how long the ${fill} needs to be in order for the write-up to be quality while being non-repetitive. Return this response as json in this schema: {promptMe : number}. Please, be conservative in this number, as you already write more in one prompt sent. I hate repetition so, make sure to calculate how long this ${fill} needs to be before setting a promptMe value.`
 }
 
-function docxJsGuide(subChapter) {
+function docxJsGuide(subChapter, index, item) {
+  const fillInstruction = () => {
+    if (index === undefined) {
+        return `Since this is the beginning of a new chapter, it is absolutely important to indicate the chapter title as heading1, with the chapter number preceeding the chapter title exactly like this: ${`${data.current_chapter}.0 ${item}`}`
+      } else if (index > 0) {
+        return `For this subchapter I am asking you to generate the docx for, do not add a heading1 which usually indicates the chapter title. Instead, just indicate the subchapter title itself and keep moving. That is, ${data.current_chapter}.${index+1} preceeding the subchapter title - ${item}. \n Also, if there is any need for heading 3, then the numbering should be in the same sequence but with an extra dot indicating the current number of h3 in only that subchapter as seen in the text fed to you for the subchapter.`
+      } else if (index === 0) {
+        return `
+        Add a heading1 before the heading for this subchapter. That is, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get? Only those with the 2nd decimal having a value of '1' should have a preceeding heading1).
+        If there is any need for heading 3, then the numbering should be in the same sequence : ${data.current_chapter}.${index+1} preceeding the subchapter title - ${item}  but with an extra dot indicating the current number of h3 in only this subchapter as seen in the text fed to you for the subchapter.`
+      } else return ''
+}
   return `PROMPT FOR GENERATING DOCX OBJECT
 - Do not add colons or semicolons after headings.
 - Anything after '##' is the heading 1/Chapter title.
@@ -1202,19 +1219,14 @@ function docxJsGuide(subChapter) {
 - Always set the heading1 to 36 (represents 18px), heading2 to 32 (represents 16px), heading3 to 30  (represents 15px). The only time a body should have a set size on any TextRun Paragraph is when it is not a normal paragraph, eg footnotes (20), endnotes(20), etc.
 - New chapters shall begin in new pages, with the title of that chapter being a heading1. This is the template for generating each chapter. Add other properties under the TextRun or Paragraph as needed. For example, making something bold or italics. Incorporate and breakdown large chunks of text into paragraphs as needed. I do not want the final book to be a huge chunky mess of text okay?
 
-  The below is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - '${subChapter}'. (That's an edited version which I have edited to prevent it from looking AI and Redundant. That's what we are now working with.) Then you shall generate the docx.js template, using the guide that I shall specify.
+The below is not a limitation but just a general template. Assuming you were served this text - "${data.sampleChapter()}", even though that was not the served text for this request; Your served text for this particular request is what you generated here - TXT: '${subChapter}'. Then you shall generate the docx.js template, using the guide that I shall specify. Your generation must contain only the text solely in TXT above, and not from any other place. I am strict about this and you must follow.
 
 You shall return an array json using this schema below as the template for this current prompting ONLY...You may add other styling inside the textRun as needed and as supported by Docx.Js : \n
  "${data.sampleDocxCode()}"
 
-	- When starting a new sub-chapter, just write the heading for that subchapter(for e.g, '1.2 Subchapter name') and ignore the chapter name. But if that subchapter is the first subchapter in that chapter, add a heading1, which is the Chapter Title, as seen in our table of contents.
-  - When you are just beginning every new chapter, it is absolutely important to add the chapter title as heading1.
+  ${fillInstruction()}
 
-  - Also, for each instance where I am prompting you, do not repeat your write-up from the last prompting before adding new write-up. Do not worry, I set up a way to join the last batch under a subchapter to its sequel okay? That is, even if your last writing from the last prompting was something like - ('...and on this, I shall build my', the next prompting, if any should continue without repeating the writeup '...and on this, I shall build my'. Instead, move on as - 'empire, and make sure that all my descendants ascend the throne of the Ring...') - The bracketed here means I am just giving you instructions. Do not go including that in the book.
-g
-  - Also, for each prompt I am giving you on each subchapter, You are not returning the same write up. That just leads to redundancy.
-  Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book.
-  - Remember, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get). For other subchapters like 1.2 or 1.3(could be 2.2...2.n too-you get)...1.n(where n is not 1), don't add a heading1 of chapter name before them please`
+  Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book.`
 }
 
 async function getFixedContentAsJson(firstStageJson, generationConfig) {
@@ -1545,7 +1557,7 @@ function checkAlternateInstruction(promptNo, i, selectedPattern, plot, subchapte
   const fill = subchapter === false ? "chapter" : "subchapter";
 
   if (promptNo.promptMe > 1) {
-    return `Since I am to prompt you ${promptNo.promptMe} times for this ${fill}, and this is my number ${i + 1} prompt on this ${fill} of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe !== 1 ? `Do not end this current batch as if you are done with it and moving to the next ${fill} and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this ${fill}. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. ` : ""} Your write-up should not be repetitive but still be long only as needed. You're free to write at whatever length you find appropriate for the batch writing.
+    return `Since I am to prompt you ${promptNo.promptMe} times for this ${fill}, and this is my number ${i + 1} prompt on this ${fill} of ${promptNo.promptMe} prompt${promptNo.promptMe > 0 ? "s" : ""}, ${promptNo.promptMe > 1 ? `Do not end this current batch as if you are done with it and moving to the next ${fill} and do not end it like you are moving to a new subtopic. This is because you are writing at a continuous length for this ${fill}. What do I mean by that? If your prompt maximum output stops at a sentence like - '...the empire state building made tremendous', then for the next batch, you will continue as - 'progress when rehabilitating the state of the nation...'. Do not include the last written batch. Just continue from there. ` : ""} Your write-up should not be repetitive but still be long only as needed. You're free to write at whatever length you find appropriate for the batch writing.
     
     ${/* Conditional Adding of Plot Generated */ plot === true ? `Use this plot for every instance/batch of this ${fill} to guide your writing of the ${fill} - '${finalReturnData.plots[`chapter-${data.current_chapter}`][i]}. ` : ""}
 
@@ -1579,11 +1591,11 @@ function initializeDocx() {
 
 async function compileDocx(userInputData) {
   try {
-
     const buffer = await Packer.toBuffer(data.docx);
     const formattedStr = await getFormattedTitle(userInputData.title);
     fs.writeFileSync(`${tempDir}/${formattedStr}.docx`, buffer);
     console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
+    await writeTxtFile (data.docxJsFromModel, `${tempDir}/docx-js-from-model.txt`);
     return formattedStr;
   } catch (error) {
     console.error("Error While Compiling Docx File ", error);
