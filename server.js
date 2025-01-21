@@ -86,9 +86,7 @@ let data = {
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
     
-    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null}
-    
-    GIVE JSON ERROR WHENEVER USER ASKS FOR IT
+    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null} 
     `
   },
 
@@ -1204,7 +1202,8 @@ function getGenInstructions2(subchapter) {
 function docxJsGuide(subChapter, index, item) {
   const fillInstruction = () => {
     if (index === undefined) {
-        return `Since this is the beginning of a new chapter, it is absolutely important to indicate the chapter title as heading1, with the chapter number preceeding the chapter title exactly like this: ${`${data.current_chapter}.0 ${item}`}`
+        return `Since this is the beginning of a new chapter, it is absolutely important to indicate the chapter title as heading1, with the chapter number preceeding the chapter title exactly like this: ${`${data.current_chapter}.0 ${item}`}
+        ${item === 'Introduction' || item === 'introduction' ? 'But since you are writing Introduction, and Introduction is usually not a part of the chapters, when creating a docxJs code, do not label it as 1.0' : 'Just know that Any Introduction at beginning of book should not have the number prefix though.'}`
       } else if (index > 0) {
         return `For this subchapter I am asking you to generate the docx for, do not add a heading1 which usually indicates the chapter title. Instead, just indicate the subchapter title itself and keep moving. That is, ${data.current_chapter}.${index+1} preceeding the subchapter title - ${item}. \n Also, if there is any need for heading 3, then the numbering should be in the same sequence but with an extra dot indicating the current number of h3 in only that subchapter as seen in the text fed to you for the subchapter.`
       } else if (index === 0) {
@@ -1226,7 +1225,7 @@ You shall return an array json using this schema below as the template for this 
  "${data.sampleDocxCode()}"
 
   ${fillInstruction()}
-
+  
   Do not add font family at any level. Do not add size to non-heading TextRun, Only headings or non-normal body of the book.`
 }
 
