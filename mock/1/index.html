@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prolifica Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="website-logo">PROLIFICA</div>
+        <nav class="header-actions">
+            <ul>
+                <li><button class="nav-btn">Create Folder</button></li>
+                <li><button class="nav-btn primary" id="create-book-btn">+ New Book</button></li>
+                <li><button class="nav-btn">HTML Formatter</button></li>
+            </ul>
+        </nav>
+    </header>    
+
+    <main class="dashboard-container">
+        <section class="your-stats">
+            <div class="stats-header">
+                <h2>Your Stats <span class="month-selector">January ▼</span></h2>
+                <div class="view-selector">
+                    <select>
+                        <option value="graph">Graph View</option>
+                        <option value="table">Table View</option>
+                    </select>
+                </div>
+            </div>
+            <div class="stats-graph">
+                <canvas id="tokenChart"></canvas>
+            </div>
+        </section>
+
+        <section class="your-library">
+            <div class="library-header">
+                <h2>Your Library</h2>
+                
+                <div class="search-bar-container">
+                    <div class="search-bar">
+                        <input type="text" placeholder="Search books...">
+                        <button aria-label="Search">🔍</button>
+                    </div>
+                </div>
+    
+                <div class="library-actions">
+                    <button class="nav-btn primary">Train Model</button>
+                </div>
+            </div>
+            
+            <div class="book-list" id="book-list"></div>
+        </section>    
+    </main>
+
+    <dialog id="book-creation-dialog">
+        <form method="dialog" id="book-form">
+            <h2>Create New Book</h2>
+            <label for="book-title">Book Title:</label>
+            <input type="text" id="book-title" required>
+            
+            <label for="book-description">Description:</label>
+            <textarea id="book-description" rows="4" required></textarea>
+            
+            <div class="dialog-buttons">
+                <button type="button" class="secondary" id="cancel-book-creation">Cancel</button>
+                <button type="submit" class="primary">Create Book</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="script.js"></script>
+</body>
+</html>

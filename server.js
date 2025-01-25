@@ -1055,7 +1055,6 @@ async function generateChapters() {
               resolve(response);
             }, modelDelay.flash));
 
-            
             if (response === "retry") {
              i--; 
              retries++;
