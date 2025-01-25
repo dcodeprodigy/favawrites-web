@@ -1146,3 +1146,74 @@ dialog {
         height: 35px;
     }
 }
+
+
+
+/* Logout Modal Styles */
+.logout-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.logout-modal-content {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 12px;
+    width: 400px;
+    max-width: 90%;
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.logout-modal h3 {
+    color: var(--danger);
+    margin-bottom: 1rem;
+}
+
+.logout-modal p {
+    margin-bottom: 1.5rem;
+    color: var(--text);
+    opacity: 0.9;
+}
+
+.logout-modal-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-logout-confirm {
+    background: var(--danger);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-logout-confirm:hover {
+    background: #ff3333;
+}
+
+.btn-logout-cancel {
+    background: var(--secondary);
+    color: var(--text);
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-logout-cancel:hover {
+    background: #2E2C3F;
+}

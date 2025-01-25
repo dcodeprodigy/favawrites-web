@@ -235,3 +235,47 @@ folderForm.addEventListener('submit', (e) => {
 function openTrain() {
     window.location.href = "../train-model/index.html"
 }
+
+
+
+// Add this to existing JavaScript
+const logoutModal = document.getElementById('logoutModal');
+const logoutButtons = document.querySelectorAll('.text-danger'); // Assuming this is your logout button class
+
+function showLogoutModal() {
+    logoutModal.style.display = 'flex';
+}
+
+function hideLogoutModal() {
+    logoutModal.style.display = 'none';
+}
+
+// Logout button handler
+logoutButtons.forEach(button => {
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        showLogoutModal();
+    });
+});
+
+// Modal button handlers
+document.querySelector('.btn-logout-confirm').addEventListener('click', () => {
+    // Add actual logout logic here
+    window.location.href = '/login'; // Redirect to login
+});
+
+document.querySelector('.btn-logout-cancel').addEventListener('click', hideLogoutModal);
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+    if(e.target === logoutModal) {
+        hideLogoutModal();
+    }
+});
+
+// Close modal with ESC key
+document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') {
+        hideLogoutModal();
+    }
+});
