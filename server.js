@@ -677,6 +677,7 @@ async function generateChapters() {
         }
 
         // generate the subchapter for the number of times the model indicated. This is to ensure a comprehensive subchapter
+        let retries = 0;
         for (let i = 0; i < promptNo.promptMe; i++) { // This loop is for each subchapter
           let errorCount = 0;
           let iterationText; // text generated for that particular for loop index
@@ -765,9 +766,15 @@ async function generateChapters() {
               }, modelDelay.flash));
 
               // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
-              // if (response === "RetrySignal") { // This should probably not be here
-              //  // Retry the Request? omo
-              // }
+              if (response === "retry") {
+                i--; 
+                retries++;
+                continue
+               } else if (retries > 3) {
+                retries = 0;
+                 console.log(`Skipping Generation for current iteration on chapter ${data.current_chapter} and iteration : ${i}`); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
+                 break;
+               }
 
               console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
 
@@ -966,6 +973,7 @@ async function generateChapters() {
       }
 
       // Generate the Chapter for the number of times the model indicated. This is to ensure a comprehensive Chapter
+      let retries = 0;
       for (let i = 0; i < promptNo.promptMe; i++) { // This loop is for each chapter
         let errorCount = 0;
         let iterationText; // text generated for that particular for loop index
@@ -1047,10 +1055,16 @@ async function generateChapters() {
               resolve(response);
             }, modelDelay.flash));
 
-            // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
-            // if (response === "RetrySignal") { // This should probably not be here
-            //  // Retry the Request? omo
-            // }
+            
+            if (response === "retry") {
+             i--; 
+             retries++;
+             continue
+            } else if (retries > 3) {
+              retries = 0;
+              console.log(`Skipping Ge;neration for current iteration on chapter ${data.current_chapter} and iteration : ${i}`); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
+              break;
+            }
 
             console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
             const content = response.content;
@@ -1314,16 +1328,16 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
       // change the model back to gemini flash
       return fixJsonWithPro(fixMsg, retries = 0);
     } else if (retries < 2) {
-      console.error(error, `Attempt ${retries + 1} failed. Retrying...`);
+      console.error(`Attempt ${retries + 1} failed. Retrying...`, error );
       const delayMs = modelDelay.pro;
-      console.log(`Waiting ${delayMs / 1000} seconds before retrying...`);
+      console.log(`Waiting ${delayMs / 1000} seconds before retrying fixJsonWithPro()...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
       console.log(`This is error.message ${error.message}`);
       return fixJsonWithPro(fixMsg, retries + 1, error.message);
     } else {
       // Send an Error Message to Calling Function and Have it Retry the Request Afresh
       console.error("Failed to fix JSON after multiple retries:", error, "Resending the Message for Initial Content Generation");
-      // return "RetrySignal";
+      return "retry";
     }
   }
 }
