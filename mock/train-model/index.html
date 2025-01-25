@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Train Model - Prolifica</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+        <div class="website-logo">PROLIFICA</div>
+        <nav class="header-actions">
+          <ul>
+            <li><button class="nav-btn">Create Folder</button></li>
+            <li><button class="nav-btn primary">+ New Book</button></li>
+            <li><button class="nav-btn">HTML Formatter</button></li>
+          </ul>
+        </nav>
+      </header>
+
+      <div class="models-container">
+        <h2 class="models-heading">Trained Models</h2>
+        
+        <div class="models-list">
+            <!-- Sample Model Item -->
+            <div class="model-item">
+                <div class="model-name">Academic Style</div>
+                <div class="model-date" data-tooltip="Created on">2025-01-24</div>
+                <button class="model-delete-btn">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </div>
+
+            <div class="model-item">
+                <div class="model-name">Joseph's Voice 1</div>
+<div class="model-date" data-tooltip="Created on">2025-01-25</div>
+                <button class="model-delete-btn">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </div>
+    
+            <!-- Add more model items as needed -->
+        </div>
+    </div>
+
+    <div class="train-container">
+      <h1 class="train-heading">TRAIN MODEL</h1>
+
+      <form id="trainForm">
+        <div class="form-group">
+          <label>Voice Name</label>
+          <input type="text" required />
+        </div>
+
+        <div class="excerpt-container">
+          <div class="excerpt-field">
+            <label>Excerpt 1</label>
+            <textarea required></textarea>
+            <button type="button" class="remove-excerpt-btn">×</button>
+          </div>
+        </div>
+
+        <button type="button" class="add-excerpt-btn" id="addExcerptBtn">
+          + Add Excerpt
+        </button>
+
+        <div class="nav-buttons">
+          <button type="submit" class="btn-primary">Train Model</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="delete-modal" id="deleteModal">
+        <div class="delete-modal-content">
+            <h3>Confirm Deletion</h3>
+            <p id="deleteModalText">Are you sure you want to delete the writing style "<span class="style-name"></span>"?</p>
+            <div class="modal-buttons">
+                <button class="btn-danger" id="confirmDelete">Yes, Delete</button>
+                <button class="btn-cancel" id="cancelDelete">No, take me back</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

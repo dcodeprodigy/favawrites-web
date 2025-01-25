@@ -65,9 +65,8 @@
                         <button aria-label="Search">🔍</button>
                     </div>
                 </div>
-    
                 <div class="library-actions">
-                    <button class="nav-btn primary">Train Model</button>
+                    <button class="nav-btn primary" onclick="openTrain()">Train Model</button>
                 </div>
             </div>
             
@@ -90,21 +89,6 @@
         </section>    
     </main>
 
-    <dialog id="book-creation-dialog">
-        <form method="dialog" id="book-form">
-            <h2>Create New Book</h2>
-            <label for="book-title">Book Title:</label>
-            <input type="text" id="book-title" required>
-            
-            <label for="book-description">Description:</label>
-            <textarea id="book-description" rows="4" required></textarea>
-            
-            <div class="dialog-buttons">
-                <button type="button" class="secondary" id="cancel-book-creation">Cancel</button>
-                <button type="submit" class="primary">Create Book</button>
-            </div>
-        </form>
-    </dialog>
     <dialog id="folder-creation-dialog">
         <form method="dialog" id="folder-form">
             <h2>Create New Folder</h2>

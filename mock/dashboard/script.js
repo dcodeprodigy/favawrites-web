@@ -64,8 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookCount = document.getElementById('book-count');
     const createBookBtn = document.getElementById('create-book-btn');
     const bookDialog = document.getElementById('book-creation-dialog');
-    const cancelBtn = document.getElementById('cancel-book-creation');
-    const bookForm = document.getElementById('book-form');
+
+
+    createBookBtn.addEventListener("click", ()=> {
+        window.location.href = "../create-book/index.html"
+    })
 
     let books = [
         {
@@ -157,25 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Dialog Handlers
-    createBookBtn.addEventListener('click', () => bookDialog.showModal());
-    cancelBtn.addEventListener('click', () => bookDialog.close());
-
-    bookForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const formData = new FormData(bookForm);
-        const newBook = {
-            title: formData.get('book-title'),
-            progress: 0,
-            duration: 'Starting...',
-            created: new Date().toISOString().split('T')[0]
-        };
-
-        books.unshift(newBook);
-        renderBooks();
-        bookForm.reset();
-        bookDialog.close();
-    });
 
     // Book Hover Effects
     document.addEventListener('mouseover', (e) => {
@@ -246,3 +230,8 @@ folderForm.addEventListener('submit', (e) => {
         alert('Please enter a folder name');
     }
 });
+
+
+function openTrain() {
+    window.location.href = "../train-model/index.html"
+}
