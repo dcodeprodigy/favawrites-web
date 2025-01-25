@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create New Book</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Header Section -->
+    <header>
+      <div class="website-logo">PROLIFICA</div>
+      <nav class="header-actions">
+        <ul>
+          <li><button class="nav-btn">Create Folder</button></li>
+          <li><button class="nav-btn primary">+ New Book</button></li>
+          <li><button class="nav-btn">HTML Formatter</button></li>
+        </ul>
+      </nav>
+    </header>
+    <div class="form-container">
+      <!-- Progress Bar -->
+      <div class="progress-bar">
+        <div class="progress-step active">1</div>
+        <div class="progress-step">2</div>
+        <div class="progress-step">3</div>
+        <div class="progress-step">4</div>
+        <div class="progress-step">5</div>
+      </div>
+
+      <!-- Form Slides -->
+      <form id="multiStepForm">
+        <!-- Slide 1 -->
+        <div class="form-slide active" data-step="1">
+          <div class="title-group">
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text" required />
+            </div>
+            <div class="form-group">
+              <label>Subtitle</label>
+              <input type="text" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Pen Name</label>
+            <input type="text" required />
+          </div>
+          <div class="nav-buttons">
+            <button type="button" class="btn-primary next-btn">Next</button>
+          </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="form-slide" data-step="2">
+          <h3>Category</h3>
+          <div class="card-grid">
+            <div class="category-card" data-value="fiction">
+              <h4>Fiction</h4>
+              <p>Imaginary stories and narratives</p>
+            </div>
+            <div class="category-card" data-value="non-fiction">
+              <h4>Non-Fiction</h4>
+              <p>Fact-based writing</p>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button type="button" class="btn-secondary prev-btn">
+              Previous
+            </button>
+            <button type="button" class="btn-primary next-btn">Next</button>
+          </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="form-slide" data-step="3">
+          <h3>Genre/Audience</h3>
+          <div class="genre-grid">
+            <div class="genre-card" data-genre="fantasy">Fantasy</div>
+            <div class="genre-card" data-genre="self-help">Self Help</div>
+            <div class="genre-card" data-genre="sci-fi">Sci-Fi</div>
+            <div class="genre-card" data-genre="mystery">Mystery</div>
+            <div class="genre-card" data-genre="religion">Religion</div>
+            <div class="genre-card" data-genre="horror">Horror</div>
+            <div class="genre-card" data-genre="true-crime">True Crime</div>
+            <div class="genre-card" data-genre="satire">Satire</div>
+            <div class="genre-card" data-genre="romance">Romance</div>
+            <div class="genre-card" data-genre="young-adult">Young Adult</div>
+            <div class="genre-card" data-genre="business">Business</div>
+            <div class="genre-card" data-genre="drama">Drama</div>
+            <div class="genre-card" data-genre="other">Other</div>
+          </div>
+          <div class="nav-buttons">
+            <button type="button" class="btn-secondary prev-btn">
+              Previous
+            </button>
+            <button type="button" class="btn-primary next-btn">Next</button>
+          </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="form-slide" data-step="4">
+          <h3>Fine-tune</h3>
+          <div class="form-group">
+            <label>Table of Contents & Special Instructions</label>
+            <textarea
+              rows="8"
+              placeholder="Enter your detailed instructions here..."
+            ></textarea>
+          </div>
+          <div class="nav-buttons">
+            <button type="button" class="btn-secondary prev-btn">
+              Previous
+            </button>
+            <button type="button" class="btn-primary next-btn">
+              Generate TOC
+            </button>
+          </div>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="form-slide" data-step="5">
+          <h3>Review & Finalize</h3>
+          <div class="toc-preview" id="tocPreview"></div>
+          <div class="form-group">
+            <label>Edit Final TOC</label>
+            <textarea rows="6" id="finalToc"></textarea>
+          </div>
+          <div class="nav-buttons">
+            <button type="button" class="btn-secondary prev-btn">
+              Previous
+            </button>
+            <button type="submit" class="btn-primary">Create Book</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

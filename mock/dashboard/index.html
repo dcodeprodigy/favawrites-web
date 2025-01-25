@@ -72,6 +72,21 @@
             </div>
             
             <div class="book-list" id="book-list"></div>
+            <div class="pagination-controls">
+                <button class="pagination-btn disabled">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="page-numbers">
+                    <span class="page-item active">1</span>
+                    <span class="page-item">2</span>
+                    <span class="page-item">3</span>
+                    <span class="page-item">...</span>
+                    <span class="page-item">8</span>
+                </div>
+                <button class="pagination-btn">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
         </section>    
     </main>
 
@@ -87,6 +102,18 @@
             <div class="dialog-buttons">
                 <button type="button" class="secondary" id="cancel-book-creation">Cancel</button>
                 <button type="submit" class="primary">Create Book</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog id="folder-creation-dialog">
+        <form method="dialog" id="folder-form">
+            <h2>Create New Folder</h2>
+            <label for="folder-name">Folder Name:</label>
+            <input type="text" id="folder-name" required>
+            
+            <div class="dialog-buttons">
+                <button type="button" class="secondary" id="cancel-folder-creation">Cancel</button>
+                <button type="submit" class="primary">Create Folder</button>
             </div>
         </form>
     </dialog>

@@ -1,3 +1,8 @@
+const createFolderBtn = document.querySelector('.nav-btn:first-child');
+const folderDialog = document.getElementById('folder-creation-dialog');
+const cancelFolderBtn = document.getElementById('cancel-folder-creation');
+const folderForm = document.getElementById('folder-form');
+
 // script.js
 document.addEventListener('DOMContentLoaded', () => {
     // Chart Configuration
@@ -132,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     
     const getRetryButton = (status) => {
-        if(status === 'failed') return `<div class="retry-icon">⟳</div>`;
+        if(status === 'failed') return `<div class="retry-icon"></div>`;
         if(status === 'ongoing') return `<div class="dash">-</div>`;
         return ''; // No retry indicator for completed
     };
@@ -222,4 +227,22 @@ document.querySelectorAll('.dropdown-item').forEach(item => {
         }
         e.target.closest('.dropdown-content').style.display = 'none';
     });
+});
+
+
+createFolderBtn.addEventListener('click', () => folderDialog.showModal());
+cancelFolderBtn.addEventListener('click', () => folderDialog.close());
+
+folderForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const folderName = document.getElementById('folder-name').value;
+    
+    if (folderName.trim()) {
+        console.log('Creating folder:', folderName);
+        // Add your folder creation logic here
+        folderDialog.close();
+        folderForm.reset();
+    } else {
+        alert('Please enter a folder name');
+    }
 });
