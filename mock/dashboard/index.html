@@ -6,6 +6,7 @@
     <title>Prolifica Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <header>
@@ -15,14 +16,33 @@
                 <li><button class="nav-btn">Create Folder</button></li>
                 <li><button class="nav-btn primary" id="create-book-btn">+ New Book</button></li>
                 <li><button class="nav-btn">HTML Formatter</button></li>
+                <!-- Add profile dropdown -->
+                <li class="profile-dropdown">
+                    <div class="profile-icon">JN</div>
+                    <div class="dropdown-content">
+                        <div class="user-info">
+                            <div class="user-avatar">JN</div> 
+                            <div class="user-details">
+                                <span class="user-name">Joseph Nwodo</span>
+                                <span class="user-email">joseph@prolifica.com</span>
+                            </div>
+                        </div>
+                        <ul class="dropdown-menu">
+                            <li><button class="dropdown-item">📝 Profile</button></li>
+                            <li><button class="dropdown-item">⚙️ Settings</button></li>
+                            <!-- <li><hr class="dropdown-divider"></li> -->
+                            <li><button class="dropdown-item text-danger">🚪 Log Out</button></li>
+                        </ul>
+                    </div>
+                </li>
             </ul>
         </nav>
-    </header>    
+    </header>  
 
     <main class="dashboard-container">
         <section class="your-stats">
             <div class="stats-header">
-                <h2>Your Stats <span class="month-selector">January ▼</span></h2>
+                <h2>Joseph's Stats <span class="month-selector">January</span></h2>
                 <div class="view-selector">
                     <select>
                         <option value="graph">Graph View</option>
@@ -37,7 +57,7 @@
 
         <section class="your-library">
             <div class="library-header">
-                <h2>Your Library</h2>
+                <h2>My Library</h2>
                 
                 <div class="search-bar-container">
                     <div class="search-bar">
