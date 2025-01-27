@@ -1605,8 +1605,8 @@ async function compileDocx(userInputData) {
   try {
     const buffer = await Packer.toBuffer(data.docx);
     const formattedStr = await getFormattedTitle(userInputData.title);
-    fs.writeFileSync(`${tempDir}/${formattedStr}.docx`, buffer);
-    console.log(`Document created successfully with link - ${process.env.APP_URL}/download/${formattedStr}.docx`);
+    fs.writeFileSync(`${tempDir}/${formattedStr}`, buffer);
+    console.log(`Document created successfully 🎉 Link => ${process.env.APP_URL}/download/${formattedStr}`);
     await writeTxtFile (data.docxJsFromModel, `${tempDir}/docx-js-from-model.txt`);
     return formattedStr;
   } catch (error) {

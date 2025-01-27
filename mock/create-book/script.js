@@ -101,17 +101,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 return true;
                 
             case 4:
-                const instructions = document.querySelector('[data-step="4"] textarea').value;
+                // Optional: Add validation if style selection is required
+                // if(!selectedStyle) {
+                //     alert('Please select a writing style');
+                //     return false;
+                // }
+                return true;
+                
+            case 5:
+                const instructions = document.querySelector('[data-step="5"] textarea').value;
                 if(!instructions.trim()) {
                     alert('Please provide some instructions');
                     return false;
                 }
                 return true;
                 
+            case 6:
+                // Final review step - no validation needed
+                return true;
+                
             default:
                 return true;
         }
     }
+    // Add to existing JS
+let selectedStyle = null;
+
+// Style selection logic
+document.querySelectorAll('.style-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedStyle = this.querySelector('.style-name').textContent;
+    });
+});
+
 
     // Form submission
     document.getElementById('multiStepForm').addEventListener('submit', (e) => {
@@ -123,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
             penName: document.querySelector('[data-step="1"] input:nth-of-type(3)').value,
             category: selectedCategory,
             genres: Array.from(selectedGenres),
-            toc: document.getElementById('finalToc').value
+            toc: document.getElementById('finalToc').value,
+            writingStyle: selectedStyle
         };
 
         // Submit to backend (simulated)

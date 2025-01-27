@@ -197,10 +197,6 @@ document.querySelectorAll('.dropdown-item').forEach(item => {
         const action = e.target.textContent.trim();
         switch(action) {
             case '🚪 Log Out':
-                if(confirm('Are you sure you want to log out?')) {
-                    // Add logout logic
-                    console.log('User logged out');
-                }
                 break;
             case '📝 Profile':
                 // Handle profile action
