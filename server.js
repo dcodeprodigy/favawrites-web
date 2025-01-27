@@ -12,12 +12,15 @@ const fs = require("fs");
 const docx = require("docx"); // This will be used if there ever be need to add more properties for docx generation other than the ones destructured
 const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
 const { jsonrepair } = require('jsonrepair');
-const job = require('./cron.js');
 const _ = require('lodash');
+const cors = require('cors');
+const nodemailer = require('nodemailer');
+const job = require('./cron.js');
 require('events').EventEmitter.defaultMaxListeners = 25;
 // Middleware to parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
+app.use(cors());
 
 const safetySettings = [
   {
@@ -86,8 +89,7 @@ let data = {
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
     
-    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null} 
-    `
+    ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null}`
   },
 
   proModelErrors: 0,
@@ -189,6 +191,16 @@ const schema = {
   },
 }
 
+const mailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+})
+
 const commonApiErrors = ["Resource has been exhausted", "The model is overloaded", "Please try again later", "failed", "Error fetching from"];
 const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
@@ -239,17 +251,19 @@ async function setUpNewChatSession(userInputData) {
 
 }
 
-
 app.post("/generate_book", async (req, res) => {
+  // Do Authentication
 
+  let hasGeneratedBook = false;
   reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
   reqNumber++; // Increament the number of requests being handled
   data["backOff"] = { backOffDuration, backOffCount: 0, maxRetries } // set a backoff duration for when API says that there is too many requests
   data.error = { pro: 0 };
+  const userInputData = req.body;
+  let formattedStr;
 
   try {
-    const userInputData = req.body;
     data.userInputData = userInputData;
     data.res = res;
 
@@ -300,7 +314,8 @@ app.post("/generate_book", async (req, res) => {
     */
 
     await generateChapters();
-    const formattedStr = await compileDocx(userInputData);
+    formattedStr = await compileDocx(userInputData);
+    hasGeneratedBook = true;
     // finalReturnData.file = `/docs/${formattedStr}.docx`;
 
     try {
@@ -335,8 +350,33 @@ app.post("/generate_book", async (req, res) => {
 
     }
   } finally {
+    let sendMailAttempt = 0;
     data = deepCopyObj(originalDataObj);
     finalReturnData = {};
+    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${process.env.APP_URL/'download'/formattedStr}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
+
+    try {
+      const value = process.env.SMTP_USER;
+      const options = {
+        from: value,
+        to: value,
+        subject: `${hasGeneratedBook === true ? "Generation Completed 🎉🥳" : "An Error Occured During Generation"}`,
+        text: `Hey there! \n\n Your book, ${userInputData.title} ${completionMsg}`,
+      }
+
+      while (sendMailAttempt < 2) {
+        try {
+          await mailTransporter.sendMail(options);
+          sendMailAttempt = 2; // Stops message from sending again if first try was successful
+        } catch (error) {
+          console.error(error);
+          sendMailAttempt++;
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    
   }
 
 });
@@ -538,6 +578,7 @@ async function continuePlotGeneration(tableOfContents, plotChatSession, config, 
 async function generateChapters() {
   // using the main chatSession
   const tableOfContents = finalReturnData.firstReq.toc;
+  const addInstruct = "Stop using statements like : 'It is not about...' 'It is about...'. Write like a human would with such statements instead"
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
   let entireBookText = ""; // Saving the chapter content here. NEVER RESET
   let currentWriteup = ""; /* Save the current working subchapter or subchapter here, then after docx generation, reset it for the next subchapter or chapter to avoid unexpected behaviour - RESET AFTER EACH SUBCHAPTER/CHAPTER WITHOUT SUBCHAPTER GENERATION */

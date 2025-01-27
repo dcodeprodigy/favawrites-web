@@ -30,6 +30,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.7",
+    "cors": "^2.8.5",
     "cron": "^3.2.1",
     "docx": "^9.0.2",
     "dotenv": "^16.4.5",
@@ -38,6 +39,7 @@
     "jsonrepair": "^3.8.1",
     "lodash": "^4.17.21",
     "mongoose": "^8.8.2",
+    "nodemailer": "^6.10.0",
     "nodemon": "^3.1.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
