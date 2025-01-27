@@ -5,9 +5,10 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const downloadInApp = require('./downloadInApp');
 app.use(downloadInApp);
-require('dotenv').config(); 
+require('dotenv').config();
 const tempDir = process.env.TEMP_DIR;
 const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require('@google/generative-ai');
+const { GoogleAICacheManager } = require('@google/generative-ai/server');
 const fs = require("fs");
 const docx = require("docx"); // This will be used if there ever be need to add more properties for docx generation other than the ones destructured
 const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
@@ -57,7 +58,7 @@ const generationConfig = { // General Generation Configuration
 let data = {
   totalRequestsMade: 0,
   current_chapter: 1,
-  docxJsFromModel : "",
+  docxJsFromModel: "",
   titles_subtitle_rules: `Book Title
     Titles are the most frequently used search attribute. The title field should contain only the actual title of your book as it appears on your book cover. Missing or erroneous title information may bury valid results among extraneous hits. Customers pay special attention to errors in titles and won't recognize the authenticity of your book if it has corrupted special characters, superfluous words, bad formatting, extra descriptive content, etc. Examples of items that are prohibited in the title field include but aren't limited to:
 
@@ -84,10 +85,12 @@ let data = {
     "${userInputData.description.trim()}."
     Follow the user's request for the number of chapters he/she needs. This is a must!
     
-     REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS - AND ONLY USING IT WHEN ABSOLUTELY NECESSARY.
+    REMEMBER TO USE SIMPLE VOCABULARY AND GRAMMAR AND WRITE IN PROSE FORM, ALWAYS DISCOURAGING THE USE OF BULLET POINTS - AND ONLY USING IT WHEN ABSOLUTELY NECESSARY.
     Don't use the following words, ever - Delve or Delve deeper, Unleashing, Sarah, Alex, transformative, profound, or other generic names. Always use real american names whenever you need a new name. Never use words like a confetti Cannon, Confetti, Cannon, delve, safeguard, robust, symphony, demystify, in this digital world, absolutely, tapestry, mazes, labyrinths, incorporate.
 
     In any of your responses, never you include the following: \n \n ${getAiPhrase()}
+
+    Stop using statements like : 'It is not about...' 'It is about...'. Write like a human would with such statements instead.
     
     ${data.current_chapter > 1 ? `Lastly, I shall be continuing from chapter ${data.current_chapter}. You must respect this and continue writing from where I shall prompt you to continue from for this chapter.` : null}`
   },
@@ -219,15 +222,14 @@ function deepCopyObj(obj) { // maintains functions when copying.
   });
 };
 
-
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
 
-async function writeTxtFile (data, savePath) {
+async function writeTxtFile(data, savePath) {
   fs.writeFile(savePath, data, 'utf-8', (err) => {
     if (err) {
       console.error('Error writing file asynchronously:', err);
       return;
-    } 
+    }
     console.log('File written asynchronously - ', savePath);
   })
 }
@@ -238,6 +240,20 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 async function setUpNewChatSession(userInputData) {
   console.log("SPIN-UP: Creating a New Model Chat Session...");
   // Be careful calling this function, as it overrides the entire thing in mainChatSession
+
+  /* Putting this outside here and not inside the if statement, so I do not have to manage ttlSeconds expiring because this is not being run again.
+
+  const cacheManager = new GoogleAICacheManager(process.env.GEMINI_API_KEY);
+  const cache = await cacheManager.create({
+    model : `${!model ? `${userInputData.model}` : null}`,
+    displayName : "Generating a Full-Fledged Book",
+    systemInstruction : `${data.systemInstruction(userInputData)}`,
+    ttlSeconds : 2 * 60 * 60
+    });
+  if (!model) { // Set up new cache model if it is undefined
+    model = model = genAI.getGenerativeModelFromCachedContent(cache);
+  } */
+
   if (!model) { // Set up new model if it is undefined
     model = genAI.getGenerativeModel({ model: userInputData.model, systemInstruction: data.systemInstruction(userInputData) });
   }
@@ -248,14 +264,13 @@ async function setUpNewChatSession(userInputData) {
     safetySettings,
     generationConfig
   }); // starts a new chat
-
 }
 
 app.post("/generate_book", async (req, res) => {
   // Do Authentication
 
   let hasGeneratedBook = false;
-  reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
+  // reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
   reqNumber++; // Increament the number of requests being handled
   data["backOff"] = { backOffDuration, backOffCount: 0, maxRetries } // set a backoff duration for when API says that there is too many requests
@@ -289,7 +304,6 @@ app.post("/generate_book", async (req, res) => {
     const tocRes = await sendMessageWithRetry(() => tocChatSession.sendMessage(`${errorAppendMessage()}. ${tocPrompt}`));
 
     console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`);
-    console.log(`${JSON.stringify(tocRes)}___That is the stringified form of the above statement. Check the structure`);
 
     if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
       return; // Stop further processing and return the 503 error already sent.
@@ -353,7 +367,7 @@ app.post("/generate_book", async (req, res) => {
     let sendMailAttempt = 0;
     data = deepCopyObj(originalDataObj);
     finalReturnData = {};
-    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${process.env.APP_URL/'download'/formattedStr}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
+    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${process.env.APP_URL / 'download' / formattedStr}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
 
     try {
       const value = process.env.SMTP_USER;
@@ -376,7 +390,7 @@ app.post("/generate_book", async (req, res) => {
     } catch (error) {
       console.error(error);
     }
-    
+
   }
 
 });
@@ -808,21 +822,21 @@ async function generateChapters() {
 
               // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
               if (response === "retry") {
-                i--; 
+                i--;
                 retries++;
                 continue
-               } else if (retries > 3) {
+              } else if (retries > 3) {
                 retries = 0;
-                 console.log(`Skipping Generation for current iteration on chapter ${data.current_chapter} and iteration : ${i}`); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
-                 break;
-               }
+                console.log(`Skipping Generation for current iteration on chapter ${data.current_chapter} and iteration : ${i}`); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
+                break;
+              }
 
-              console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
+              // console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
 
               const content = response.content;
               entireBookText = entireBookText.concat(`\n\n${content}`);
               iterationText = content;
-              console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
+              // console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
               data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
             }
@@ -852,7 +866,7 @@ async function generateChapters() {
               console.error("We got bad json from model. Trying to Fix... : " + error);
               if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
                 console.log("Failed to Parse 'modelRes'. Sending Message Again...");
-                console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
+                // console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
                 return await getDocxJs(true);
               } else {
                 docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
@@ -864,7 +878,7 @@ async function generateChapters() {
           while (Array.isArray(docxJs) !== true) { // The model tends to return a strange schema here at times. Therefore, I think it necessary to include this so that it calls until model returns the schema we are looking for.
             let string;
             try {
-              console.log(`%c docxJs is not an array. CHECK THIS`, 'font-weight:bold; background-color: blue; color:white;');  
+              console.log(`%c docxJs is not an array. CHECK THIS`, 'font-weight:bold; background-color: blue; color:white;');
             } catch (error) {
               console.log(error);
             }
@@ -874,7 +888,7 @@ async function generateChapters() {
               console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
             }
 
-            console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
+            // console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
 
             await getDocxJs();
           } // This may get recursive so, fix it soon.
@@ -1097,20 +1111,20 @@ async function generateChapters() {
             }, modelDelay.flash));
 
             if (response === "retry") {
-             i--; 
-             retries++;
-             continue
+              i--;
+              retries++;
+              continue
             } else if (retries > 3) {
               retries = 0;
               console.log(`Skipping Ge;neration for current iteration on chapter ${data.current_chapter} and iteration : ${i}`); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
               break;
             }
 
-            console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
+            // console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
             const content = response.content;
             entireBookText = entireBookText.concat(`\n\n${content}`);
             iterationText = content;
-            console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
+            // console.log("This is the ITERATIONTEXT/CONTENT after model fixed the json: " + iterationText);
             data.chapterErrorCount = 0; // reset this. I only need the session to be terminated when we get 3 consecutive bad json
 
           }
@@ -1121,7 +1135,7 @@ async function generateChapters() {
       async function getDocxCode(retry) {
         let docxJsRes, docxJs, modelRes;
         async function getDocxJs() {
-          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup, undefined, chapter )}.
+          docxJsRes = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. This is time for you to generate the docxJS Code for me for this chapter writeup that you just finished!, following this guide: ${docxJsGuide(currentWriteup, undefined, chapter)}.
             ${retry === true ? "And Oh lastly, there's something wrong with how you gave me your previous response. Please, follow my instructions as above to avoid that. This is IMPORTANT!" : ""}
             `));
 
@@ -1137,7 +1151,7 @@ async function generateChapters() {
             console.error("We got bad json from model. Trying to Fix... : " + error);
             if (error.message.includes("Expected double-quoted property name in JSON") || error.message.includes("Unterminated")) { // retry getDocxJs
               console.log("Failed to Parse 'modelRes'. Sending Message Again...");
-              console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
+              // console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
               return await getDocxJs(true);
             } else {
               docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
@@ -1154,7 +1168,7 @@ async function generateChapters() {
             console.error("The docxJs that was supposed to be an Array could not stringify. See error: ", error);
           }
 
-          console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
+          // console.log("docxJs is not an array. Therefore, the weird type, stringified is___ ", JSON.stringify(string));
 
           await getDocxJs();
         } // This may get recursive so, fix it soon.
@@ -1237,7 +1251,7 @@ async function generateChapters() {
     data.current_chapter++;
   }
 
-  await writeTxtFile (entireBookText, `${tempDir}/entire-book-as-text.txt`);
+  await writeTxtFile(entireBookText, `${tempDir}/entire-book-as-text.txt`);
 
 }
 
@@ -1256,16 +1270,16 @@ function getGenInstructions2(subchapter) {
 function docxJsGuide(subChapter, index, item) {
   const fillInstruction = () => {
     if (index === undefined) {
-        return `Since this is the beginning of a new chapter, it is absolutely important to indicate the chapter title as heading1, with the chapter number preceeding the chapter title exactly like this: ${`${data.current_chapter}.0 ${item}`}
+      return `Since this is the beginning of a new chapter, it is absolutely important to indicate the chapter title as heading1, with the chapter number preceeding the chapter title exactly like this: ${`${data.current_chapter}.0 ${item}`}
         ${item === 'Introduction' || item === 'introduction' ? 'But since you are writing Introduction, and Introduction is usually not a part of the chapters, when creating a docxJs code, do not label it as 1.0' : 'Just know that Any Introduction at beginning of book should not have the number prefix though.'}`
-      } else if (index > 0) {
-        return `For this subchapter I am asking you to generate the docx for, do not add a heading1 which usually indicates the chapter title. Instead, just indicate the subchapter title itself and keep moving. That is, ${data.current_chapter}.${index+1} preceeding the subchapter title - ${item}. \n Also, if there is any need for heading 3, then the numbering should be in the same sequence but with an extra dot indicating the current number of h3 in only that subchapter as seen in the text fed to you for the subchapter.`
-      } else if (index === 0) {
-        return `
+    } else if (index > 0) {
+      return `For this subchapter I am asking you to generate the docx for, do not add a heading1 which usually indicates the chapter title. Instead, just indicate the subchapter title itself and keep moving. That is, ${data.current_chapter}.${index + 1} preceeding the subchapter title - ${item}. \n Also, if there is any need for heading 3, then the numbering should be in the same sequence but with an extra dot indicating the current number of h3 in only that subchapter as seen in the text fed to you for the subchapter.`
+    } else if (index === 0) {
+      return `
         Add a heading1 before the heading for this subchapter. That is, if I give you a subchapter with "1.1 - subchapter name", the docx for it should have heading1 as chapter name coming before the heading2 for 1.1 or 2.1 or 3.1(You get? Only those with the 2nd decimal having a value of '1' should have a preceeding heading1).
-        If there is any need for heading 3, then the numbering should be in the same sequence : ${data.current_chapter}.${index+1} preceeding the subchapter title - ${item}  but with an extra dot indicating the current number of h3 in only this subchapter as seen in the text fed to you for the subchapter.`
-      } else return ''
-}
+        If there is any need for heading 3, then the numbering should be in the same sequence : ${data.current_chapter}.${index + 1} preceeding the subchapter title - ${item}  but with an extra dot indicating the current number of h3 in only this subchapter as seen in the text fed to you for the subchapter.`
+    } else return ''
+  }
   return `PROMPT FOR GENERATING DOCX OBJECT
 - Do not add colons or semicolons after headings.
 - Anything after '##' is the heading 1/Chapter title.
@@ -1302,7 +1316,7 @@ async function getFixedContentAsJson(firstStageJson, generationConfig) {
 
   const returnValue = JSON.parse(response.response.candidates[0].content.parts[0].text);
 
-  console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
+  // console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
 
   return returnValue;
 
@@ -1354,7 +1368,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
 
     let firstStageJson = fixedRes.response.candidates[0].content.parts[1].text; // "parts[1]" gets the answer by model as text/plain response. "parts[0]" gets the thought process of model.
 
-    console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
+    // console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
 
     // Turn Fixed Content to Usable JSON with mimeType of "application/json" using GEMINI 2.0 FLASH
     firstStageJson = await getFixedContentAsJson(firstStageJson, generationConfig); // Using Gemini Model that Supports JSON
@@ -1368,7 +1382,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
       // change the model back to gemini flash
       return fixJsonWithPro(fixMsg, retries = 0);
     } else if (retries < 2) {
-      console.error(`Attempt ${retries + 1} failed. Retrying...`, error );
+      console.error(`Attempt ${retries + 1} failed. Retrying...`, error);
       const delayMs = modelDelay.pro;
       console.log(`Waiting ${delayMs / 1000} seconds before retrying fixJsonWithPro()...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -1648,7 +1662,7 @@ async function compileDocx(userInputData) {
     const formattedStr = await getFormattedTitle(userInputData.title);
     fs.writeFileSync(`${tempDir}/${formattedStr}`, buffer);
     console.log(`Document created successfully 🎉 Link => ${process.env.APP_URL}/download/${formattedStr}`);
-    await writeTxtFile (data.docxJsFromModel, `${tempDir}/docx-js-from-model.txt`);
+    await writeTxtFile(data.docxJsFromModel, `${tempDir}/docx-js-from-model.txt`);
     return formattedStr;
   } catch (error) {
     console.error("Error While Compiling Docx File ", error);
