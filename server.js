@@ -740,8 +740,8 @@ async function generateChapters() {
           async function genBatchTxt() {
 
             try {
-              getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this subchapter. Remember you" : "You"} said I should prompt you a: ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: 
-            '{"content" : "text"}'. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+              getSubchapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing this subchapter. Remember you" : "You"} said I should prompt you a: ${promptNo.promptMe} times for this subchapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot)}.  Return res in this json schema: '{"content" : "text"}'. 
+              You are not doing the docx thing yet. DO NOT GENERATE DOCX CODE! I shall tell you when to do that later in this chat. For now, the text you are generating is outlined below:
               This is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '{${data.userInputData.description}}'
 
               If you are supposed to give strategies for this chapter, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
@@ -1035,8 +1035,8 @@ async function generateChapters() {
         let getChapterContent;
         async function genBatchTxt() {
           try {
-            getChapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this chapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot, false)}.  Return res in this json schema: 
-            '{"content" : "text"}'. You are not doing the docx thing yet. I shall tell you when to do that. For now, the text you are generating is just plain old text. 
+            getChapterContent = await sendMessageWithRetry(() => mainChatSession.sendMessage(`${errorAppendMessage()}. ${i > 0 ? "Now, let us continue the generation for writing for this chapter. Remember you" : "You"} said I should prompt you ${promptNo.promptMe} times for this chapter. ${checkAlternateInstruction(promptNo, i, selectedPattern, finalReturnData.plot, false)}.  Return res in this json schema: '{"content" : "text"}'. 
+            You are not doing the docx thing yet. DO NOT GENERATE DOCX CODE! I shall tell you when to do that later in this chat. For now, the text you are generating is outlined below:
             Lastly, this is what you have written so far for this book, only use it as context and avoid repeating solutions and takes that you have already written, in another subchapter or chapter, DO NOT RESEND IT => '${entireBookText}'. Continue from there BUT DO NOT REPEAT anything from it into the new batch! Just return the new batch. Remember you are an arm of Favawrites, which is an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : '${data.userInputData.description}.'
       
             Finally, Check. Are you supposed to give strategies for this chapter? If yes, STRONGLY AVOID GENERIC ADVICE. Your strategies and points MUST BE UNCOMMON but very insightful. You are giving NON-MUNDANE, Counterintuitive Advice that works but you are not going about telling the reader that it is counterintuitive or non-mundane. Instead, you are making them see sense in whatever information you are trying to pass across to them.
@@ -1326,7 +1326,7 @@ async function getFixedContentAsJson(firstStageJson, generationConfig) {
 async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   // function for fixing bad json with gemini pro model
   data.error.pro++; // counting the amount of errors that leads to using this jsonfixer
-  const modelSelected = "gemini-2.0-flash-thinking-exp-1219";
+  const modelSelected = "gemini-2.0-flash-thinking-exp";
 
   const generationConfig = {
     temperature: 0.7,
@@ -1341,7 +1341,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
     topP: 0.95,
     topK: 64,
     maxOutputTokens: 8192,
-    responseMimeType: "text/plain"
+    responseMimeType: "text/plain",
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -1356,7 +1356,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
     Just so you know your response should be in the schema of the JSON initially given to you, but in its fixed form. Don't try to explain anything outside the JSON. just return JSON response`
   });
 
-  const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfigNoJson });
+  const jsonFixer = thinkingModel.startChat({ safetySettings, generationConfig: generationConfigNoJson });
 
   // confirm if this operation was successful
   try {
@@ -1366,7 +1366,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
 
     data.proModelErrors = 0; // Reset error count on success
 
-    let firstStageJson = fixedRes.response.candidates[0].content.parts[1].text; // "parts[1]" gets the answer by model as text/plain response. "parts[0]" gets the thought process of model.
+    let firstStageJson = fixedRes.response.candidates[0].content.parts[0].text; // Now by default, model does not return its thoughts except explicitly set by us. see docs for more info
 
     // console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
 

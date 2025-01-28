@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     let currentStep = 1;
-    const totalSteps = 5;
+    const totalSteps = 6;
     const formSlides = document.querySelectorAll('.form-slide');
     const progressSteps = document.querySelectorAll('.progress-step');
     let selectedCategory = null;
