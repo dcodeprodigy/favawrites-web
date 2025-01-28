@@ -756,6 +756,8 @@ async function generateChapters() {
               7. When selecting a name to use, strictly avoid the following names - "Sarah" and all other Ai reeking names. Be creative. Use really unique names
               8. Never use the phrase "vicious cycle" or "virtuous cycle"
               9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
+              
+              MOST IMPORTANTLY, stop cutting your json response. complete the damn thing with the closing curly braces. stop ending it with a triple dot
               `));
               console.log("This is getSubchapter.response...text: ", getSubchapterContent.response.candidates[0].content.parts[0].text);
               iterationText = getSubchapterContent.response.candidates[0].content.parts[0].text;
