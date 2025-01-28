@@ -367,7 +367,7 @@ app.post("/generate_book", async (req, res) => {
     let sendMailAttempt = 0;
     data = deepCopyObj(originalDataObj);
     finalReturnData = {};
-    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${process.env.APP_URL / 'download' / formattedStr}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
+    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${`${process.env.APP_URL}/download/${formattedStr}`}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
 
     try {
       const value = process.env.SMTP_USER;
