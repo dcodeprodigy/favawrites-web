@@ -806,12 +806,11 @@ async function generateChapters() {
 
             // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
           } catch (error) {
-            if (data.chapterErrorCount > 4) {
+            if (data.chapterErrorCount > 35) { // temporary fix - TODO
               console.log("Returning response to user prematurely");
-              return data.resParam.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
+              return data.res.status(200).send("Model Failed to Repair Bad JSON. Please start another book create Session.");
             } else {
               console.log("Parse error occured in generated chapter; retrying in 6 secs: " + error);
-
               const response = await new Promise(resolve => setTimeout(async () => {
                 data.chapterErrorCount++;
                 console.log("Trying to Fix JSON...");
@@ -834,7 +833,6 @@ async function generateChapters() {
               }
 
               // console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
-
               const content = response.content;
               entireBookText = entireBookText.concat(`\n\n${content}`);
               iterationText = content;
