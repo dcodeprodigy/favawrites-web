@@ -1,6 +1,9 @@
 const createAiBtn = document.getElementById("create-with-ai");
 const createScratchBtn = document.getElementById("create-scratch");
 const createContainer = document.getElementById("create-btn-container");
+const copyright = document.getElementById("copyright");
+const year = new Date ().getFullYear();
+copyright.innerHTML = `&#169; ${year} favawrites. All rights reserved.`;
 
 
 // Create a form to be server when user clicks on the create buttons
@@ -297,3 +300,5 @@ async function postFormData(userInputData, submitBtn) {
 
     }
 }
+
+
