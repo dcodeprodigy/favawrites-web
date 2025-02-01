@@ -268,7 +268,7 @@ async function setUpNewChatSession(userInputData) {
 
 app.post("/generate_book", async (req, res) => {
   // Do Authentication
-
+  let e = null;
   let hasGeneratedBook = false;
   // reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
 
@@ -305,8 +305,8 @@ app.post("/generate_book", async (req, res) => {
 
     console.log(`This is the TOC_CHAT_METADATA__${tocRes.response.usageMetadata.totalTokenCount}`);
 
-    if (tocRes.status === 503) { //  Check if sendMessageWithRetry failed
-      return; // Stop further processing and return the 503 error already sent.
+    if (tocRes.status === 503) {
+      throw tocRes.error; // Stop further processing
     }
 
     finalReturnData["firstReq"] = parseJson(tocRes); // Push to final object as a json string
@@ -338,37 +338,31 @@ app.post("/generate_book", async (req, res) => {
       console.error(error);
     }
   } catch (error) {
+    e = error;
+    async function sendResWithError (errorCode) {
+      try {
+        res.status(errorCode).send(`${errorCode === 501 ? "An Unknown Error Occured: " + error : finalReturnData}`); // Using catch here just incase connection has already closed. Prevents app from crashing.
+      } catch (error) {
+        console.error("Could not send res to user: ", error)
+      }
+    }
     console.error(error);
-
     if (error.message.includes("fetch failed")) {
       finalReturnData.response = { statusText: "Generative AI Fetch Failed", status: 500 }
       console.log(finalReturnData.response);
-
-      try {
-        res.status(500).send(finalReturnData);
-      } catch (error) {
-        console.error(error)
-      }
+      await sendResWithError (500);
     } else if (error.message.includes("overloaded")) {
       finalReturnData.response = { error: "Generative API is overloaded. Please, try again later!", status: 503 }
       console.log(finalReturnData.response);
-      try {
-        res.status(503).send(finalReturnData);
-      } catch (error) {
-        console.error(error);
-      }
+      await sendResWithError (503);
     } else {
-      try {
-        res.status(500).send("An Unknown Error Occured " + error);
-      } catch (error) { console.error(error) }
-
+      await sendResWithError (501);
     }
   } finally {
     let sendMailAttempt = 0;
     data = deepCopyObj(originalDataObj);
     finalReturnData = {};
-    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${`${process.env.APP_URL}/download/${formattedStr}`}` : "had a generation error and could not be completed. Please try again later. If error persists, contact the developer."}`;
-
+    const completionMsg = `${hasGeneratedBook === true ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${`${process.env.APP_URL}/download/${formattedStr}.docx`}` : `had a generation error and could not be completed. Please try again later. Error Details: ${e}`}`;
     try {
       const value = process.env.SMTP_USER;
       const options = {
@@ -402,6 +396,7 @@ function errorAppendMessage() {
   } else return "";
 }
 
+let sendWithRetryErrorCount = 0;
 async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
   let mainChatHistory;
   try {
@@ -435,21 +430,23 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
     if (response.error) { // Check if there was an error during sendMessage
       const error = response.error;
       console.warn(error);
-
-      if (commonApiErrors.some(errorMessage => error.message.includes(errorMessage))) {
-        await setUpNewChatSession(data.userInputData);
-        // wait for 5 minute for API rate limit to cool down, then continue
-        await new Promise(resolve => setTimeout(resolve, 6 * 1000));
-        return await sendMessageWithRetry(func); // Retry. No need adding '() =>', since the initial func parameter already has that
-
+      sendWithRetryErrorCount++;
+      
+      if (commonApiErrors.some(errorMessage => error.message.includes(errorMessage)) && sendWithRetryErrorCount < 4) {
+          await setUpNewChatSession(data.userInputData);
+          await new Promise(resolve => setTimeout(resolve, 6 * 1000));
+          return await sendMessageWithRetry(func); // Retry. No need adding '() =>', since the initial func parameter already has that
       } else { // Re-throw other errors to be caught by the outer try-catch block
         console.error("UNABLE TO RETRY func() request. See error details: ", error);
+        throw error;
       }
     } else {
+      sendWithRetryErrorCount = 0;
       return response; // Return the successful response
     }
-  } catch (error) { // Catch and re-throw errors to be handled in the /generate_book route
+  } catch (error) { // Catch and re-throw errors to be handled in the /generate_book & other route calling this function
     console.log("Error in func() try block wrapper: ", error);
+    return { error : error , status : 503 , message: "An error occured in 'sendMessageWithRetry' function. Retry Book Generation/See error property for details" } // return for handling
   }
 }
 
