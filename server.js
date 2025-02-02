@@ -94,7 +94,7 @@ let data = {
   proModelErrors: 0,
   communicateWithApiError: 0,
   sampleChapter: function () {
-    const string = `Day 1: The Fresh Start
+    const string = `day 1: The Fresh Start
     Quote: "The first step towards getting somewhere is to decide you're not going to stay where you are." - J.P. Morgan
       
     Author's Reflection:  J.P. Morgan's words capture the very essence of a fresh start.  It's not enough to simply wish for change; we must actively choose to move, to shift, to begin. Today, on the first day of January, we stand at this crucial juncture. The past is behind us, a mixture of triumphs and stumbles, and the future stretches before us, full of potential.  This potential, however, remains dormant until we decide, definitively, to step away from our current position – whether that’s a bad habit, a limiting belief, or a stagnant routine.
