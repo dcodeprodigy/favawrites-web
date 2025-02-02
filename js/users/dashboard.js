@@ -5,7 +5,6 @@ const copyright = document.getElementById("copyright");
 const year = new Date ().getFullYear();
 copyright.innerHTML = `&#169; ${year} favawrites. All rights reserved.`;
 
-
 // Create a form to be server when user clicks on the create buttons
 const htmlComponents = {
     createForm: `<form id="create-form" class="bg-[#333] rounded-md p-5 gap-3 flex flex-col max-w-[600px] m-auto">
@@ -36,9 +35,7 @@ const htmlComponents = {
 
         <label for="modelType">AI Model</label>
         <select name="model" id="modelType" class="max-w-[100%]">
-            <option value="gemini-1.5-flash-001" selected="">Gemini-1.5-flash-001</option>
-            <option value="gemini-1.5-flash-002">Gemini-1.5-flash-002</option>
-            <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+            <option value="gemini-1.5-flash" selected="">Gemini-1.5-flash</option>
             <option value="gemini-2.0-flash-exp">Gemini-2.0-Flash-Exp</option>
         </select>
 
