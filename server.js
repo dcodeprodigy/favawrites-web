@@ -18,7 +18,6 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const job = require('./cron.js');
 require('events').EventEmitter.defaultMaxListeners = 25;
-// Middleware to parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 app.use(cors());
@@ -208,8 +207,6 @@ const commonApiErrors = ["Resource has been exhausted", "The model is overloaded
 const backOffDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
 const maxRetries = 4;
 // let creationOngoing = false; // Is book creation currently ongoing?
-
-
 let finalReturnData = {}; // An object for collecting data to be sent to the client
 let reqNumber = 0; // keeping track of the number of request sent to server since last deployment
 
@@ -221,9 +218,7 @@ function deepCopyObj(obj) { // maintains functions when copying.
     }
   });
 };
-
 let originalDataObj = deepCopyObj(data); // this should only copy once, until server is restarted
-
 async function writeTxtFile(data, savePath) {
   fs.writeFile(savePath, data, 'utf-8', (err) => {
     if (err) {
@@ -236,7 +231,6 @@ async function writeTxtFile(data, savePath) {
 
 let mainChatSession, model;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 async function setUpNewChatSession(userInputData) {
   console.log("SPIN-UP: Creating a New Model Chat Session...");
   // Be careful calling this function, as it overrides the entire thing in mainChatSession
@@ -270,10 +264,8 @@ app.post("/generate_book", async (req, res) => {
   // Do Authentication
   let e = null;
   let hasGeneratedBook = false;
-  // reqNumber >= 1 ? console.log("This is the data object after we have cleaned the previous one " + data) : null;
-
-  reqNumber++; // Increament the number of requests being handled
-  data["backOff"] = { backOffDuration, backOffCount: 0, maxRetries } // set a backoff duration for when API says that there is too many requests
+  reqNumber++; // Increament the number of requests handled so far
+  data["backOff"] = { backOffDuration, backOffCount: 0, maxRetries } // Set a backoff duration for when API says that there is too many requests
   data.error = { pro: 0 };
   const userInputData = req.body;
   let formattedStr;
