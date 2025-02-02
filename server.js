@@ -94,17 +94,13 @@ let data = {
   proModelErrors: 0,
   communicateWithApiError: 0,
   sampleChapter: function () {
-    return `
-      "Day 1: The Fresh Start
-**Quote:** "The first step towards getting somewhere is to decide you're not going to stay where you are." - J.P. Morgan
+    return `Day 1: The Fresh Start
+**Quote:** 'The first step towards getting somewhere is to decide you're not going to stay where you are.' - J.P. Morgan
 
 **Author's Reflection:**  J.P. Morgan's words capture the very essence of a fresh start.  It's not enough to simply *wish* for change; we must actively choose to move, to shift, to begin. Today, on the first day of January, we stand at this crucial juncture. The past is behind us, a mixture of triumphs and stumbles, and the future stretches before us, full of potential.  This potential, however, remains dormant until we decide, definitively, to step away from our current position – whether that’s a bad habit, a limiting belief, or a stagnant routine.
-
 Many of us set ambitious New Year's resolutions, fueled by the energy of a fresh start. But how do we ensure that this initial spark doesn't fizzle out? The key is to recognize that grand transformations are built upon small, consistent actions. Don't aim to overhaul your entire life overnight. Instead, focus on identifying one specific area you want to improve and take a single, concrete step in that direction.  If you want to exercise more, don't sign up for a marathon on day one. Start with a 15-minute walk. If you're aiming to eat healthier, replace one unhealthy snack with a piece of fruit.  These seemingly minor actions create momentum, building self-discipline and paving the way for lasting change.
-
 One of the biggest pitfalls in pursuing new goals is the tendency to get overwhelmed. We envision the entire journey ahead and become discouraged by its perceived magnitude.  The antidote? Stay present.  Focus solely on the task at hand, on the small step you're taking *today*.  Don't worry about next week or next month. Just be here, now, committed to the present action.  Remember, the longest journey begins with a single step, and each step you take brings you closer to your destination.
-
-Reader's Reflection: What is one small, concrete step you can take today to move towards a goal you've set for yourself? Write it down, commit to it, and celebrate its completion.  How does taking this first step make you feel?"`
+Reader's Reflection: What is one small, concrete step you can take today to move towards a goal you've set for yourself? Write it down, commit to it, and celebrate its completion.  How does taking this first step make you feel?`
   },
   sampleDocxCode: function () {
     return `You are sending this to me in the method just below. I know you know how real docx.js is written from the npm library but for my sake, you are to return for me the version below, as it is the one that is compatible with my app - prolofica. This pattern below just represents a friendly way of sending it to me so that my app can use code to convert it to real, working docxJS format:
