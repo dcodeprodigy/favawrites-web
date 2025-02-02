@@ -1,7 +1,8 @@
 const cron = require("cron");
 const https = require("https");
+require('dotenv').config();
 
-const backendUrl = "https://favawrites-alt.onrender.com"; // TODO : Edit this URL to reflect the active site we're running on
+const backendUrl = process.env.APP_URL; // TODO : Edit this URL to reflect the active site we're running on
 
 const job = new cron.CronJob("*/14 * * * *", function () {
     https.get(backendUrl, (res) => {
