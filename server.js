@@ -59,6 +59,10 @@ const generationConfig = {
 };
 
 let data = {
+  totalTokensUsed: 0,
+  totalTokenCount: 0,
+  promptTokenCount: 0,
+  freshSession : true,
   totalRequestsMade: 0,
   current_chapter: 1,
   docxJsFromModel: "",
@@ -314,7 +318,7 @@ app.post("/generate_book", async (req, res) => {
       throw tocRes.error; // Stop further processing
     }
 
-    finalReturnData["firstReq"] = parseJson(tocRes); // Push to final object as a json string
+    finalReturnData["firstReq"] = parseJson(tocRes.response.candidates[0].content.parts[0].text); // Push to final object as a json string
     const cleanUserDesc = await sendMessageWithRetry(() =>
       tocChatSession.sendMessage(`${errorAppendMessage()}. \n Next, I want you to cleanup this user supplied description to avoid it from crashing my application structure. 
     - Align any chapter numbering issues in the description that shall be somewhere below, enclosed in curly brackets. For example, since you have generated a TOC, JSON which is what we shall be using, I want you to now make sure the chapter numbering from that your generated toc is the same with the one the user provides. You are doing this by editing the description the user provides to fit the already generated TOC.
@@ -335,15 +339,12 @@ app.post("/generate_book", async (req, res) => {
     } else null;
 
     // Next, generate the Contents for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after all chapter iteration, we generate the entire book and save to the file system (fs/Atlas DB) or send the book link to the user
-
     /* 
     Next, generate content by:
     1. If there is a subchapter + plot
     2. If there is plot, append it when generating the subchapter or chapter
     */
-    const userDesc = parseJson(
-      cleanUserDesc.response.candidates[0].content.parts[0].text
-    );
+    const userDesc = JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
     userInputData.description = userDesc.response;
     await setUpNewChatSession(userInputData);
     await generateChapters();
@@ -451,6 +452,11 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
             console.log(
               `THIS IS THE TOTALTOKEN COUNT for this Req___ : ${res.response.usageMetadata.totalTokenCount}`
             );
+            // if (freshSession) {
+            //   data.totalTokensUsed = res.response.usageMetadata.totalTokenCount;
+            //   data.promptTokenCount = res.response.usageMetadata.promptTokenCount;
+            // }
+            
             // print other token counts
             console.log(
               `THIS IS THE PROMPTTOKEN COUNT for this Req___ : ${res.response.usageMetadata.promptTokenCount}`
@@ -547,7 +553,7 @@ function checkForSubtitle(userInput) {
 }
 
 function parseJson(param) {
-  const repairedJSON = jsonrepair(param.response.text()); // firstly, repair the param, if needed
+  const repairedJSON = jsonrepair(param); // firstly, repair the param, if needed
   return JSON.parse(repairedJSON);
 }
 
