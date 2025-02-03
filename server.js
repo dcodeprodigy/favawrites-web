@@ -346,6 +346,7 @@ app.post("/generate_book", async (req, res) => {
     */
     const userDesc = JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
     userInputData.description = userDesc.response;
+    console.log(userInputData.description);
     await setUpNewChatSession(userInputData);
     await generateChapters();
     formattedStr = await compileDocx(userInputData);
