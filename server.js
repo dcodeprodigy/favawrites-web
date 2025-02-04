@@ -234,7 +234,8 @@ async function writeTxtFile(data, savePath) {
       console.error("Error writing file asynchronously:", err);
       return;
     }
-    console.log("File written asynchronously - ", savePath);
+    savePath = savePath.split(`${tempDir}/`);
+    console.log("File written asynchronously. Download at - ", `${process.env.APP_URL}/download/${savePath[1]}`);
   });
 }
 
@@ -1633,7 +1634,6 @@ async function generateChapters() {
     }
     data.current_chapter++;
   }
-
   await writeTxtFile(entireBookText, `${tempDir}/entire-book-as-text.txt`);
 }
 
@@ -2105,6 +2105,7 @@ async function compileDocx(userInputData) {
       data.docxJsFromModel,
       `${tempDir}/docx-js-from-model.txt`
     );
+    await writeTxtFile(promptsToModel, `${tempDir}/promptsToModel.txt`);
     return formattedStr;
   } catch (error) {
     console.error("Error While Compiling Docx File ", error);
