@@ -25,3 +25,6 @@ The concat() method joins two or more strings.
 The concat() method does not change the existing strings.
 
 The concat() method returns a new string.
+
+Use command ```npm cache verify``` to automatically fix cache issues/unexpected issues with node_modules. Use ```npm cache clean --force``` to remove cache. 
+Avoid using ```npm rm -rf cache``` as it is considered to be potentially dangerous.
