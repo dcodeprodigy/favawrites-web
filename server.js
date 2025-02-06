@@ -1568,7 +1568,7 @@ async function generateChapters() {
           const textRunObj = sessionArr[j].textRun; // gets the textRun obj;
           const paragraphObj = sessionArr[j].paragraph;
           // parse alignment as needed
-          if (paragraphObj.alignment) {
+          if (paragraphObj.alignment !== undefined) {
             switch (
               paragraphObj.alignment.toLowerCase() // Handle case-insensitivity
             ) {
@@ -1601,6 +1601,9 @@ async function generateChapters() {
 
                 break;
             }
+          } else {
+            console.log(`Alignment is not defined for this paragraph`);
+            paragraphObj.alignment = AlignmentType.LEFT; // default alignment
           }
 
           // push new TextRun
