@@ -35,29 +35,12 @@ const htmlComponents = {
 
         <label for="modelType">AI Model</label>
         <select name="model" id="modelType" class="max-w-[100%]">
-            <option value="gemini-1.5-flash" selected="">Gemini-1.5-flash</option>
-            <option value="gemini-2.0-flash-exp">Gemini-2.0-Flash-Exp</option>
+            <option value="gemini-1.5-flash" selected="">Gemini 1.5 Flash</option>
+            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+            <option value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash Lite</option>
         </select>
 
         <label for="bookTone">Book Tone</label>
-        <select name="bookTone" id="bookTone" class="max-w-[100%]">
-            <option value="casual">Casual</option>
-            <option value="calm and reassuring">Calm and reassuring</option> <option value="formal">Formal</option>
-            <option value="narrative">Narrative</option>
-            <option value="informative">Informative</option>
-            <option value="humorous">Humorous</option>
-            <option value="serious" selected>Serious</option>
-            <option value="dark">Dark</option>
-            <option value="inspirational">Inspirational</option>
-            <option value="sarcastic">Sarcastic</option>
-            <option value="whimsical">Whimsical</option>
-            <option value="nostalgic">Nostalgic</option>
-            <option value="suspenseful and intriguing">Suspenseful and Intriguing</option>
-            <option value="romantic">Romantic</option>
-            <option value="cautionary">Cautionary</option>
-            <option value="instructive">Instructive</option>
-        </select>
-
 
         <label for="description">Book Description/Fine Tuning</label>
         <textarea name="description" id="book-description" cols="30" rows="8">Table of Contents

@@ -14,7 +14,7 @@ app.get('/download/:filename', (req, res) => {
         res.download(filePath, safeFilename, (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                res.status(500).send('Error downloading the file');
+                res.status(500).send('Internal Server Error');
             } else {
                 console.log(`Sent File ${filePath} to user Successfully!`);
             }
