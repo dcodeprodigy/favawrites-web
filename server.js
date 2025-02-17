@@ -625,7 +625,7 @@ async function generatePlot(model) {
             plotChatSession.sendMessage(`Time for Plot generation for this => \n Chapter ${
               i + 1
             }, \n Subchapter ${k + 1}, with the title : '${
-              chapters[i][`sch-${k + 1}`][k]
+              chapters[i][`sch-${i + 1}`][k]
             }'
           How do you know what to write as plot?
           Well, make sure to check the previous messages for the description provided, as well as your intuition on what this subchapter needs.
