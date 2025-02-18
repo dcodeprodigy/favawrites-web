@@ -363,9 +363,18 @@ app.post("/generate_book", async (req, res) => {
     1. If there is a subchapter + plot
     2. If there is plot, append it when generating the subchapter or chapter
     */
-    const userDesc = JSON.parse(
-      cleanUserDesc.response.candidates[0].content.parts[0].text
-    );
+
+    let userDesc;
+    try {
+      userDesc = JSON.parse(
+        cleanUserDesc.response.candidates[0].content.parts[0].text
+      )
+    } catch (error) {
+      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text)
+    }
+    
+    
+
     userInputData.description = userDesc.response;
     console.log(userInputData.description);
     await setUpNewChatSession(userInputData);
@@ -640,6 +649,7 @@ async function generatePlot(model) {
           try {
             returnedPlot = JSON.parse(returnedPlot);
           } catch (error) {
+            console.error(error);
             returnedPlot = await fixJsonWithPro(returnedPlot);
           }
 
@@ -669,7 +679,7 @@ async function generatePlot(model) {
         try {
           returnedPlot = JSON.parse(returnedPlot);
         } catch (error) {
-          returnedPlot = await fixJsonWithPro(returnedPlot);
+          returnedPlot = await fixJsonWithPro(returnedPlot, 0, error.message);
         }
 
         data.plots[i]["0"] = returnedPlot["0"]; // Save plot, Move to next
@@ -683,6 +693,8 @@ async function generatePlot(model) {
       }
     }
   }
+
+  console.log(data.plots)
 }
 
 
@@ -1263,7 +1275,7 @@ async function generateChapters() {
         );
       } catch (error) {
         promptNo = await fixJsonWithPro(
-          promptNo.response.candidates[0].content.parts[0].text.trim()
+          promptNo.response.candidates[0].content.parts[0].text, 0, error.message
         );
       }
       console.log(
@@ -1328,7 +1340,7 @@ async function generateChapters() {
           selectedPattern = parsedPatternJson;
         } catch (error) {
           console.error("Could not parse selectedPattern - Fixing: " + error);
-          selectedPattern = await fixJsonWithPro(selectedPattern);
+          selectedPattern = await fixJsonWithPro(selectedPattern, 0, error.message);
         }
       } else {
         selectedPattern = "You just use a suitable writing pattern.";
@@ -1719,6 +1731,7 @@ async function getFixedContentAsJson(firstStageJson, generationConfig) {
     systemInstruction:
       "Your Job is to remove the '```json' Identifier and return the given JSON to the user, untouched!",
   });
+
   const chatSession = jsonReturnModel.startChat({
     safetySettings,
     generationConfig,
@@ -1765,11 +1778,17 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   // Use thinking Model to Fix Bad JSON
   const thinkingModel = genAI.getGenerativeModel({
     model: modelSelected,
-    systemInstruction: `Outline all the problems in any json sent to you. There must be issues with it, since no good json will ever be sent to you. 
+    systemInstruction: `Outline all the syntax errors in any json sent to you. There must be syntax errors with it, since no good json will ever be sent to you. 
 
-    Then On Command, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
+    Then On Command below, I will ask you to repair the json. With this command, assume this role => Your Job is to fix bad json and return the fixed one. Make sure you fix it before returning anything. This is because no good/Valid json will ever be sent to you in the first place.
         
-    Just so you know your response should be in the schema of the JSON initially given to you, but in its fixed form. Don't try to explain anything outside the JSON. just return JSON response`,
+    Just so you know your response should be in the schema of the JSON initially given to you, should also include another property called 'error', outlining the problems you found. Then, you fix the json and return it with this one response, retaining its schema. That is: 
+    {
+      "error": "string outlining syntax errors",
+      "response": {response : "this object is the json given initially to you but this time, you are returning a fixed version free from any syntax errors}"
+    }
+    In this life, do not try to change the structure of the JSON fed to you. Stop assuming things I did not tell you and fix the damn thing.  
+    `,
   });
 
   const jsonFixer = thinkingModel.startChat({
@@ -1783,7 +1802,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
       ? console.log(`Error Message from Previous Function : ${errMsg}`)
       : null;
 
-    const fixedRes = await jsonFixer.sendMessage(`${fixMsg}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} \n ${errMsg ? `This is the error message given by a JSON linter: ${errMsg}` : ""}`); // Attempt to send message
 
     data.proModelErrors = 0; // Reset error count on success
 
