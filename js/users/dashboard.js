@@ -36,7 +36,7 @@ const htmlComponents = {
         <label for="modelType">AI Model</label>
         <select name="model" id="modelType" class="max-w-[100%]">
             <option value="gemini-1.5-flash" selected="">Gemini 1.5 Flash</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
             <option value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash Lite</option>
             <option value="gemini-gemini-1.5-flash-8b">Gemini 1.5 Flash 8B</option>
         </select>
@@ -44,7 +44,7 @@ const htmlComponents = {
         
         <label for="plots">Use Plots</label>
         <select name="plots" id="plots" class="max-w-[100%]">
-            <option value="true" selected="">True</option>
+            <option value="true" selected>True</option>
             <option value="false">False</option>
         </select>
 
