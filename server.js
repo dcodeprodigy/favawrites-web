@@ -370,7 +370,7 @@ app.post("/generate_book", async (req, res) => {
         cleanUserDesc.response.candidates[0].content.parts[0].text
       )
     } catch (error) {
-      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text)
+      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message);
     }
     
     
@@ -650,7 +650,7 @@ async function generatePlot(model) {
             returnedPlot = JSON.parse(returnedPlot);
           } catch (error) {
             console.error(error);
-            returnedPlot = await fixJsonWithPro(returnedPlot);
+            returnedPlot = (await fixJsonWithPro(returnedPlot, 0, error.message)).response;
           }
 
           data.plots[i][`${k}`] = returnedPlot[`${k}`]; // Save plot, Move to next
@@ -818,12 +818,12 @@ async function generateChapters() {
 
         try {
           let attemptPromptNoParse = JSON.parse(
-            promptNo.response.candidates[0].content.parts[0].text.trim()
+            promptNo.response.candidates[0].content.parts[0].text
           );
           promptNo = attemptPromptNoParse;
         } catch (error) {
           promptNo = await fixJsonWithPro(
-            promptNo.response.candidates[0].content.parts[0].text.trim()
+            promptNo.response.candidates[0].content.parts[0].text, 0, error.message
           );
         }
         console.log(`The item we are writing is: '${item}'`);
@@ -900,7 +900,7 @@ async function generateChapters() {
             selectedPattern = parsedPatternJson;
           } catch (error) {
             console.error("Could not parse selectedPattern - Fixing: " + error);
-            selectedPattern = await fixJsonWithPro(selectedPattern);
+            selectedPattern = await fixJsonWithPro(selectedPattern, 0, error.message);
           }
         } else {
           selectedPattern = "You just use a suitable writing pattern.";
@@ -1050,7 +1050,7 @@ async function generateChapters() {
                   let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
                     As a Hint, this is what the linter said is wrong with it : ${error}`;
 
-                  const response = await fixJsonWithPro(fixMsg);
+                  const response = await fixJsonWithPro(fixMsg, 0, error.message);
                   resolve(response);
                 }, modelDelay.thinking)
               );
@@ -1132,7 +1132,7 @@ async function generateChapters() {
                 // console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
                 return await getDocxJs(true);
               } else {
-                docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
+                docxJs = await fixJsonWithPro(modelRes, 0, error.message); // I do not think there is any need to run JSON.parse() since the function called already did that
               }
             }
           }
@@ -1477,7 +1477,7 @@ async function generateChapters() {
                 let fixMsg = `This JSON has an error when inputed to JsonLint. See the json, fix the error and return it to me: \n ${iterationText}
                   As a Hint, this is what the linter said is wrong with it : ${error}`;
 
-                const response = await fixJsonWithPro(fixMsg);
+                const response = await fixJsonWithPro(fixMsg, 0, error.message);
                 resolve(response);
               }, modelDelay.thinking)
             );
@@ -1556,7 +1556,7 @@ async function generateChapters() {
               // console.log(`This is modelRes with the value of 'Unterminated' String: ${JSON.stringify(modelRes)}`);
               return await getDocxJs(true);
             } else {
-              docxJs = await fixJsonWithPro(modelRes); // I do not think there is any need to run JSON.parse() since the function called already did that
+              docxJs = await fixJsonWithPro(modelRes, 0, error.message); // I do not think there is any need to run JSON.parse() since the function called already did that
             }
           }
         }
@@ -1817,12 +1817,12 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
     ); // Using Gemini Model that Supports JSON
 
     const fixedContent = firstStageJson; // Parse the stringified JSON
-    console.log("CONTENT FIXED SUCCESSFULLY!");
+    console.log("CONTENT FIXED!");
     return fixedContent;
   } catch (error) {
     if (error.message.includes("Resource has been exhausted")) {
       // change the model back to gemini flash
-      return fixJsonWithPro(fixMsg, (retries = 0));
+      return fixJsonWithPro(fixMsg, (retries = 0), error.message);
     } else if (retries < 2) {
       console.error(`Attempt ${retries + 1} failed. Retrying...`, error);
       const delayMs = modelDelay.thinking;
