@@ -360,7 +360,7 @@ app.post("/generate_book", async (req, res) => {
     // Next, begin creating each chapter's plot if the model indicated that.
     if (JSON.parse(finalReturnData.firstReq?.plot) === true) {
       await generatePlot(userInputData.model); // only generate a plot if the model deems it fit. That is, if this is a novel
-    } else null;
+    }
 
     // Next, generate the Contents for the subchapters using the plots. At the same time, with each iteration, prompt the model to insert the chapter generated into the "Docx" creator so that after all chapter iteration, we generate the entire book and save to the file system (fs/Atlas DB) or send the book link to the user
     /* 
@@ -371,9 +371,7 @@ app.post("/generate_book", async (req, res) => {
 
     let userDesc;
     try {
-      userDesc = JSON.parse(
-        cleanUserDesc.response.candidates[0].content.parts[0].text
-      )
+      JSON.parse(JSON.stringify(cleanUserDesc.response.candidates[0].content.parts[0].text))
     } catch (error) {
       userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message);
     }
@@ -655,7 +653,7 @@ async function generatePlot(model) {
             .parts[0].text;
 
           try {
-            returnedPlot = JSON.parse(returnedPlot);
+            returnedPlot = JSON.parse(JSON.parse(JSON.stringify(returnedPlot)));
           } catch (error) {
             console.error(error);
             returnedPlot = (await fixJsonWithPro(returnedPlot, 0, error.message)).response.response;
@@ -685,7 +683,7 @@ async function generatePlot(model) {
           .parts[0].text;
 
         try {
-          returnedPlot = JSON.parse(returnedPlot);
+          returnedPlot = JSON.parse(JSON.stringify(returnedPlot));
         } catch (error) {
           returnedPlot = await fixJsonWithPro(returnedPlot, 0, error.message);
         }
@@ -826,7 +824,7 @@ async function generateChapters() {
 
         try {
           let attemptPromptNoParse = JSON.parse(
-            promptNo.response.candidates[0].content.parts[0].text
+            JSON.stringify(promptNo.response.candidates[0].content.parts[0].text)
           );
           promptNo = attemptPromptNoParse;
         } catch (error) {
@@ -904,7 +902,7 @@ async function generateChapters() {
         if (selectedPattern !== null) {
           // checks if selectedPattern text selection was successful
           try {
-            let parsedPatternJson = JSON.parse(selectedPattern);
+            let parsedPatternJson = JSON.parse(JSON.stringify(selectedPattern));
             selectedPattern = parsedPatternJson;
           } catch (error) {
             console.error("Could not parse selectedPattern - Fixing: " + error);
@@ -1021,7 +1019,7 @@ async function generateChapters() {
           }
 
           try {
-            let parsedChapterText = JSON.parse(iterationText);
+            let parsedChapterText = JSON.parse(JSON.stringify(iterationText));
             console.log(
               "JSON PARSED!__",
               "SUBCHAPTER CONTENT IN BATCH => " + parsedChapterText.content
@@ -1119,7 +1117,7 @@ async function generateChapters() {
 
             try {
               // parse the purported array
-              docxJs = await JSON.parse(modelRes);
+              docxJs = await JSON.parse(JSON.stringify(modelRes));
               console.log(
                 "type of the docxJS is now: " + typeof docxJs + " " + docxJs
               );
@@ -1275,7 +1273,7 @@ async function generateChapters() {
 
       try {
         let attemptPromptNoParse = JSON.parse(
-          promptNo.response.candidates[0].content.parts[0].text.trim()
+          JSON.stringify(promptNo.response.candidates[0].content.parts[0].text)
         );
         promptNo = attemptPromptNoParse;
         console.log(
@@ -1344,7 +1342,7 @@ async function generateChapters() {
       if (selectedPattern !== null) {
         // checks if selectedPattern text selection was successful
         try {
-          let parsedPatternJson = JSON.parse(selectedPattern);
+          let parsedPatternJson = JSON.parse(JSON.stringify(selectedPattern));
           selectedPattern = parsedPatternJson;
         } catch (error) {
           console.error("Could not parse selectedPattern - Fixing: " + error);
@@ -1452,7 +1450,7 @@ async function generateChapters() {
         }
 
         try {
-          let parsedChapterText = JSON.parse(iterationText);
+          let parsedChapterText = JSON.parse(JSON.stringify(iterationText));
           console.log(
             "JSON PARSED!__",
             "CHAPTER CONTENT IN BATCH => " + parsedChapterText.content
@@ -1543,7 +1541,7 @@ async function generateChapters() {
 
           try {
             // parse the purported array
-            docxJs = await JSON.parse(modelRes);
+            docxJs = await JSON.parse(JSON.stringify(modelRes));
             console.log(
               "type of the docxJS is now: " + typeof docxJs + " " + docxJs
             );
@@ -1752,7 +1750,7 @@ async function getFixedContentAsJson(firstStageJson, generationConfig) {
       `);
 
   const returnValue = JSON.parse(
-    response.response.candidates[0].content.parts[0].text
+    JSON.stringify(response.response.candidates[0].content.parts[0].text)
   );
 
   // console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
@@ -1782,6 +1780,14 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
   };
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  let errorContext;
+
+  if (errMsg?.includes("JSON at position")) {
+    // Get the exact position and context snippet
+    errorContext = getErrorContext(errMsg, fixMsg);
+  }
+
+
 
   // Use thinking Model to Fix Bad JSON
   const thinkingModel = genAI.getGenerativeModel({
@@ -1810,7 +1816,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
       ? console.log(`Error Message from Previous Function : ${errMsg}`)
       : null;
 
-    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} \n ${errMsg ? `This is the error message given by a JSON linter: ${errMsg}` : ""}`); // Attempt to send message
+    const fixedRes = await jsonFixer.sendMessage(`${fixMsg} \n ${errMsg ? `This is the error message given by a JSON linter: ${errMsg}` : ""}. ${errorContext ? `What should you use this for? Well, I was able to extract the context surrounding the position indicated, so that you may take a look at it, see what the error is there and then fix the issue. See the surrounding text around the position indicated => '${errorContext.context}'. You want to fix whatever issue is at that side, since that is what the linter said` : ""}`);
 
     data.proModelErrors = 0; // Reset error count on success
 
@@ -1849,6 +1855,29 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
       return "retry";
     }
   }
+}
+
+
+function getErrorContext(errorString, string) {
+  const positionMatch = errorString.match(/position (\d+)/); // Use regex to find "position" and capture digits
+
+  if (!positionMatch) {
+    return null;
+  }
+
+  const errorPosition = parseInt(positionMatch[1], 10); // Convert captured digits to a number
+
+  const contextLength = 5; // Number of characters before and after
+
+  let startIndex = Math.max(0, errorPosition - contextLength); // Ensure start index is not negative
+  let endIndex = Math.min(string.length, errorPosition + contextLength + 1); // Ensure end index is within string bounds
+
+  const context = string.substring(startIndex, endIndex);
+
+  return {
+    position: errorPosition,
+    context: context,
+  };
 }
 
 function writingPattern() {
