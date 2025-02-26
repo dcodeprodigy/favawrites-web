@@ -298,14 +298,14 @@ app.post("/generate_book", async (req, res) => {
     const allowedModels = [
       "gemini-1.5-flash",
       "gemini-2.0-flash-thinking-exp-01-21",
-      "gemini-2.0-flash-lite-preview-02-05",
+      "gemini-2.0-flash-lite",
       "gemini-1.5-flash-8b",
     ];
     userInputData.model = allowedModels.includes(userInputData.model)
       ? userInputData.model
       : "gemini-2.0-flash";
 
-    if (userInputData.model === "gemini-2.0-flash-lite-preview-02-05") {
+    if (userInputData.model === "gemini-2.0-flash-lite") {
       modelDelay.flash = 2500; // Rate Limit is 30RPM/1500RPD
     }
 
@@ -369,11 +369,11 @@ app.post("/generate_book", async (req, res) => {
     2. If there is plot, append it when generating the subchapter or chapter
     */
 
-    let userDesc;
+    let userDesc = "";
     try {
       JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
     } catch (error) {
-      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message);
+      userDesc = (await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message)).response;
     }
 
     userInputData.description = userDesc.response;
@@ -419,7 +419,7 @@ app.post("/generate_book", async (req, res) => {
       console.log(finalReturnData.response);
       await sendResWithError(503);
     } else {
-      await sendResWithError(501);
+      await sendResWithError(500);
     }
   } finally {
     creationOngoing = false;
