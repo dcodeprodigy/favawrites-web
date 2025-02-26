@@ -369,11 +369,11 @@ app.post("/generate_book", async (req, res) => {
     2. If there is plot, append it when generating the subchapter or chapter
     */
 
-    let userDesc = "";
+    let userDesc;
     try {
-      JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
+      userDesc = JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
     } catch (error) {
-      userDesc = (await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message)).response;
+      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message);
     }
 
     userInputData.description = userDesc.response;
@@ -627,7 +627,7 @@ async function generatePlot(model) {
 
     // Loop through each subchapter name if any
     if (chapters[i]["sch-no"] !== 0) {
-      for (let k = 0; k < chapters[i][`sch-${i + 1}`].length; k++) {
+      for (let k = 0; k < chapters[i][`sch-${i + 1}`]?.length; k++) {
         // Loop through each subchapter
 
         try {
