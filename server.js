@@ -282,7 +282,7 @@ async function setUpNewChatSession(userInputData) {
 
 let promptsToModel = "";
 app.post("/generate_book", async (req, res) => {
-  data.startTime = new Date.toLocaleString();
+  data.startTime = new Date().toLocaleString();
   // Do Authentication
   creationOngoing = true;
   let e = null;
@@ -427,7 +427,7 @@ app.post("/generate_book", async (req, res) => {
     creationOngoing = false;
     let sendMailAttempt = 0;
     data = deepCopyObj(originalDataObj);
-    data.endTime = new Date.toLocaleString();
+    data.endTime = new Date().toLocaleString();
     finalReturnData = {};
     const completionMsg = `${hasGeneratedBook === true
       ? `has been successfully processed. \n You may proceed to download the finished DOCX file at ${`${process.env.APP_URL}/download/${formattedStr}.docx`}.\n\n Generation Start Time: ${data.startTime}\n Generation End Time: ${data.endTime}`
