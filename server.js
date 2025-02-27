@@ -1020,7 +1020,7 @@ async function generateChapters() {
 
             // iterationText = parsedChapterText.content; // doing this so that we can access iterationText from model if there is an error at the line above. This is because this line will not run if the above produces an error.
           } catch (error) {
-            if (data.chapterErrorCount > 35) {
+            if (data.chapterErrorCount > 4) {
               // temporary fix - TODO
               console.log("Returning response to user prematurely");
               return data.res
@@ -1046,16 +1046,17 @@ async function generateChapters() {
               );
 
               // If request fails without fixing, it will return a signal - "RetrySignal", indicating we should retry the content generation request since it couldn't fix the JSON
-              if (response === "retry") {
-                i--;
-                retries++;
-                continue;
-              } else if (retries > 3) {
+              // if (response === "retry") {
+              //   i--;
+              //   retries++;
+              //   continue;
+              if (retries > 3) {
                 retries = 0;
                 console.log(
                   `Skipping Generation for current iteration on chapter ${data.current_chapter} and iteration : ${i}`
                 ); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
                 break;
+                
               }
 
               // console.log("INSPECT__: Response from fixModel: ", JSON.stringify(response)); // Inspect
@@ -1463,14 +1464,14 @@ async function generateChapters() {
               }, modelDelay.thinking)
             );
 
-            if (response === "retry") {
-              i--;
-              retries++;
-              continue;
-            } else if (retries > 3) {
+            // if (response === "retry") {
+            //   i--;
+            //   retries++;
+            //   continue;
+            if (retries > 3) {
               retries = 0;
               console.log(
-                `Skipping Ge;neration for current iteration on chapter ${data.current_chapter} and iteration : ${i}`
+                `Skipping Generation for current iteration on chapter ${data.current_chapter} and iteration : ${i}`
               ); // Normally, this should be sending data to user account and either allowing them retry manually or doing it automatically
               break;
             }
