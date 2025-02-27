@@ -343,7 +343,7 @@ app.post("/generate_book", async (req, res) => {
     }
 
     finalReturnData["firstReq"] = parseJson(
-      tocRes.response.candidates[0].content.parts[0].text
+      tocRes.response.text()
     ); // Push to final object as a json string
     const cleanUserDesc = await sendMessageWithRetry(() =>
       tocChatSession.sendMessage(`${errorAppendMessage()}. \n Next, I want you to cleanup this user supplied description to avoid it from crashing my application structure. 
@@ -373,9 +373,9 @@ app.post("/generate_book", async (req, res) => {
 
     let userDesc;
     try {
-      userDesc = JSON.parse(cleanUserDesc.response.candidates[0].content.parts[0].text);
+      userDesc = JSON.parse(cleanUserDesc.response.text());
     } catch (error) {
-      userDesc = await fixJsonWithPro(cleanUserDesc.response.candidates[0].content.parts[0].text, 0, error.message);
+      userDesc = await fixJsonWithPro(cleanUserDesc.response.text(), 0, error.message);
     }
 
     userInputData.description = userDesc.response;
@@ -816,12 +816,12 @@ async function generateChapters() {
 
         try {
           let attemptPromptNoParse = JSON.parse(
-            promptNo.response.candidates[0].content.parts[0].text
+            promptNo.response.text()
           );
           promptNo = attemptPromptNoParse;
         } catch (error) {
           promptNo = await fixJsonWithPro(
-            promptNo.response.candidates[0].content.parts[0].text, 0, error.message
+            promptNo.response.text(), 0, error.message
           );
         }
         console.log(`The item we are writing is: '${item}'`);
@@ -870,7 +870,7 @@ async function generateChapters() {
         }
 
         console.log(
-          writingPatternRes.response.candidates[0].content.parts[0].text
+          writingPatternRes.response.text()
         );
         console.log(
           `usageMetadata for writingPattern: ${await countTokens(
@@ -881,7 +881,7 @@ async function generateChapters() {
 
         try {
           selectedPattern =
-            writingPatternRes.response.candidates[0].content.parts[0].text;
+            writingPatternRes.response.text();
         } catch (error) {
           console.error(error);
           selectedPattern = null;
@@ -980,22 +980,23 @@ async function generateChapters() {
 
           const response = await genBatchTxt();
           if (response.error) {
-            let response;
+            let res;
             let errorStatus = true;
             errorCount = 1;
-            while (errorStatus === true && errorCount < 4) {
+            while (errorStatus && errorCount < 4) {
               console.error(
                 "An error occured in 'genSubChapter' function. RETRYING: " +
                 response.error
               );
               await new Promise((resolve) => setTimeout(resolve, Math.pow(2, errorCount) * 10 * 1000));
-              response = await genBatchTxt();
-              if ((response.success = true)) {
+              res = await genBatchTxt();
+              if ((res.success = true)) {
                 errorStatus = false;
               } else {
                 errorCount++;
               }
             }
+
             if (errorCount === 4) {
               throw new Error(response.error);
             }
@@ -1089,7 +1090,7 @@ async function generateChapters() {
               return response;
             });
 
-            modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+            modelRes = docxJsRes.response.text();
             data.docxJsFromModel = data.docxJsFromModel.concat(
               `\n\n\n ${modelRes}`
             );
@@ -1253,14 +1254,14 @@ async function generateChapters() {
 
       try {
         let attemptPromptNoParse = JSON.parse(
-          promptNo.response.candidates[0].content.parts[0].text);
+          promptNo.response.text());
         promptNo = attemptPromptNoParse;
         console.log(
           "Prompt me " + promptNo.promptMe + " times for this subchapter"
         );
       } catch (error) {
         promptNo = await fixJsonWithPro(
-          promptNo.response.candidates[0].content.parts[0].text, 0, error.message
+          promptNo.response.text(), 0, error.message
         );
       }
       console.log(
@@ -1299,7 +1300,7 @@ async function generateChapters() {
       }
 
       console.log(
-        writingPatternRes.response.candidates[0].content.parts[0].text
+        writingPatternRes.response.text()
       );
       console.log(
         `usageMetadata for writingPattern: ${await countTokens(
@@ -1310,7 +1311,7 @@ async function generateChapters() {
 
       try {
         selectedPattern =
-          writingPatternRes.response.candidates[0].content.parts[0].text;
+          writingPatternRes.response.text();
       } catch (error) {
         console.error(error);
         selectedPattern = null;
@@ -1377,10 +1378,10 @@ async function generateChapters() {
             });
             console.log(
               "This is getChapterContent.response...text: ",
-              getChapterContent.response.candidates[0].content.parts[0].text
+              getChapterContent.response.text()
             );
             iterationText =
-              getChapterContent.response.candidates[0].content.parts[0].text;
+              getChapterContent.response.text();
             return { success: true };
           } catch (error) {
             data.error.pro++;
@@ -1402,17 +1403,17 @@ async function generateChapters() {
 
         const response = await genBatchTxt();
         if (response.error) {
-          let response;
+          let res;
           let errorStatus = true;
           errorCount = 1;
-          while (errorStatus === true && errorCount < 4) {
+          while (errorStatus && errorCount < 4) {
             console.error(
               "An error occured in 'genBatchTxt' function. RETRYING: " +
               response.error
             );
             await new Promise((resolve) => setTimeout(resolve, 2000));
-            response = await genBatchTxt();
-            if ((response.success = true)) {
+            res = await genBatchTxt();
+            if ((res.success = true)) {
               errorStatus = false;
             } else {
               errorCount++;
@@ -1505,7 +1506,7 @@ async function generateChapters() {
             return response;
           });
 
-          modelRes = docxJsRes.response.candidates[0].content.parts[0].text;
+          modelRes = docxJsRes.response.text();
           data.docxJsFromModel = data.docxJsFromModel.concat(
             `\n\n\n ${modelRes}`
           );
@@ -1716,7 +1717,7 @@ async function getFixedContentAsJson(firstStageJson, generationConfig) {
       Just so you know, your response should be in the schema of the JSON initially given to you, but in its fixed form.
       `);
 
-  const returnValue = JSON.parse(response.response.candidates[0].content.parts[0].text);
+  const returnValue = JSON.parse(response.response.text());
 
   // console.log(`Returning Value after conversion to application/json is : ${returnValue}`);
 
@@ -1785,7 +1786,7 @@ async function fixJsonWithPro(fixMsg, retries = 0, errMsg) {
 
     data.proModelErrors = 0; // Reset error count on success
 
-    let firstStageJson = fixedRes.response.candidates[0].content.parts[0].text; // Now by default, model does not return its thoughts except explicitly set by us. see docs for more info
+    let firstStageJson = fixedRes.response.text(); // Now by default, model does not return its thoughts except explicitly set by us. see docs for more info
 
     // console.log(`This is the fixedJSON as text/plain from Thinking Model:\n\n ${firstStageJson}`);
 
