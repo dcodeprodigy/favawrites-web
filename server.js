@@ -626,7 +626,7 @@ async function generatePlot(model) {
     }
 
     // Loop through each subchapter name if any
-    if (chapters[i]["sch-no"] !== 0) {
+    if (chapters[i]["sch-no"] > 0) {
       for (let k = 0; k < chapters[i][`sch-${i + 1}`]?.length; k++) {
         // Loop through each subchapter
 
@@ -681,6 +681,7 @@ async function generatePlot(model) {
         }
 
         data.plots[i]["0"] = returnedPlot["0"]; // Save plot, Move to next
+        
         retries = 0;
       } catch (error) {
         retries++;
@@ -692,14 +693,14 @@ async function generatePlot(model) {
     }
   }
 
-  console.log(data.plots)
+
 }
 
 
 async function generateChapters() {
   // using the main chatSession
   console.log(data.plots);
-  const tableOfContents = finalReturnData.firstReq.toc;
+  const chapters = finalReturnData.firstReq.toc;
   data.populatedSections = []; // The sections which we shall use in our data.docx sections when needed
   let entireBookText = ""; // Saving the chapter content here. NEVER RESET
   let currentWriteup =
@@ -772,16 +773,15 @@ async function generateChapters() {
     let writingPatternRes, selectedPattern;
     // create the object in data.populatedSections. That is, add a new object for a new chapter for each loop
     data.populatedSections.push({ properties: { pageBreakBefore: true } });
-    if (JSON.parse(tableOfContents[i - 1]["sch-no"]) > 0) {
+    if (chapters[i - 1]["sch-no"] > 0) {
       // If sch-no > 0, run this. I am now running individual chapter checks for whether there is a subchapter that exists.
-      let currentChapterSubchapters = tableOfContents[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
+      let currentChapterSubchapters = chapters[i - 1][`sch-${i}`]; // An array of the subchapters under this chapter
       console.table(currentChapterSubchapters);
       for (const [index, item] of currentChapterSubchapters.entries()) {
         currentWriteup = ""; // reset this, ready for the next subchapter to avoid unexpected model behaviour
         const plots = data.plots;
 
         try {
-
           // Asks the model how may times it should be prompted
           promptNo = await sendMessageWithRetry(async () => {
             const prompt = ` ${plots ? `This is the plots for this. Make sure to align your 'PromptNo' as it would be enough to cover this plot outlined: \n ${plots[i - 1][`${index}`]}` : ``}
@@ -831,7 +831,7 @@ async function generateChapters() {
             const prompt = `${plots ? `This is the plots for this. Make sure to align your 'writingPattern' as it would be enough fit this plot outlined: \n ${plots[i - 1][`${index}`]}` : ``}
             ${errorAppendMessage()}. Give me a json response in this schema : {"pattern":"the selected pattern"}. From the listed book writing pattern, choose the writing style that shall be suitable for this subchapter. I am doing this to prevent you from using just one book writing style throughout and to avoid monotonous writing. These are the available writing patterns...Choose one that is suitable for this current subchapter => "${data.current_chapter
               }.${index + 1} ${item}" which is under chapter ${data.current_chapter
-              } - '${tableOfContents[data.current_chapter - 1][
+              } - '${chapters[data.current_chapter - 1][
               `ch-${data.current_chapter}`
               ]
               }' and return your response in the schema: {"pattern":"the selected pattern"}. The patterns available are: \n '${writingPattern()}'. Remember you are an API for creating books? This is what the user asked you to do initially. Follow what matters for this specific generation as outlined in my prompt before this sentence : 
@@ -935,10 +935,10 @@ async function generateChapters() {
               
               MOST IMPORTANTLY, stop cutting your json response. complete the damn thing with the closing curly braces. stop ending it with a triple dot
               
-              This is what you are writing strictly on => "${data.current_chapter
+              This is what you are writing strictly on => "${data.current_chapter /* Using data.current_chapter here instead of 'i' because we are passing this to an external function. Therefore, we do not need to pass arguments for something already accessible globally */
                   }.${index + 1} ${item}"
               
-              ${plots ? `This is the plots for this. Make sure to align your writeup with it, as you have intended: \n ${plots[data.current_chapter - 1][`${index}`]} \n ${promptNo.promptMe > 1 ? `Since you said I should prompt you ${promptNo.promptMe} times, when writing for this batch, you are not to exhaust the instructions given in the plots. You are to mentally divide it into ${promptNo.promptMe} times, writing as directed by each division. That is, when I request for a batch, use the mentally divided plot to write for that batch. Same for the next until conclusion...You are keeping a model, therefore, you will know when we are ending the plots.` : `Exhause the plots in just this one batch.`}` : ``}`;
+              ${plots ? `This is the plots for this. Make sure to align your writeup with it, as you have intended: \n ${plots[data.current_chapter - 1][`${index}`]} \n ${promptNo.promptMe > 1 ? `Since you said I should prompt you ${promptNo.promptMe} times, when writing for this batch, you are not to exhaust the instructions given in the plots. You are to mentally divide it into ${promptNo.promptMe} times, writing as directed by each division. That is, when I request for a batch, use the mentally divided plot to write for that batch. Same for the next until conclusion...You are keeping a model, therefore, you will know when we are ending the plots.` : `Exhaust the plots in just this one batch.`}` : ``}`;
 
                 const response = await mainChatSession.sendMessage(prompt);
                 promptsToModel = promptsToModel.concat(
@@ -1630,13 +1630,13 @@ async function generateChapters() {
     // I saw this on MDN - We cannot use an async callback with forEach() as it does not wait for promises. It expects a sychronous operation - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach#:~:text=forEach()%20expects%20a%20synchronous%20function%20%E2%80%94%20it%20does%20not%20wait%20for%20promises.
 
     console.log(
-      `DONE WITH CHAPTER ${data.current_chapter}___: ${data.current_chapter >= tableOfContents.length
+      `DONE WITH CHAPTER ${data.current_chapter}___: ${data.current_chapter >= chapters.length
         ? "Getting ready to create docx file"
         : `Moving to the next - Chapter ${data.current_chapter + 1}`
       }`
     );
 
-    if (data.current_chapter === tableOfContents.length) {
+    if (data.current_chapter === chapters.length) {
       // initialize docx.js when we get to the last chapter
       console.log("Getting ready to Initialize 'data.docx'");
       initializeDocx();
