@@ -1,0 +1,52 @@
+[
+  {
+    "ch-1": "The title of the first chapter",
+    "sch-1": [
+      "1.1 subchapter 1 title",
+      "1.2 subchapter 2 title",
+      "1.3 subchapter 3 title",
+      "1.4 subchapter 4 title"
+    ],
+    "sch-no": "Here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7'"
+  },
+  {
+    "ch-2": "The title of the second chapter",
+    "sch-2": [
+      "2.1 subchapter 1 title",
+      "2.2 subchapter 2 title",
+      "2.3 subchapter 3 title",
+      "...As available"
+    ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-3": "The title of the third chapter",
+    "sch-3": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-4": "The title of the fourth chapter",
+    "sch-4": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-5": "The title of the fifth chapter",
+    "sch-5": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  }
+]

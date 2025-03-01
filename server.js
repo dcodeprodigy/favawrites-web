@@ -184,10 +184,58 @@ const schema = {
     "plot" : "true or false; a boolean value",
     "subchapter" : "true or false; a boolean value",
     "toc" : [
-        {"ch-1": "the title of the first chapter", "sch-2 or sch-3 or sch-4. The number after sch- is gotten from the current chapter. If we were in chapter 30, then you just return sch-30": ["1.1 subchapter 1 title", "1.2 subchapter 2 title", "1.3 subchapter 3 title", "1.4 subchapter 4 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "},
-        {"ch-2": "the title of the second chapter", "sch-2 or sch-3 or sch-4. The number after sch- is gotten from the current chapter. If we were in chapter 30, then you just return sch-30": ["2.1 subchapter 1 title", "2.2 subchapter 2 title", "2.3 subchapter 3 title"], "sch-no": "here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7' "}
+  {
+    "ch-1": "The title of the first chapter",
+    "sch-1": [
+      "1.1 subchapter 1 title",
+      "1.2 subchapter 2 title",
+      "1.3 subchapter 3 title",
+      "1.4 subchapter 4 title"
     ],
-    "chapters" : "Here, input the number of chapters in the toc as a number, not a string. This will help me access the available chapters to automatically prompt you later with code. For example, if you included 9 chapters, the value of this property must be just '9'"
+    "sch-no": "Here, input the number of sub chapters you added in this chapter strictly as a number, not a string. This helps me access this toc for promoting later on. For example, if you included 7 subchapters the value must be a number '7'"
+  },
+  {
+    "ch-2": "The title of the second chapter",
+    "sch-2": [
+      "2.1 subchapter 1 title",
+      "2.2 subchapter 2 title",
+      "2.3 subchapter 3 title",
+      "...As available"
+    ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-3": "The title of the third chapter",
+    "sch-3": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-4": "The title of the fourth chapter",
+    "sch-4": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  },
+  {
+    "ch-5": "The title of the fifth chapter",
+    "sch-5": [
+        "1.1 subchapter 1 title",
+        "1.2 subchapter 2 title",
+        "1.3 subchapter 3 title",
+        "1.4 subchapter 4 title"
+      ],
+    "sch-no": "Number, as described above"
+  }
+],
+    "chapters" : "Here, input the number of chapters in the toc as a number, not a string. You are to use the total length of the toc array you would generate."
 }`,
   plot: `{
     "title" : "String; which represent the name of this subchapter. e.g., '1.1 The subchapter's title'", 
