@@ -427,7 +427,7 @@ app.post("/generate_book", async (req, res) => {
     }
 
     userInputData.description = userDesc.response;
-    console.log(userInputData.description);
+    // console.log(userInputData.description);
     await setUpNewChatSession(userInputData);
     await generateChapters();
     formattedStr = await compileDocx(userInputData);
@@ -602,7 +602,7 @@ async function sendMessageWithRetry(func, flag, delayMs = modelDelay.flash) {
 }
 
 function getTocPrompt(inputData) {
-  console.log(inputData);
+  // console.log(inputData);
   return `Generate a comprehensive table of contents for a book titled {${inputData.title.trim()}}. {${checkForSubtitle(
     inputData
   )}}.
