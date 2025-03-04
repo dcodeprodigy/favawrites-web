@@ -987,7 +987,7 @@ async function generateChapters() {
               9. Reiterating, NEVER use mundane strategies to the reader. Use more nuanced, unique strategies that are not common to lots of people but really very helpful.
               
               MOST IMPORTANTLY, stop cutting your json response. complete the damn thing with the closing curly braces. stop ending it with a triple dot
-              
+              DO NOT WRITE LIKE YOU ARE SPEAKING TO THE EDITOR/AUTHOR. Write as the Author.You are not speaking to any other person, since you sre the author and no one is coming to edit this book after you. Therefore, your writeup must be directed to the reader, not any author. You are writing this book to be publish ready. Also, if this is self help content, you want to use certain punchy lines that would make anyone reading to be like: 'Hmm, that is some bars'. Do not overdo it tho. Maybe one per subchapter.
               This is what you are writing strictly on => "${data.current_chapter /* Using data.current_chapter here instead of 'i' because we are passing this to an external function. Therefore, we do not need to pass arguments for something already accessible globally */
                   }.${index + 1} ${item}"
               
