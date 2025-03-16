@@ -978,7 +978,7 @@ async function generateChapters() {
               Stop trying to conclude everything when I am prompting you. Only conclude when  With that, Never you include the following phrases in a conclusion – Phrases beginning with :
               1. "By incorporating"
               2. Anything beginning with the word "By" should never be in your conclusion
-              3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi colons ";" and dash "–". This will help mimic human written works
+              3. When writing, whether in conclusion or not, STRICTLY AVOID the use of the following – Semi-colons ";" and dash "–". This will help mimic human written works. Oh, also use accurate punctuation, e.g, commas and full-stops.
               4. When writing, whether in conclusion or not, strictly avoid writing like this – "This is not just about<inserts phrase>; It's about<Inserts phrase>" This ensures that you are not giving out AI written works. instead you can try something like – "This is about<inserts phrase> rather than<inserts phrase>"
               5. Whether in your conclusion or not, STRICTLY AVOID the use of the word "Remember". For example, stop writing things like "Remember, this isn't just about<phrase>; it's about<phrase>". I don't want to see such AT ALL as ut reeks of AI generated content.
               6. When concluding, you don't have to conclude everything systematically. Heck that's not how a book should look like. conclude casually, some things don't need conclusions too. 
